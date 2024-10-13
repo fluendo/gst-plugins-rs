@@ -22,6 +22,7 @@ use gst::prelude::*;
 mod common;
 mod quinnquicsink;
 mod quinnquicsrc;
+mod quinnwtclientsrc;
 mod utils;
 
 fn plugin_init(plugin: &gst::Plugin) -> Result<(), glib::BoolError> {
@@ -31,6 +32,7 @@ fn plugin_init(plugin: &gst::Plugin) -> Result<(), glib::BoolError> {
     }
     quinnquicsink::register(plugin)?;
     quinnquicsrc::register(plugin)?;
+    quinnwtclientsrc::register(plugin)?;
 
     Ok(())
 }
