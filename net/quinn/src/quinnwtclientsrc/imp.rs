@@ -137,7 +137,9 @@ impl ElementImpl for QuinnWebTransportClientSrc {
 impl ObjectImpl for QuinnWebTransportClientSrc {
     fn constructed(&self) {
         self.parent_constructed();
-        self.obj().set_format(gst::Format::Bytes);
+        self.obj().set_format(gst::Format::Time);
+        self.obj().set_live(true);
+        self.obj().set_do_timestamp(true);
     }
 
     fn properties() -> &'static [glib::ParamSpec] {
