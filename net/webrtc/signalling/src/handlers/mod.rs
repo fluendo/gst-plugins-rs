@@ -268,6 +268,16 @@ impl Handler {
         consumer_id: &str,
         offer: Option<&str>,
     ) -> Result<(), Error> {
+        let mut producer_id = producer_id;
+
+        if producer_id == "__FIRST__" {
+            for (id, p) in self.peers.iter() {
+                if p.producing() {
+                    producer_id = id;
+                }
+            }
+        }
+
         self.peers.get(producer_id).map_or_else(
             || Err(anyhow!("No producer with ID: '{producer_id}'")),
             |peer| {
