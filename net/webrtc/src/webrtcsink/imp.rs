@@ -832,6 +832,11 @@ fn configure_encoder(enc: &gst::Element, start_bitrate: u32) {
                 enc.set_property_from_str("preset-level", "UltraFastPreset");
                 add_nv4l2enc_force_keyunit_workaround(enc);
             }
+            "fluh266enc" => {
+                enc.set_property("target-bitrate", start_bitrate);
+                enc.set_property_from_str("preset", "faster");
+                enc.set_property("keyframe-period", 2560i32);
+            }
             _ => (),
         }
     }
@@ -1055,12 +1060,13 @@ impl VideoEncoder {
                 | "rav1enc"
                 | "vpuenc_h264"
                 | "nvv4l2av1enc"
+                | "fluh266enc"
         )
     }
 
     fn bitrate(&self) -> Result<i32, WebRTCSinkError> {
         let bitrate = match self.factory_name.as_str() {
-            "vp8enc" | "vp9enc" => self.element.property::<i32>("target-bitrate"),
+            "vp8enc" | "vp9enc" | "fluh266enc" => self.element.property::<i32>("target-bitrate"),
             "av1enc" => (self.element.property::<u32>("target-bitrate") * 1000) as i32,
             "x264enc" | "nvh264enc" | "nvh265enc" | "vaapih264enc" | "vaapivp8enc"
             | "qsvh264enc" | "nvav1enc" | "vpuenc_h264" => {
@@ -1094,7 +1100,7 @@ impl VideoEncoder {
         bitrate: i32,
     ) -> Result<(), WebRTCSinkError> {
         match self.factory_name.as_str() {
-            "vp8enc" | "vp9enc" => self.element.set_property("target-bitrate", bitrate),
+            "vp8enc" | "vp9enc" | "fluh266enc" => self.element.set_property("target-bitrate", bitrate),
             "av1enc" => self
                 .element
                 .set_property("target-bitrate", (bitrate / 1000) as u32),
