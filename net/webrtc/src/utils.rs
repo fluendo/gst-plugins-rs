@@ -749,6 +749,7 @@ impl Codec {
             "VP9" => make_element("vp9parse", None),
             "H264" => make_element("h264parse", None),
             "H265" => make_element("h265parse", None),
+            "H266" => make_element("h266parse", None),
             "AV1" => make_element("av1parse", None),
             _ => return Ok(None),
         }
@@ -776,6 +777,7 @@ impl Codec {
                 }
             }
             "H265" => gst::Caps::new_empty_simple("video/x-h265"),
+            "H266" => gst::Caps::new_empty_simple("video/x-h266"),
             _ => gst::Caps::new_any(),
         }
     }
@@ -799,6 +801,8 @@ pub static H264_CAPS: LazyLock<gst::Caps> =
     LazyLock::new(|| gst::Caps::new_empty_simple("video/x-h264"));
 pub static H265_CAPS: LazyLock<gst::Caps> =
     LazyLock::new(|| gst::Caps::new_empty_simple("video/x-h265"));
+pub static H266_CAPS: LazyLock<gst::Caps> =
+    LazyLock::new(|| gst::Caps::new_empty_simple("video/x-h266"));
 pub static AV1_CAPS: LazyLock<gst::Caps> =
     LazyLock::new(|| gst::Caps::new_empty_simple("video/x-av1"));
 
@@ -882,6 +886,15 @@ static CODECS: LazyLock<Codecs> = LazyLock::new(|| {
             "H264",
             gst::StreamType::VIDEO,
             &H264_CAPS,
+            &decoders,
+            &depayloaders,
+            &encoders,
+            &payloaders,
+        ),
+        Codec::new(
+            "H266",
+            gst::StreamType::VIDEO,
+            &H266_CAPS,
             &decoders,
             &depayloaders,
             &encoders,
@@ -988,7 +1001,7 @@ pub fn cleanup_codec_caps(mut caps: gst::Caps) -> gst::Caps {
     assert!(caps.is_fixed());
 
     if let Some(s) = caps.make_mut().structure_mut(0) {
-        if ["video/x-h264", "video/x-h265"].contains(&s.name().as_str()) {
+        if ["video/x-h264", "video/x-h265", "video/x-h266"].contains(&s.name().as_str()) {
             s.remove_fields(["codec_data"]);
         } else if ["video/x-vp8", "video/x-vp9"].contains(&s.name().as_str()) {
             s.remove_fields(["profile"]);
