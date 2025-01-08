@@ -851,6 +851,11 @@ fn configure_payloader(pay: &gst::Element) {
                 pay.set_property_from_str("aggregate-mode", "zero-latency");
                 pay.set_property("config-interval", -1i32);
             }
+            "rtph266pay" => {
+                // TODO: Aggregation units not supported on rtph266depay: Use none.
+                pay.set_property_from_str("aggregate-mode", "none");
+                pay.set_property("config-interval", -1i32);
+            }
             _ => (),
         }
     }
