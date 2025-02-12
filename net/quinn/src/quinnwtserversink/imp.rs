@@ -68,8 +68,8 @@ impl Default for Settings {
     fn default() -> Self {
         let transport_config = QuinnQuicTransportConfig {
             // Required for the WebTransport handshake
-            max_concurrent_bidi_streams: 2u32.into(),
-            max_concurrent_uni_streams: 1u32.into(),
+            max_concurrent_bidi_streams: 3u32.into(),
+            max_concurrent_uni_streams: 3u32.into(),
             ..Default::default()
         };
 
@@ -623,7 +623,11 @@ impl QuinnWebTransportServerSink {
             ))
         })?;
 
+        gst::info!(CAT, imp = self, "Waiting for connections");
+
         let incoming_conn = endpoint.accept().await.unwrap();
+
+        gst::info!(CAT, imp = self, "Incomming connection");
 
         let connection = incoming_conn.await.map_err(|err| {
             WaitError::FutureError(gst::error_msg!(
