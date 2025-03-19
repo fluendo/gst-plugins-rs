@@ -51,6 +51,7 @@ members = [
     "utils/tracers",
     "utils/uriplaylistbin",
 
+    "video/alpha",
     "video/cdg",
     "video/closedcaption",
     "video/dav1d",

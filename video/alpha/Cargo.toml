@@ -1,0 +1,25 @@
+[package]
+name = "gst-plugin-rsalpha"
+version.workspace = true
+authors = ["Diego Nieto <dnieto@fluendo.com>"]
+repository.workspace = true
+license = "MPL-2.0"
+description = "GStreamer Rust Alpha Plugin"
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+gst.workspace = true
+gst-base.workspace = true
+gst-video.workspace = true
+
+[lib]
+name = "gstrsalpha"
+crate-type = ["cdylib", "rlib"]
+path = "src/lib.rs"
+
+[build-dependencies]
+gst-plugin-version-helper.workspace = true
+
+[features]
+capi = []
