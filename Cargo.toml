@@ -69,6 +69,7 @@ members = [
     "video/videofx",
     "video/vvdec",
     "video/webp",
+    "video/stats",
 ]
 
 # Only plugins without external dependencies
@@ -124,6 +125,7 @@ default-members = [
     "video/hsv",
     "video/png",
     "video/rav1e",
+    "video/stats",
 ]
 
 [profile.release]

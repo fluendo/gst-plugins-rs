@@ -1,0 +1,47 @@
+[package]
+name = "gst-plugin-videostats"
+version = "0.1.0"
+authors = ["Diego Nieto <dnieto@fluendo.com>"]
+repository = "https://gitlab.freedesktop.org/gstreamer/gst-plugins-rs"
+license = "MPL-2.0"
+edition = "2021"
+description = "videostats plugin"
+
+[dependencies]
+hound = "3"
+anyhow = "1"
+glib.workspace = true
+gst.workspace = true
+gst-video.workspace = true
+human_bytes = { version = "0.4", default-features = false }
+atomic_refcell = "0.1"
+
+[lib]
+name = "gstvideostats"
+crate-type = ["cdylib", "rlib"]
+path = "src/lib.rs"
+
+[build-dependencies]
+gst-plugin-version-helper = {  git = "https://gitlab.freedesktop.org/gstreamer/gst-plugins-rs" }
+
+[features]
+capi = []
+static = []
+doc = ["gst/v1_16"]
+
+[package.metadata.capi]
+min_version = "0.9.21"
+
+[package.metadata.capi.header]
+enabled = false
+
+[package.metadata.capi.library]
+install_subdir = "gstreamer-1.0"
+versioning = false
+import_library = false
+
+[target.'cfg(target_os = "linux")'.dependencies]
+procfs = { version = "0.17", default-features = false }
+
+[package.metadata.capi.pkg_config]
+requires_private = "gstreamer-1.0, gstreamer-base-1.0, gobject-2.0, glib-2.0, gmodule-2.0"
