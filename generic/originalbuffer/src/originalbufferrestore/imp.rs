@@ -35,6 +35,7 @@ struct State {
     sinkpad_caps: CapsState,
     meta_caps: CapsState,
     sinkpad_segment: Option<gst::Event>,
+    modified_src_pad_requested: bool,
 }
 
 pub struct OriginalBufferRestore {
@@ -58,6 +59,7 @@ impl ObjectSubclass for OriginalBufferRestore {
     const NAME: &'static str = "GstOriginalBufferRestore";
     type Type = super::OriginalBufferRestore;
     type ParentType = gst::Element;
+    type Interfaces = (gst::ChildProxy,);
 
     fn with_class(klass: &Self::Class) -> Self {
         let sink_templ = klass.pad_template("sink").unwrap();
@@ -105,6 +107,31 @@ impl ObjectSubclass for OriginalBufferRestore {
     }
 }
 
+impl ChildProxyImpl for OriginalBufferRestore {
+    fn children_count(&self) -> u32 {
+        let object = self.obj();
+        object.num_pads() as u32
+    }
+
+    fn child_by_name(&self, name: &str) -> Option<glib::Object> {
+        let object = self.obj();
+        object
+            .pads()
+            .into_iter()
+            .find(|p| p.name() == name)
+            .map(|p| p.upcast())
+    }
+
+    fn child_by_index(&self, index: u32) -> Option<glib::Object> {
+        let object = self.obj();
+        object
+            .pads()
+            .into_iter()
+            .nth(index as usize)
+            .map(|p| p.upcast())
+    }
+}
+
 impl ObjectImpl for OriginalBufferRestore {
     fn constructed(&self) {
         self.parent_constructed();
@@ -141,6 +168,13 @@ impl ElementImpl for OriginalBufferRestore {
                 &caps,
             )
             .unwrap();
+            let src_modified_pad_template = gst::PadTemplate::new(
+                "modified_src",
+                gst::PadDirection::Src,
+                gst::PadPresence::Request,
+                &caps,
+            )
+            .unwrap();
             let sink_pad_template = gst::PadTemplate::new(
                 "sink",
                 gst::PadDirection::Sink,
@@ -149,10 +183,67 @@ impl ElementImpl for OriginalBufferRestore {
             )
             .unwrap();
 
-            vec![src_pad_template, sink_pad_template]
+            vec![src_pad_template, src_modified_pad_template, sink_pad_template]
         });
 
         PAD_TEMPLATES.as_ref()
+    }
+
+    fn request_new_pad(
+        &self,
+        templ: &gst::PadTemplate,
+        name: Option<&str>,
+        _caps: Option<&gst::Caps>,
+    ) -> Option<gst::Pad> {
+        match templ.name_template() {
+            "modified_src" => {
+                gst::error!(CAT, imp = self, "Requesting modified src pad");
+
+                let mut state = self.state.borrow_mut();
+
+                if state.modified_src_pad_requested {
+                    gst::warning!(CAT, imp = self, "modified_pad has already been requested");
+
+                    return None;
+                }
+                state.modified_src_pad_requested = true;
+                drop(state);
+
+                let modified_src_pad = gst::Pad::builder_from_template(templ)
+                    .name("modified_src_pad")
+                    .flags(gst::PadFlags::FIXED_CAPS)
+                    .build();
+
+                let stream_start_evt = gst::event::StreamStart::builder("originalbufferrestore")
+                    .group_id(gst::GroupId::next())
+                    .build();
+
+                modified_src_pad.set_active(true).unwrap();
+                modified_src_pad.push_event(stream_start_evt);
+
+                self.obj()
+                    .add_pad(&modified_src_pad)
+                    .expect("Failed to add modified pad");
+
+                let _ = self
+                    .obj()
+                    .post_message(gst::message::Latency::builder().src(&*self.obj()).build());
+
+
+                self.obj().child_added(&modified_src_pad, &modified_src_pad.name());
+
+                Some(modified_src_pad.upcast())
+            }
+            _ => None,
+        }
+    }
+
+    fn release_pad(&self, pad: &gst::Pad) {
+        gst::error!(CAT, imp = self, "Releasing pad: {}", pad.name());
+
+        self.parent_release_pad(pad);
+
+        self.obj().child_removed(pad, &pad.name());
     }
 
     fn change_state(
@@ -176,18 +267,48 @@ impl OriginalBufferRestore {
         parent: Option<&impl IsA<gst::Object>>,
         event: gst::Event,
     ) -> bool {
+        gst::error!(
+            CAT,
+            imp = self,
+            "Sink pad event: {:?}, type: {:?}",
+            event,
+            event.type_()
+        );
+        let mut state = self.state.borrow_mut();
         match event.view() {
             gst::EventView::Caps(e) => {
-                let mut state = self.state.borrow_mut();
-
                 let caps = e.caps_owned();
                 let vinfo = gst_video::VideoInfo::from_caps(&caps).ok();
                 state.sinkpad_caps = CapsState { caps, vinfo };
+                gst::error!(
+                    CAT,
+                    imp = self,
+                    "Sink pad caps {:?}, VideoInfo {:?}",
+                    state.sinkpad_caps.caps,
+                    state.sinkpad_caps.vinfo
+                );
+                if state.modified_src_pad_requested {
+                    if let Some(modified_src_pad) = self.obj().child_by_name("modified_src_pad") {
+                        let modified_src_pad = modified_src_pad.downcast::<gst::Pad>().unwrap();
+                        gst::Pad::push_event(
+                            &modified_src_pad,
+                            event.clone(),
+                        );
+                    }
+                }
                 true
             }
             gst::EventView::Segment(_) => {
-                let mut state = self.state.borrow_mut();
-                state.sinkpad_segment = Some(event);
+                state.sinkpad_segment = Some(event.clone());
+                if state.modified_src_pad_requested {
+                    if let Some(modified_src_pad) = self.obj().child_by_name("modified_src_pad") {
+                        let modified_src_pad = modified_src_pad.downcast::<gst::Pad>().unwrap();
+                        gst::Pad::push_event(
+                            &modified_src_pad,
+                            event.clone(),
+                        );
+                    }
+                }
                 true
             }
             _ => gst::Pad::event_default(pad, parent, event),
@@ -209,7 +330,14 @@ impl OriginalBufferRestore {
             let event = gst::event::CustomUpstream::new(s);
             self.sink_pad.push_event(event)
         } else {
-            gst::Pad::event_default(pad, parent, event)
+            let res = gst::Pad::event_default(pad, parent, event);
+            gst::error!(
+                CAT,
+                imp = self,
+                "Src pad event default result: {:?}",
+                res,
+            );
+            res
         }
     }
 
@@ -219,6 +347,12 @@ impl OriginalBufferRestore {
         parent: Option<&impl IsA<gst::Object>>,
         query: &mut gst::QueryRef,
     ) -> bool {
+        gst::error!(
+            CAT,
+            imp = self,
+            "Sink pad query: {:?}",
+            query,
+        );
         if let gst::QueryViewMut::Custom(_) = query.view_mut() {
             let s = query.structure_mut();
             if s.has_name("gst-original-buffer-forward-query") {
@@ -240,9 +374,16 @@ impl OriginalBufferRestore {
 
     fn sink_chain(
         &self,
-        _pad: &gst::Pad,
+        pad: &gst::Pad,
         inbuf: gst::Buffer,
     ) -> Result<gst::FlowSuccess, gst::FlowError> {
+        gst::error!(
+            CAT,
+            imp = self,
+            "Sink pad chain: {:?}, buffer: {:?}",
+            pad.name(),
+            inbuf
+        );
         let Some(ometa) = inbuf.meta::<OriginalBufferMeta>() else {
             //gst::element_warning!(self, gst::StreamError::Failed, ["Buffer {} is missing the GstOriginalBufferMeta, put originalbuffersave upstream in your pipeline", buffer]);
             return Ok(gst::FlowSuccess::Ok);
@@ -307,6 +448,18 @@ impl OriginalBufferRestore {
         if let Some(event) = state.sinkpad_segment.take() {
             if !self.src_pad.push_event(event) {
                 return Err(gst::FlowError::Error);
+            }
+        }
+
+        if state.modified_src_pad_requested {
+            gst::error!(
+                CAT,
+                imp = self,
+                "Modified src pad requested, but not implemented yet"
+            );
+            if let Some(modified_src_pad) = self.obj().child_by_name("modified_src_pad") {
+                let modified_src_pad = modified_src_pad.downcast::<gst::Pad>().unwrap();
+                let _ = modified_src_pad.push(inbuf.clone());
             }
         }
 

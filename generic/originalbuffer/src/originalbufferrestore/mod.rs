@@ -18,7 +18,7 @@ use gst::prelude::*;
 mod imp;
 
 glib::wrapper! {
-    pub struct OriginalBufferRestore(ObjectSubclass<imp::OriginalBufferRestore>) @extends gst::Element, gst::Object;
+    pub struct OriginalBufferRestore(ObjectSubclass<imp::OriginalBufferRestore>) @extends gst::Element, gst::Object, @implements gst::ChildProxy;
 }
 
 pub fn register(plugin: &gst::Plugin) -> Result<(), glib::BoolError> {
