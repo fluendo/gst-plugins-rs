@@ -206,17 +206,87 @@ impl ObjectImpl for EncoderStats {
                     }
                     enc_obj.set_property("name", "enc");
 
+                    let originalbuffersave = gst::ElementFactory::make("originalbuffersave")
+                        .build()
+                        .expect("Failed to create originalbuffersave element");
+                    self.obj().add(&originalbuffersave).expect("Failed to add originalbuffersave element");
+
                     self.obj().add(&self.identity).unwrap();
-                    self.srcpad
-                        .set_target(Some(&self.identity.static_pad("src").unwrap()))
-                        .unwrap();
+
+                    let tee0 = gst::ElementFactory::make("tee")
+                        .name("tee0")
+                        .build()
+                        .expect("Failed to create tee0 element");
+                    self.obj().add(&tee0).unwrap();
 
                     self.obj().add(&enc_obj).expect("Failed to add encoder element");
+                    originalbuffersave.link(&enc_obj).expect("Failed to link originalbuffersave to encoder");
+                    enc_obj.link(&self.identity).expect("Failed to link encoder to identity");
+                    self.identity.link(&tee0).expect("Failed to link identity to tee0");
+
+                    let tee0_src_0 = tee0.request_pad_simple("src_%u").expect("tee0 src pad");
+                    self.srcpad.set_target(Some(&tee0_src_0)).unwrap();
+
                     self.sinkpad
-                        .set_target(Some(&enc_obj.static_pad( "sink").unwrap()))
-                        .expect("Failed to link sink pad to encoder element");
-                    enc_obj.link(&self.obj().by_name("identity").expect("expected identity"))
-                        .expect("Failed to link encoder to identity");
+                        .set_target(Some(&originalbuffersave.static_pad("sink").unwrap()))
+                        .expect("Failed to link sink pad to originalbuffersave element");
+
+                    let tee0_src_1 = tee0.request_pad_simple("src_%u").expect("tee0 src_1");
+                    let decodebin3 = gst::ElementFactory::make("decodebin3")
+                        .build()
+                        .expect("Failed to create decodebin3");
+                    let tee2 = gst::ElementFactory::make("tee")
+                        .name("tee2")
+                        .build()
+                        .expect("Failed to create tee2");
+                    let originalbufferstore = gst::ElementFactory::make("originalbufferrestore")
+                        .build()
+                        .expect("Failed to create originalbufferrestore");
+                    let vmaf = gst::ElementFactory::make("vmaf")
+                        .name("vmaf0")
+                        .build()
+                        .expect("Failed to create vmaf");
+                    vmaf.set_property("signal-scores", true);
+                    {
+                        let stats = self.stats.clone();
+                        vmaf.connect_closure(
+                            "score",
+                            false,
+                            glib::closure!(
+                                move |_vmaf: &gst::Element, score: f64| {
+                                    let mut stats = stats.lock().unwrap();
+                                    stats.vmaf_score = score;
+                            }
+                            ),
+                        );
+                    }
+                    let fakesink = gst::ElementFactory::make("fakesink")
+                        .build()
+                        .expect("Failed to create fakesink");
+
+                    self.obj().add_many([
+                        &decodebin3, &tee2, &originalbufferstore, &vmaf, &fakesink,
+                    ].as_ref()).expect("Failed to add vmaf branch elements");
+
+                    tee0_src_1.link(&decodebin3.static_pad("sink").unwrap()).expect("tee0.src_1 -> decodebin3");
+
+                    let tee2_clone = tee2.clone();
+                    let originalbufferstore_clone = originalbufferstore.clone();
+                    let vmaf_clone = vmaf.clone();
+                    let fakesink_clone = fakesink.clone();
+                    decodebin3.connect_pad_added(move |_dbin, src_pad| {
+                        let tee2_sink = tee2_clone.static_pad("sink").unwrap();
+                        if src_pad.link(&tee2_sink).is_ok() {
+                            let tee2_src_0 = tee2_clone.request_pad_simple("src_%u").expect("tee2 src_0");
+                            tee2_src_0.link(&originalbufferstore_clone.static_pad("sink").unwrap()).expect("tee2.src_0 -> originalbufferstore");
+                            originalbufferstore_clone.link(&vmaf_clone).expect("originalbufferrestore -> vmaf");
+                            vmaf_clone.link(&fakesink_clone).expect("vmaf -> fakesink");
+
+                            let tee2_src_1 = tee2_clone.request_pad_simple("src_%u").expect("tee2 src_1");
+                            let vmaf_sink_1 = vmaf_clone.request_pad_simple("sink_1").expect("vmaf sink_1");
+                            tee2_src_1.link(&vmaf_sink_1).expect("tee2.src_1 -> vmaf.sink_1");
+                        }
+                    });
 
                     unsafe
                     {
