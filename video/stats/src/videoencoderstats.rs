@@ -26,6 +26,7 @@ pub struct VideoEncoderStats {
     pub threads_utime: u64,
     pub threads_stime: u64,
     pub framerate: Option<gst::Fraction>,
+    pub vmaf_score: f64,
 }
 
 impl VideoEncoderStats {
@@ -90,7 +91,7 @@ impl fmt::Display for VideoEncoderStats {
         let processing_time = self.avg_processing_time();
         writeln!(
             f,
-            "Processing time: {}",
+            "Processing time: {:.3}",
             processing_time.as_secs_f64()
         )?;
 
@@ -99,6 +100,13 @@ impl fmt::Display for VideoEncoderStats {
             f,
             "CPU time: {}",
             cpu_time
+        )?;
+
+        let vmaf_score = self.vmaf_score;
+        writeln!(
+            f,
+            "VMAF score: {:.3}",
+            vmaf_score
         )
     }
 }
