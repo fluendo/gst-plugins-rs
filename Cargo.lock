@@ -2495,7 +2495,7 @@ dependencies = [
  "atomic_refcell",
  "byte-slice-cast",
  "ebur128",
- "gst-plugin-version-helper",
+ "gst-plugin-version-helper 0.8.1",
  "gstreamer",
  "gstreamer-app",
  "gstreamer-audio",
@@ -2527,7 +2527,7 @@ dependencies = [
  "env_logger",
  "futures",
  "gio",
- "gst-plugin-version-helper",
+ "gst-plugin-version-helper 0.8.1",
  "gstreamer",
  "gstreamer-audio",
  "gstreamer-base",
@@ -2551,7 +2551,7 @@ version = "0.14.0-alpha.1"
 dependencies = [
  "cdg",
  "cdg_renderer",
- "gst-plugin-version-helper",
+ "gst-plugin-version-helper 0.8.1",
  "gstreamer",
  "gstreamer-app",
  "gstreamer-base",
@@ -2566,7 +2566,7 @@ dependencies = [
  "atomic_refcell",
  "byte-slice-cast",
  "claxon",
- "gst-plugin-version-helper",
+ "gst-plugin-version-helper 0.8.1",
  "gstreamer",
  "gstreamer-audio",
  "gstreamer-check",
@@ -2587,7 +2587,7 @@ dependencies = [
  "chrono",
  "clap",
  "either",
- "gst-plugin-version-helper",
+ "gst-plugin-version-helper 0.8.1",
  "gstreamer",
  "gstreamer-base",
  "gstreamer-check",
@@ -2610,7 +2610,7 @@ version = "0.14.0-alpha.1"
 dependencies = [
  "byte-slice-cast",
  "csound",
- "gst-plugin-version-helper",
+ "gst-plugin-version-helper 0.8.1",
  "gstreamer",
  "gstreamer-audio",
  "gstreamer-base",
@@ -2622,7 +2622,7 @@ name = "gst-plugin-dav1d"
 version = "0.14.0-alpha.1"
 dependencies = [
  "dav1d",
- "gst-plugin-version-helper",
+ "gst-plugin-version-helper 0.8.1",
  "gstreamer",
  "gstreamer-base",
  "gstreamer-video",
@@ -2635,7 +2635,7 @@ version = "0.14.0-alpha.1"
 dependencies = [
  "gio",
  "gst-plugin-gtk4",
- "gst-plugin-version-helper",
+ "gst-plugin-version-helper 0.8.1",
  "gstreamer",
  "gstreamer-app",
  "gstreamer-audio",
@@ -2653,7 +2653,7 @@ version = "0.14.0-alpha.1"
 dependencies = [
  "byte-slice-cast",
  "ffv1",
- "gst-plugin-version-helper",
+ "gst-plugin-version-helper 0.8.1",
  "gstreamer",
  "gstreamer-check",
  "gstreamer-video",
@@ -2663,7 +2663,7 @@ dependencies = [
 name = "gst-plugin-file"
 version = "0.14.0-alpha.1"
 dependencies = [
- "gst-plugin-version-helper",
+ "gst-plugin-version-helper 0.8.1",
  "gstreamer",
  "gstreamer-base",
  "url",
@@ -2675,7 +2675,7 @@ version = "0.14.0-alpha.1"
 dependencies = [
  "byteorder",
  "flavors",
- "gst-plugin-version-helper",
+ "gst-plugin-version-helper 0.8.1",
  "gstreamer",
  "gstreamer-audio",
  "gstreamer-base",
@@ -2692,7 +2692,7 @@ dependencies = [
  "bitstream-io",
  "chrono",
  "dash-mpd",
- "gst-plugin-version-helper",
+ "gst-plugin-version-helper 0.8.1",
  "gstreamer",
  "gstreamer-app",
  "gstreamer-audio",
@@ -2711,7 +2711,7 @@ version = "0.14.0-alpha.1"
 dependencies = [
  "atomic_refcell",
  "gif",
- "gst-plugin-version-helper",
+ "gst-plugin-version-helper 0.8.1",
  "gstreamer",
  "gstreamer-check",
  "gstreamer-video",
@@ -2722,7 +2722,7 @@ name = "gst-plugin-gopbuffer"
 version = "0.14.0-alpha.1"
 dependencies = [
  "anyhow",
- "gst-plugin-version-helper",
+ "gst-plugin-version-helper 0.8.1",
  "gstreamer",
  "gstreamer-app",
  "gstreamer-check",
@@ -2737,7 +2737,7 @@ dependencies = [
  "gdk4-wayland",
  "gdk4-win32",
  "gdk4-x11",
- "gst-plugin-version-helper",
+ "gst-plugin-version-helper 0.8.1",
  "gstreamer",
  "gstreamer-allocators",
  "gstreamer-base",
@@ -2763,7 +2763,7 @@ dependencies = [
  "gio",
  "gst-plugin-fmp4",
  "gst-plugin-hlssink3",
- "gst-plugin-version-helper",
+ "gst-plugin-version-helper 0.8.1",
  "gstreamer",
  "gstreamer-app",
  "gstreamer-audio",
@@ -2782,7 +2782,7 @@ dependencies = [
  "anyhow",
  "chrono",
  "gio",
- "gst-plugin-version-helper",
+ "gst-plugin-version-helper 0.8.1",
  "gstreamer",
  "gstreamer-app",
  "gstreamer-audio",
@@ -2798,7 +2798,7 @@ name = "gst-plugin-hsv"
 version = "0.14.0-alpha.1"
 dependencies = [
  "byte-slice-cast",
- "gst-plugin-version-helper",
+ "gst-plugin-version-helper 0.8.1",
  "gstreamer",
  "gstreamer-audio",
  "gstreamer-base",
@@ -2813,7 +2813,7 @@ version = "0.14.0-alpha.1"
 dependencies = [
  "anyhow",
  "futures",
- "gst-plugin-version-helper",
+ "gst-plugin-version-helper 0.8.1",
  "gstreamer",
  "gstreamer-app",
  "gstreamer-check",
@@ -2828,7 +2828,7 @@ dependencies = [
 name = "gst-plugin-json"
 version = "0.14.0-alpha.1"
 dependencies = [
- "gst-plugin-version-helper",
+ "gst-plugin-version-helper 0.8.1",
  "gstreamer",
  "gstreamer-check",
  "serde",
@@ -2841,7 +2841,7 @@ version = "0.14.0-alpha.1"
 dependencies = [
  "atomic_refcell",
  "byte-slice-cast",
- "gst-plugin-version-helper",
+ "gst-plugin-version-helper 0.8.1",
  "gstreamer",
  "gstreamer-audio",
  "gstreamer-check",
@@ -2854,7 +2854,7 @@ version = "0.14.0-alpha.1"
 dependencies = [
  "gio",
  "gst-plugin-gtk4",
- "gst-plugin-version-helper",
+ "gst-plugin-version-helper 0.8.1",
  "gstreamer",
  "gstreamer-audio",
  "gstreamer-check",
@@ -2869,7 +2869,7 @@ version = "0.14.0-alpha.1"
 dependencies = [
  "anyhow",
  "bitstream-io",
- "gst-plugin-version-helper",
+ "gst-plugin-version-helper 0.8.1",
  "gstreamer",
  "gstreamer-audio",
  "gstreamer-base",
@@ -2886,7 +2886,7 @@ version = "0.14.0-alpha.1"
 dependencies = [
  "anyhow",
  "bitstream-io",
- "gst-plugin-version-helper",
+ "gst-plugin-version-helper 0.8.1",
  "gstreamer",
  "smallvec",
 ]
@@ -2900,7 +2900,7 @@ dependencies = [
  "byteorder",
  "data-encoding",
  "glib",
- "gst-plugin-version-helper",
+ "gst-plugin-version-helper 0.8.1",
  "gstreamer",
  "gstreamer-audio",
  "gstreamer-base",
@@ -2917,7 +2917,7 @@ version = "0.14.0-alpha.1"
 dependencies = [
  "cairo-rs",
  "chrono",
- "gst-plugin-version-helper",
+ "gst-plugin-version-helper 0.8.1",
  "gstreamer",
  "gstreamer-base",
  "gstreamer-rtp",
@@ -2934,7 +2934,7 @@ version = "0.14.0-alpha.1"
 dependencies = [
  "atomic_refcell",
  "glib",
- "gst-plugin-version-helper",
+ "gst-plugin-version-helper 0.8.1",
  "gstreamer",
  "gstreamer-video",
 ]
@@ -2943,7 +2943,7 @@ dependencies = [
 name = "gst-plugin-png"
 version = "0.14.0-alpha.1"
 dependencies = [
- "gst-plugin-version-helper",
+ "gst-plugin-version-helper 0.8.1",
  "gstreamer",
  "gstreamer-check",
  "gstreamer-video",
@@ -2962,7 +2962,7 @@ dependencies = [
  "env_logger",
  "futures",
  "glib",
- "gst-plugin-version-helper",
+ "gst-plugin-version-helper 0.8.1",
  "gstreamer",
  "gstreamer-base",
  "gstreamer-check",
@@ -2985,7 +2985,7 @@ dependencies = [
 name = "gst-plugin-raptorq"
 version = "0.14.0-alpha.1"
 dependencies = [
- "gst-plugin-version-helper",
+ "gst-plugin-version-helper 0.8.1",
  "gstreamer",
  "gstreamer-base",
  "gstreamer-check",
@@ -2999,7 +2999,7 @@ name = "gst-plugin-rav1e"
 version = "0.14.0-alpha.1"
 dependencies = [
  "atomic_refcell",
- "gst-plugin-version-helper",
+ "gst-plugin-version-helper 0.8.1",
  "gstreamer",
  "gstreamer-check",
  "gstreamer-video",
@@ -3010,7 +3010,7 @@ dependencies = [
 name = "gst-plugin-regex"
 version = "0.14.0-alpha.1"
 dependencies = [
- "gst-plugin-version-helper",
+ "gst-plugin-version-helper 0.8.1",
  "gstreamer",
  "gstreamer-check",
  "regex",
@@ -3022,7 +3022,7 @@ version = "0.14.0-alpha.1"
 dependencies = [
  "chrono",
  "glib",
- "gst-plugin-version-helper",
+ "gst-plugin-version-helper 0.8.1",
  "gstreamer",
  "gstreamer-analytics",
  "gstreamer-base",
@@ -3037,7 +3037,7 @@ version = "0.14.0-alpha.1"
 dependencies = [
  "bytes",
  "futures",
- "gst-plugin-version-helper",
+ "gst-plugin-version-helper 0.8.1",
  "gstreamer",
  "gstreamer-base",
  "headers 0.4.0",
@@ -3061,7 +3061,7 @@ dependencies = [
  "chrono",
  "futures",
  "gio",
- "gst-plugin-version-helper",
+ "gst-plugin-version-helper 0.8.1",
  "gstreamer",
  "gstreamer-app",
  "gstreamer-audio",
@@ -3090,7 +3090,7 @@ dependencies = [
  "atomic_refcell",
  "data-encoding",
  "futures",
- "gst-plugin-version-helper",
+ "gst-plugin-version-helper 0.8.1",
  "gstreamer",
  "gstreamer-app",
  "gstreamer-net",
@@ -3110,7 +3110,7 @@ name = "gst-plugin-sodium"
 version = "0.14.0-alpha.1"
 dependencies = [
  "clap",
- "gst-plugin-version-helper",
+ "gst-plugin-version-helper 0.8.1",
  "gstreamer",
  "gstreamer-app",
  "gstreamer-base",
@@ -3131,7 +3131,7 @@ dependencies = [
  "async-tungstenite",
  "atomic_refcell",
  "futures",
- "gst-plugin-version-helper",
+ "gst-plugin-version-helper 0.8.1",
  "gstreamer",
  "gstreamer-audio",
  "gstreamer-base",
@@ -3148,7 +3148,7 @@ version = "0.14.0-alpha.1"
 dependencies = [
  "anyhow",
  "futures",
- "gst-plugin-version-helper",
+ "gst-plugin-version-helper 0.8.1",
  "gstreamer",
  "gstreamer-base",
  "librespot-core",
@@ -3162,7 +3162,7 @@ dependencies = [
 name = "gst-plugin-streamgrouper"
 version = "0.14.0-alpha.1"
 dependencies = [
- "gst-plugin-version-helper",
+ "gst-plugin-version-helper 0.8.1",
  "gstreamer",
  "gstreamer-check",
 ]
@@ -3171,7 +3171,7 @@ dependencies = [
 name = "gst-plugin-textahead"
 version = "0.14.0-alpha.1"
 dependencies = [
- "gst-plugin-version-helper",
+ "gst-plugin-version-helper 0.8.1",
  "gstreamer",
 ]
 
@@ -3179,7 +3179,7 @@ dependencies = [
 name = "gst-plugin-textwrap"
 version = "0.14.0-alpha.1"
 dependencies = [
- "gst-plugin-version-helper",
+ "gst-plugin-version-helper 0.8.1",
  "gstreamer",
  "gstreamer-check",
  "hyphenation",
@@ -3200,7 +3200,7 @@ dependencies = [
  "futures",
  "getifaddrs",
  "gio",
- "gst-plugin-version-helper",
+ "gst-plugin-version-helper 0.8.1",
  "gstreamer",
  "gstreamer-app",
  "gstreamer-audio",
@@ -3227,7 +3227,7 @@ dependencies = [
  "either",
  "gio",
  "gst-plugin-gtk4",
- "gst-plugin-version-helper",
+ "gst-plugin-version-helper 0.8.1",
  "gstreamer",
  "gstreamer-audio",
  "gstreamer-check",
@@ -3246,7 +3246,7 @@ dependencies = [
  "chrono",
  "etherparse",
  "futures",
- "gst-plugin-version-helper",
+ "gst-plugin-version-helper 0.8.1",
  "gstreamer",
  "pcap-file",
  "regex",
@@ -3264,7 +3264,7 @@ name = "gst-plugin-tutorial"
 version = "0.14.0-alpha.1"
 dependencies = [
  "byte-slice-cast",
- "gst-plugin-version-helper",
+ "gst-plugin-version-helper 0.8.1",
  "gstreamer",
  "gstreamer-audio",
  "gstreamer-base",
@@ -3278,7 +3278,7 @@ version = "0.14.0-alpha.1"
 dependencies = [
  "anyhow",
  "clap",
- "gst-plugin-version-helper",
+ "gst-plugin-version-helper 0.8.1",
  "gstreamer",
  "gstreamer-app",
  "more-asserts",
@@ -3296,6 +3296,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "gst-plugin-version-helper"
+version = "0.8.1"
+source = "git+https://gitlab.freedesktop.org/gstreamer/gst-plugins-rs#c580400d5c96439b9451ccb669449859e36ebdc2"
+dependencies = [
+ "chrono",
+ "toml_edit",
+]
+
+[[package]]
 name = "gst-plugin-videofx"
 version = "0.14.0-alpha.1"
 dependencies = [
@@ -3304,7 +3313,7 @@ dependencies = [
  "color-name",
  "color-thief",
  "dssim-core",
- "gst-plugin-version-helper",
+ "gst-plugin-version-helper 0.8.1",
  "gstreamer",
  "gstreamer-base",
  "gstreamer-check",
@@ -3315,10 +3324,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "gst-plugin-videostats"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "atomic_refcell",
+ "glib",
+ "gst-plugin-version-helper 0.8.1 (git+https://gitlab.freedesktop.org/gstreamer/gst-plugins-rs)",
+ "gstreamer",
+ "gstreamer-video",
+ "hound",
+ "human_bytes",
+ "procfs",
+]
+
+[[package]]
 name = "gst-plugin-vvdec"
 version = "0.14.0-alpha.1"
 dependencies = [
- "gst-plugin-version-helper",
+ "gst-plugin-version-helper 0.8.1",
  "gstreamer",
  "gstreamer-audio",
  "gstreamer-check",
@@ -3330,7 +3354,7 @@ dependencies = [
 name = "gst-plugin-webp"
 version = "0.14.0-alpha.1"
 dependencies = [
- "gst-plugin-version-helper",
+ "gst-plugin-version-helper 0.8.1",
  "gstreamer",
  "gstreamer-check",
  "gstreamer-video",
@@ -3360,7 +3384,7 @@ dependencies = [
  "fastrand",
  "futures",
  "gst-plugin-rtp",
- "gst-plugin-version-helper",
+ "gst-plugin-version-helper 0.8.1",
  "gst-plugin-webrtc-signalling",
  "gst-plugin-webrtc-signalling-protocol",
  "gstreamer",
@@ -3434,7 +3458,7 @@ dependencies = [
  "async-recursion",
  "bytes",
  "futures",
- "gst-plugin-version-helper",
+ "gst-plugin-version-helper 0.8.1",
  "gstreamer",
  "gstreamer-sdp",
  "gstreamer-webrtc",
@@ -4081,6 +4105,12 @@ checksum = "5444c27eef6923071f7ebcc33e3444508466a76f7a2b93da00ed6e19f30c1ddb"
 dependencies = [
  "windows-sys 0.48.0",
 ]
+
+[[package]]
+name = "hound"
+version = "3.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "62adaabb884c94955b19907d60019f4e145d091c75345379e70d1ee696f7854f"
 
 [[package]]
 name = "hrtf"
@@ -5924,6 +5954,28 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a31971752e70b8b2686d7e46ec17fb38dad4051d94024c88df49b667caea9c84"
 dependencies = [
  "unicode-ident",
+]
+
+[[package]]
+name = "procfs"
+version = "0.17.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cc5b72d8145275d844d4b5f6d4e1eef00c8cd889edb6035c21675d1bb1f45c9f"
+dependencies = [
+ "bitflags 2.9.0",
+ "hex",
+ "procfs-core",
+ "rustix",
+]
+
+[[package]]
+name = "procfs-core"
+version = "0.17.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "239df02d8349b06fc07398a3a1697b06418223b1c7725085e801e7c0fc6a12ec"
+dependencies = [
+ "bitflags 2.9.0",
+ "hex",
 ]
 
 [[package]]
