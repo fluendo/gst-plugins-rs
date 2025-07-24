@@ -54,6 +54,8 @@ pub struct VideoCompareMixer {
     queue1: gst::Element,
     overlay0: gst::Element,
     overlay1: gst::Element,
+    crop0: gst::Element,
+    crop1: gst::Element,
     settings: Mutex<Settings>,
 }
 
@@ -101,8 +103,10 @@ impl VideoCompareMixer {
     ) -> Result<(), gst::ErrorMessage> {
         self.overlay0.set_property_from_str("line-alignment", "left");
         self.overlay0.set_property_from_str("halignment", "left");
+        self.overlay0.set_property_from_str("valignment", "top");
         self.overlay1.set_property_from_str("line-alignment", "right");
         self.overlay1.set_property_from_str("halignment", "right");
+        self.overlay1.set_property_from_str("valignment", "top");
 
         let compositor_pad0 = compositor
             .request_pad_simple("sink_0")
@@ -126,6 +130,12 @@ impl VideoCompareMixer {
         self.obj()
             .add(&self.overlay1)
             .expect("Failed to add overlay1 element");
+        self.obj()
+            .add(&self.crop0)
+            .expect("Failed to add crop0 element");
+        self.obj()
+            .add(&self.crop1)
+            .expect("Failed to add crop1 element");
 
         self.sinkpad0
             .set_target(Some(&self.queue0.static_pad("sink").unwrap()))
@@ -134,25 +144,35 @@ impl VideoCompareMixer {
             .set_target(Some(&self.queue1.static_pad("sink").unwrap()))
             .expect("Failed to link sinkpad1 to queue1");
         self.queue0
-            .static_pad( "src")
-            .unwrap()
-            .link(&self.overlay0.static_pad("video_sink").unwrap())
-            .expect("Failed to link queue0 to compositor");
-        self.queue1
             .static_pad("src")
             .unwrap()
-            .link( &self.overlay1.static_pad( "video_sink").unwrap())
-            .expect("Failed to link queue1 to compositor");
+            .link(&self.overlay0.static_pad("video_sink").unwrap())
+            .expect("Failed to link queue0 to overlay0");
         self.overlay0
             .static_pad("src")
             .unwrap()
+            .link(&self.crop0.static_pad("sink").unwrap())
+            .expect("Failed to link overlay0 to crop0");
+        self.crop0
+            .static_pad("src")
+            .unwrap()
             .link(&compositor_pad0)
-            .expect("Failed to link overlay0 to compositor");
+            .expect("Failed to link crop0 to compositor");
+        self.queue1
+            .static_pad("src")
+            .unwrap()
+            .link(&self.overlay1.static_pad("video_sink").unwrap())
+            .expect("Failed to link queue1 to overlay1");
         self.overlay1
             .static_pad("src")
             .unwrap()
+            .link(&self.crop1.static_pad("sink").unwrap())
+            .expect("Failed to link overlay1 to crop1");
+        self.crop1
+            .static_pad("src")
+            .unwrap()
             .link(&compositor_pad1)
-            .expect("Failed to link overlay1 to compositor");
+            .expect("Failed to link crop1 to compositor");
         self.srcpad
             .set_target(Some(&compositor.static_pad("src").unwrap()))
             .expect("Failed to link srcpad to compositor");
@@ -167,8 +187,15 @@ impl VideoCompareMixer {
             Caps(c) => {
                 let caps = c.caps();
                 let s = caps.structure(0).unwrap();
+                let width = s.get::<i32>("width").unwrap();
+                let half_width = width / 2;
+
+                // Set crop properties for both crops
+                self.crop0.set_property("right", half_width);
+                self.crop1.set_property("left", half_width);
+
                 let compositor_sink1_pad = self.obj().by_name("compositor").unwrap().static_pad("sink_1").unwrap();
-                compositor_sink1_pad.set_property("xpos", s.get::<i32>("width").unwrap());
+                compositor_sink1_pad.set_property("xpos", half_width);
                 gst::info!(CAT, "Received caps {caps:?}");
             }
             _ => {
@@ -216,6 +243,16 @@ impl ObjectSubclass for VideoCompareMixer {
             .expect("Failed to create overlay1");
         overlay1.set_property("name", "overlay1");
 
+        let crop0 = gst::ElementFactory::make("videocrop")
+            .build()
+            .expect("Failed to create crop0");
+        crop0.set_property("name", "crop0");
+
+        let crop1 = gst::ElementFactory::make("videocrop")
+            .build()
+            .expect("Failed to create crop1");
+        crop1.set_property("name", "crop1");
+
         Self {
             srcpad,
             sinkpad0,
@@ -224,6 +261,8 @@ impl ObjectSubclass for VideoCompareMixer {
             queue1,
             overlay0,
             overlay1,
+            crop0,
+            crop1,
             settings: Mutex::new(Settings::default()),
         }
     }
