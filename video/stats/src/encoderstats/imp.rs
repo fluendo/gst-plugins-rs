@@ -218,30 +218,63 @@ impl ObjectImpl for EncoderStats {
                         .build()
                         .expect("Failed to create tee0 element");
                     self.obj().add(&tee0).unwrap();
-
+                    
                     self.obj().add(&enc_obj).expect("Failed to add encoder element");
                     originalbuffersave.link(&enc_obj).expect("Failed to link originalbuffersave to encoder");
                     enc_obj.link(&self.identity).expect("Failed to link encoder to identity");
                     self.identity.link(&tee0).expect("Failed to link identity to tee0");
-
+                    
                     let tee0_src_0 = tee0.request_pad_simple("src_%u").expect("tee0 src pad");
-                    self.srcpad.set_target(Some(&tee0_src_0)).unwrap();
+                    let queue0 = gst::ElementFactory::make("queue")
+                    .name("encq0")
+                    .build()
+                    .expect("Failed to create queue encq0");
+                    self.obj().add(&queue0).expect("Failed to add queue encq0");
+                    let queue0_sink_pad = queue0.static_pad("sink").unwrap();
+                    let queue0_src_pad = queue0.static_pad("src").unwrap();
+                    tee0_src_0.link(&queue0_sink_pad).expect("tee0.src_0 -> encq0.sink");
+                    self.srcpad.set_target(Some(&queue0_src_pad)).unwrap();
 
                     self.sinkpad
                         .set_target(Some(&originalbuffersave.static_pad("sink").unwrap()))
                         .expect("Failed to link sink pad to originalbuffersave element");
 
                     let tee0_src_1 = tee0.request_pad_simple("src_%u").expect("tee0 src_1");
+                    let queue1 = gst::ElementFactory::make("queue")
+                        .name("encq1")
+                        .build()
+                        .expect("Failed to create queue encq1");
                     let decodebin3 = gst::ElementFactory::make("decodebin3")
                         .build()
                         .expect("Failed to create decodebin3");
-                    let tee2 = gst::ElementFactory::make("tee")
-                        .name("tee2")
+                    // Add videoconvert after decodebin3 and before capsfilter
+                    let videoconvert = gst::ElementFactory::make("videoconvert")
                         .build()
-                        .expect("Failed to create tee2");
+                        .expect("Failed to create videoconvert");
+                    let capsfilter = gst::ElementFactory::make("capsfilter")
+                        .build()
+                        .expect("Failed to create capsfilter");
+                    let caps = gst::Caps::builder("video/x-raw")
+                        .field("format", &"I420")
+                        .build();
+                    capsfilter.set_property("caps", &caps);
+                    let tee1 = gst::ElementFactory::make("tee")
+                        .name("tee1")
+                        .build()
+                        .expect("Failed to create tee1 element");
                     let originalbufferstore = gst::ElementFactory::make("originalbufferrestore")
                         .build()
                         .expect("Failed to create originalbufferrestore");
+                    // Add queue before originalbufferrestore -> vmaf
+                    let queue_vmaf_0 = gst::ElementFactory::make("queue")
+                        .name("queue_vmaf_0")
+                        .build()
+                        .expect("Failed to create queue_vmaf_0");
+                    // Add queue before vmaf sink_1
+                    let queue_vmaf_1 = gst::ElementFactory::make("queue")
+                        .name("queue_vmaf_1")
+                        .build()
+                        .expect("Failed to create queue_vmaf_1");
                     let vmaf = gst::ElementFactory::make("vmaf")
                         .name("vmaf0")
                         .build()
@@ -265,26 +298,45 @@ impl ObjectImpl for EncoderStats {
                         .expect("Failed to create fakesink");
 
                     self.obj().add_many([
-                        &decodebin3, &tee2, &originalbufferstore, &vmaf, &fakesink,
+                        &queue1, &decodebin3, &videoconvert, &capsfilter, &tee1,
+                        &originalbufferstore, &queue_vmaf_0, &vmaf, &queue_vmaf_1, &fakesink,
                     ].as_ref()).expect("Failed to add vmaf branch elements");
 
-                    tee0_src_1.link(&decodebin3.static_pad("sink").unwrap()).expect("tee0.src_1 -> decodebin3");
+                    tee0_src_1.link(&queue1.static_pad("sink").unwrap()).expect("tee0.src_1 -> decodebin3");
+                    queue1.static_pad("src").unwrap().link(&decodebin3.static_pad("sink").unwrap()).expect("encq1.src -> decodebin3.sink");
 
-                    let tee2_clone = tee2.clone();
+                    let tee1_clone = tee1.clone();
                     let originalbufferstore_clone = originalbufferstore.clone();
+                    let queue_vmaf_0_clone = queue_vmaf_0.clone();
                     let vmaf_clone = vmaf.clone();
+                    let queue_vmaf_1_clone = queue_vmaf_1.clone();
                     let fakesink_clone = fakesink.clone();
+                    let videoconvert_clone = videoconvert.clone();
+                    let capsfilter_clone = capsfilter.clone();
                     decodebin3.connect_pad_added(move |_dbin, src_pad| {
-                        let tee2_sink = tee2_clone.static_pad("sink").unwrap();
-                        if src_pad.link(&tee2_sink).is_ok() {
-                            let tee2_src_0 = tee2_clone.request_pad_simple("src_%u").expect("tee2 src_0");
-                            tee2_src_0.link(&originalbufferstore_clone.static_pad("sink").unwrap()).expect("tee2.src_0 -> originalbufferstore");
-                            originalbufferstore_clone.link(&vmaf_clone).expect("originalbufferrestore -> vmaf");
-                            vmaf_clone.link(&fakesink_clone).expect("vmaf -> fakesink");
+                        // Link decodebin3 src_pad -> videoconvert -> capsfilter -> tee1
+                        let videoconvert_sink = videoconvert_clone.static_pad("sink").unwrap();
+                        if src_pad.link(&videoconvert_sink).is_ok() {
+                            let videoconvert_src = videoconvert_clone.static_pad("src").unwrap();
+                            let capsfilter_sink = capsfilter_clone.static_pad("sink").unwrap();
+                            if videoconvert_src.link(&capsfilter_sink).is_ok() {
+                                let capsfilter_src = capsfilter_clone.static_pad("src").unwrap();
+                                let tee1_sink = tee1_clone.static_pad("sink").unwrap();
+                                if capsfilter_src.link(&tee1_sink).is_ok() {
+                                    let tee1_src_0 = tee1_clone.request_pad_simple("src_%u").expect("tee1 src_0");
+                                    // Link: tee1.src_0 -> originalbufferstore -> queue_vmaf_0 -> vmaf -> fakesink
+                                    tee1_src_0.link(&originalbufferstore_clone.static_pad("sink").unwrap()).expect("tee1.src_0 -> originalbufferstore");
+                                    originalbufferstore_clone.link(&queue_vmaf_0_clone).expect("originalbufferrestore -> queue_vmaf_0");
+                                    queue_vmaf_0_clone.link(&vmaf_clone).expect("queue_vmaf_0 -> vmaf");
+                                    vmaf_clone.link(&fakesink_clone).expect("vmaf -> fakesink");
 
-                            let tee2_src_1 = tee2_clone.request_pad_simple("src_%u").expect("tee2 src_1");
-                            let vmaf_sink_1 = vmaf_clone.request_pad_simple("sink_1").expect("vmaf sink_1");
-                            tee2_src_1.link(&vmaf_sink_1).expect("tee2.src_1 -> vmaf.sink_1");
+                                    let tee1_src_1 = tee1_clone.request_pad_simple("src_%u").expect("tee1 src_1");
+                                    let vmaf_sink_1 = vmaf_clone.request_pad_simple("sink_1").expect("vmaf sink_1");
+                                    // Link: tee1.src_1 -> queue_vmaf_1 -> vmaf.sink_1
+                                    tee1_src_1.link(&queue_vmaf_1_clone.static_pad("sink").unwrap()).expect("tee1.src_1 -> queue_vmaf_1");
+                                    queue_vmaf_1_clone.static_pad("src").unwrap().link(&vmaf_sink_1).expect("queue_vmaf_1.src -> vmaf.sink_1");
+                                }
+                            }
                         }
                     });
 
