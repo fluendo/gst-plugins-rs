@@ -182,6 +182,15 @@ impl ObjectImpl for EncoderStats {
         PROPERTIES.as_ref()
     }
 
+    fn property(&self, _id: usize, pspec: &glib::ParamSpec) -> glib::Value {
+        match pspec.name() {
+            "encoder" => {
+                self.obj().by_name("enc").to_value()
+            }
+            _ => unimplemented!(),
+        }
+    }
+
     fn set_property(&self, _id: usize, value: &glib::Value, pspec: &glib::ParamSpec) {
         match pspec.name() {
             "encoder" => {
