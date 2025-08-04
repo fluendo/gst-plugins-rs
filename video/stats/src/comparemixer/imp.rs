@@ -29,12 +29,12 @@ static CAT: LazyLock<gst::DebugCategory> = LazyLock::new(|| {
 #[repr(u32)]
 #[non_exhaustive]
 pub enum Backend {
-    #[default]
     #[enum_value(name = "OpenGL", nick = "OpenGL")]
     GL,
     #[enum_value(name = "VAAPI", nick = "VAAPI")]
     #[cfg(target_os = "linux")]
     VAAPI,
+    #[default]
     #[enum_value(name = "CPU", nick = "CPU")]
     CPU,
     #[enum_value(name = "D3D12", nick = "D3D12")]
