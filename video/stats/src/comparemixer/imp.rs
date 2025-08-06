@@ -79,6 +79,31 @@ impl VideoCompareMixer {
         }
     }
 
+    fn prepare_pipeline(&self, backend: Backend) -> Result<(), gst::ErrorMessage> {
+        let compositor = gst::ElementFactory::make(self.get_pipeline_compositor(backend))
+            .build()
+            .expect("Failed to create compositor element");
+        compositor.set_property("name", "compositor");
+
+        self.link_elements(&compositor)?;
+
+        self.add_overlay_probe(&self.overlay0);
+        self.add_overlay_probe(&self.overlay1);
+
+        unsafe {
+            self.sinkpad0.set_event_full_function(|pad, parent, event| {
+                VideoCompareMixer::catch_panic_pad_function(
+                    parent,
+                    || false,
+                    |video_compare_mixer| video_compare_mixer.sink_event(&pad.clone().upcast::<gst::Pad>(), event),
+                );
+                Ok(gst::FlowSuccess::Ok)
+            });
+        }
+
+        Ok(())
+    }
+
     fn add_overlay_probe(&self, overlay: &gst::Element) {
         let overlay_src_pad = overlay.static_pad("video_sink").unwrap();
         let overlay_clone = overlay.clone();
@@ -292,34 +317,10 @@ impl ObjectImpl for VideoCompareMixer {
             "backend" => {
                 settings.backend = value.get().expect("type checked upstream");
 
-                let compositor =
-                    gst::ElementFactory::make(self.get_pipeline_compositor(settings.backend))
-                        .build()
-                        .expect("Failed to create identity element");
-                compositor.set_property("name", "compositor");
-
-                self.link_elements(&compositor)
-                    .expect("Failed to link elements");
-
-                self.add_overlay_probe(&self.overlay0);
-                self.add_overlay_probe(&self.overlay1);
-
-                unsafe
-                {
-                    self.sinkpad0.set_event_full_function(|pad, parent, event| {
-                        VideoCompareMixer::catch_panic_pad_function(
-                            parent,
-                            || false,
-                            |video_compare_mixer| video_compare_mixer.sink_event(&pad.clone().upcast::<gst::Pad>(), event),
-                        );
-                        Ok(gst::FlowSuccess::Ok)
-                    });
-                }
-
                 gst::info!(
                     CAT,
                     imp = self,
-                    "Set backend to {:?} and linked pads",
+                    "Set backend to {:?}",
                     settings.backend
                 );
             }
@@ -398,6 +399,26 @@ impl ElementImpl for VideoCompareMixer {
 
         PAD_TEMPLATES.as_ref()
     }
+
+    fn change_state(
+        &self,
+        transition: gst::StateChange,
+    ) -> Result<gst::StateChangeSuccess, gst::StateChangeError> {
+        match transition {
+            gst::StateChange::ReadyToPaused => {
+                let settings = self.settings.lock().unwrap();
+                if let Err(err) = self.prepare_pipeline(settings.backend) {
+                    gst::error!(CAT, imp = self, "Failed to prepare pipeline: {}", err);
+                    return Err(gst::StateChangeError);
+                }
+                gst::info!(CAT, imp = self, "Pipeline prepared for backend {:?}", settings.backend);
+            }
+            _ => {}
+        }
+
+        self.parent_change_state(transition)
+    }
 }
 
-impl BinImpl for VideoCompareMixer {}
+impl BinImpl for VideoCompareMixer {
+}
