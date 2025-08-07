@@ -44,6 +44,7 @@ pub enum Backend {
 
 struct Settings {
     backend: Backend,
+    split_screen: bool,
 }
 
 pub struct VideoCompareMixer {
@@ -54,8 +55,6 @@ pub struct VideoCompareMixer {
     queue1: gst::Element,
     overlay0: gst::Element,
     overlay1: gst::Element,
-    crop0: gst::Element,
-    crop1: gst::Element,
     settings: Mutex<Settings>,
 }
 
@@ -63,6 +62,7 @@ impl Default for Settings {
     fn default() -> Self {
         Self {
             backend: Backend::default(),
+            split_screen: false,
         }
     }
 }
@@ -85,7 +85,26 @@ impl VideoCompareMixer {
             .expect("Failed to create compositor element");
         compositor.set_property("name", "compositor");
 
-        self.link_elements(&compositor)?;
+        let settings = self.settings.lock().unwrap();
+        let split_screen = settings.split_screen;
+        drop(settings);
+
+        if split_screen {
+            let crop0 = gst::ElementFactory::make("videocrop")
+                .build()
+                .expect("Failed to create crop0");
+            crop0.set_property("name", "crop0");
+
+            let crop1 = gst::ElementFactory::make("videocrop")
+                .build()
+                .expect("Failed to create crop1");
+            crop1.set_property("name", "crop1");
+
+            self.obj().add(&crop0).expect("Failed to add crop0 element");
+            self.obj().add(&crop1).expect("Failed to add crop1 element");
+        }
+
+        self.link_elements(&compositor, split_screen)?;
 
         self.add_overlay_probe(&self.overlay0);
         self.add_overlay_probe(&self.overlay1);
@@ -125,6 +144,7 @@ impl VideoCompareMixer {
     fn link_elements(
         &self,
         compositor: &gst::Element,
+        split_screen: bool,
     ) -> Result<(), gst::ErrorMessage> {
         self.overlay0.set_property_from_str("line-alignment", "left");
         self.overlay0.set_property_from_str("halignment", "left");
@@ -155,12 +175,6 @@ impl VideoCompareMixer {
         self.obj()
             .add(&self.overlay1)
             .expect("Failed to add overlay1 element");
-        self.obj()
-            .add(&self.crop0)
-            .expect("Failed to add crop0 element");
-        self.obj()
-            .add(&self.crop1)
-            .expect("Failed to add crop1 element");
 
         self.sinkpad0
             .set_target(Some(&self.queue0.static_pad("sink").unwrap()))
@@ -168,39 +182,75 @@ impl VideoCompareMixer {
         self.sinkpad1
             .set_target(Some(&self.queue1.static_pad("sink").unwrap()))
             .expect("Failed to link sinkpad1 to queue1");
-        self.queue0
-            .static_pad("src")
-            .unwrap()
-            .link(&self.overlay0.static_pad("video_sink").unwrap())
-            .expect("Failed to link queue0 to overlay0");
-        self.overlay0
-            .static_pad("src")
-            .unwrap()
-            .link(&self.crop0.static_pad("sink").unwrap())
-            .expect("Failed to link overlay0 to crop0");
-        self.crop0
-            .static_pad("src")
-            .unwrap()
-            .link(&compositor_pad0)
-            .expect("Failed to link crop0 to compositor");
-        self.queue1
-            .static_pad("src")
-            .unwrap()
-            .link(&self.overlay1.static_pad("video_sink").unwrap())
-            .expect("Failed to link queue1 to overlay1");
-        self.overlay1
-            .static_pad("src")
-            .unwrap()
-            .link(&self.crop1.static_pad("sink").unwrap())
-            .expect("Failed to link overlay1 to crop1");
-        self.crop1
-            .static_pad("src")
-            .unwrap()
-            .link(&compositor_pad1)
-            .expect("Failed to link crop1 to compositor");
+
         self.srcpad
             .set_target(Some(&compositor.static_pad("src").unwrap()))
             .expect("Failed to link srcpad to compositor");
+
+        if split_screen {
+            // Get crop elements by name since we can't store them in struct easily
+            let crop0 = self.obj().by_name("crop0").expect("crop0 should exist");
+            let crop1 = self.obj().by_name("crop1").expect("crop1 should exist");
+
+            self.queue0
+                .static_pad("src")
+                .unwrap()
+                .link(&self.overlay0.static_pad("video_sink").unwrap())
+                .expect("Failed to link queue0 to overlay0");
+            self.overlay0
+                .static_pad("src")
+                .unwrap()
+                .link(&crop0.static_pad("sink").unwrap())
+                .expect("Failed to link overlay0 to crop0");
+            crop0
+                .static_pad("src")
+                .unwrap()
+                .link(&compositor_pad0)
+                .expect("Failed to link crop0 to queue2");
+            self.queue1
+                .static_pad("src")
+                .unwrap()
+                .link(&self.overlay1.static_pad("video_sink").unwrap())
+                .expect("Failed to link queue1 to overlay1");
+            self.overlay1
+                .static_pad("src")
+                .unwrap()
+                .link(&crop1.static_pad("sink").unwrap())
+                .expect("Failed to link overlay1 to crop1");
+            crop1
+                .static_pad("src")
+                .unwrap()
+                .link(&compositor_pad1)
+                .expect("Failed to link crop1 to queue3");
+        } else {
+            // Direct connection without crops - overlay mode
+            self.queue0
+                .static_pad("src")
+                .unwrap()
+                .link(&self.overlay0.static_pad("video_sink").unwrap())
+                .expect("Failed to link queue0 to overlay0");
+            self.overlay0
+                .static_pad("src")
+                .unwrap()
+                .link(&compositor_pad0)
+                .expect("Failed to link overlay0 to queue2");
+            self.queue1
+                .static_pad("src")
+                .unwrap()
+                .link(&self.overlay1.static_pad("video_sink").unwrap())
+                .expect("Failed to link queue1 to overlay1");
+            self.overlay1
+                .static_pad("src")
+                .unwrap()
+                .link(&compositor_pad1)
+                .expect("Failed to link overlay1 to queue3");
+        }
+
+        self.queue0.sync_state_with_parent().unwrap();
+        self.queue1.sync_state_with_parent().unwrap();
+        self.overlay0.sync_state_with_parent().unwrap();
+        self.overlay1.sync_state_with_parent().unwrap();
+        self.obj().by_name("compositor").unwrap().sync_state_with_parent().unwrap();
         Ok(())
     }
 
@@ -215,12 +265,23 @@ impl VideoCompareMixer {
                 let width = s.get::<i32>("width").unwrap();
                 let half_width = width / 2;
 
-                // Set crop properties for both crops
-                self.crop0.set_property("right", half_width);
-                self.crop1.set_property("left", half_width);
+                let settings = self.settings.lock().unwrap();
+                let split_screen = settings.split_screen;
+                drop(settings);
 
                 let compositor_sink1_pad = self.obj().by_name("compositor").unwrap().static_pad("sink_1").unwrap();
-                compositor_sink1_pad.set_property("xpos", half_width);
+                if split_screen {
+                    // Set crop properties for both crops
+                    if let Some(crop0) = self.obj().by_name("crop0") {
+                        crop0.set_property("right", half_width);
+                    }
+                    if let Some(crop1) = self.obj().by_name("crop1") {
+                        crop1.set_property("left", half_width);
+                    }
+                    compositor_sink1_pad.set_property("xpos", half_width);
+                } else {
+                    compositor_sink1_pad.set_property("xpos", width);
+                }
                 gst::info!(CAT, "Received caps {caps:?}");
             }
             _ => {
@@ -268,16 +329,6 @@ impl ObjectSubclass for VideoCompareMixer {
             .expect("Failed to create overlay1");
         overlay1.set_property("name", "overlay1");
 
-        let crop0 = gst::ElementFactory::make("videocrop")
-            .build()
-            .expect("Failed to create crop0");
-        crop0.set_property("name", "crop0");
-
-        let crop1 = gst::ElementFactory::make("videocrop")
-            .build()
-            .expect("Failed to create crop1");
-        crop1.set_property("name", "crop1");
-
         Self {
             srcpad,
             sinkpad0,
@@ -286,8 +337,6 @@ impl ObjectSubclass for VideoCompareMixer {
             queue1,
             overlay0,
             overlay1,
-            crop0,
-            crop1,
             settings: Mutex::new(Settings::default()),
         }
     }
@@ -303,6 +352,12 @@ impl ObjectImpl for VideoCompareMixer {
                 glib::ParamSpecEnum::builder_with_default("backend", Backend::default())
                     .nick("The backend to use for mixing the video")
                     .blurb("The backend to use for mixing the video")
+                    .mutable_ready()
+                    .build(),
+                glib::ParamSpecBoolean::builder("split-screen")
+                    .nick("Split Screen Mode")
+                    .blurb("Enable split-screen mode with cropping")
+                    .default_value(false)
                     .mutable_ready()
                     .build(),
             ]
@@ -324,6 +379,16 @@ impl ObjectImpl for VideoCompareMixer {
                     settings.backend
                 );
             }
+            "split-screen" => {
+                settings.split_screen = value.get().expect("type checked upstream");
+
+                gst::info!(
+                    CAT,
+                    imp = self,
+                    "Set split-screen to {:?}",
+                    settings.split_screen
+                );
+            }
             _ => unimplemented!(),
         }
     }
@@ -332,11 +397,13 @@ impl ObjectImpl for VideoCompareMixer {
         let settings = self.settings.lock().unwrap();
         match pspec.name() {
             "backend" => settings.backend.to_value(),
+            "split-screen" => settings.split_screen.to_value(),
             _ => unimplemented!(),
         }
     }
 
     fn constructed(&self) {
+        gst::info!(CAT, "Constructing VideoCompareMixer");
         self.parent_constructed();
 
         let obj = self.obj();
@@ -407,11 +474,13 @@ impl ElementImpl for VideoCompareMixer {
         match transition {
             gst::StateChange::ReadyToPaused => {
                 let settings = self.settings.lock().unwrap();
-                if let Err(err) = self.prepare_pipeline(settings.backend) {
+                let backend = settings.backend;
+                drop(settings);
+                if let Err(err) = self.prepare_pipeline(backend) {
                     gst::error!(CAT, imp = self, "Failed to prepare pipeline: {}", err);
                     return Err(gst::StateChangeError);
                 }
-                gst::info!(CAT, imp = self, "Pipeline prepared for backend {:?}", settings.backend);
+                gst::info!(CAT, imp = self, "Pipeline prepared for backend {:?}", backend);
             }
             _ => {}
         }
