@@ -79,17 +79,18 @@ impl VideoCompareMixer {
         }
     }
 
-    fn prepare_pipeline(&self, backend: Backend) -> Result<(), gst::ErrorMessage> {
+    fn prepare_pipeline(&self) -> Result<(), gst::ErrorMessage> {
+        let settings = self.settings.lock().unwrap();
+        let split_screen = settings.split_screen;
+        let backend = settings.backend;
+        drop(settings);
+
         let compositor = gst::ElementFactory::make(self.get_pipeline_compositor(backend))
             .build()
             .expect("Failed to create compositor element");
         compositor.set_property("name", "compositor");
 
-        let settings = self.settings.lock().unwrap();
-        let split_screen = settings.split_screen;
-        drop(settings);
-
-        if split_screen {
+        if split_screen && backend != Backend::GL {
             let crop0 = gst::ElementFactory::make("videocrop")
                 .build()
                 .expect("Failed to create crop0");
@@ -104,7 +105,7 @@ impl VideoCompareMixer {
             self.obj().add(&crop1).expect("Failed to add crop1 element");
         }
 
-        self.link_elements(&compositor, split_screen)?;
+        self.link_elements(&compositor, split_screen, backend)?;
 
         self.add_overlay_probe(&self.overlay0);
         self.add_overlay_probe(&self.overlay1);
@@ -145,6 +146,7 @@ impl VideoCompareMixer {
         &self,
         compositor: &gst::Element,
         split_screen: bool,
+        backend: Backend,
     ) -> Result<(), gst::ErrorMessage> {
         self.overlay0.set_property_from_str("line-alignment", "left");
         self.overlay0.set_property_from_str("halignment", "left");
@@ -187,7 +189,7 @@ impl VideoCompareMixer {
             .set_target(Some(&compositor.static_pad("src").unwrap()))
             .expect("Failed to link srcpad to compositor");
 
-        if split_screen {
+        if split_screen && backend != Backend::GL {
             // Get crop elements by name since we can't store them in struct easily
             let crop0 = self.obj().by_name("crop0").expect("crop0 should exist");
             let crop1 = self.obj().by_name("crop1").expect("crop1 should exist");
@@ -267,16 +269,23 @@ impl VideoCompareMixer {
 
                 let settings = self.settings.lock().unwrap();
                 let split_screen = settings.split_screen;
+                let backend = settings.backend;
                 drop(settings);
 
                 let compositor_sink1_pad = self.obj().by_name("compositor").unwrap().static_pad("sink_1").unwrap();
                 if split_screen {
-                    // Set crop properties for both crops
-                    if let Some(crop0) = self.obj().by_name("crop0") {
-                        crop0.set_property("right", half_width);
-                    }
-                    if let Some(crop1) = self.obj().by_name("crop1") {
-                        crop1.set_property("left", half_width);
+                    if backend != Backend::GL {
+                        // Set crop properties for both crops
+                        if let Some(crop0) = self.obj().by_name("crop0") {
+                            crop0.set_property("right", half_width);
+                        }
+                        if let Some(crop1) = self.obj().by_name("crop1") {
+                            crop1.set_property("left", half_width);
+                        }
+                    } else {
+                        let compositor_sink0_pad = self.obj().by_name("compositor").unwrap().static_pad("sink_0").unwrap();
+                        compositor_sink0_pad.set_property("crop-right", half_width);
+                        compositor_sink1_pad.set_property("crop-left", half_width);
                     }
                     compositor_sink1_pad.set_property("xpos", half_width);
                 } else {
@@ -473,14 +482,11 @@ impl ElementImpl for VideoCompareMixer {
     ) -> Result<gst::StateChangeSuccess, gst::StateChangeError> {
         match transition {
             gst::StateChange::ReadyToPaused => {
-                let settings = self.settings.lock().unwrap();
-                let backend = settings.backend;
-                drop(settings);
-                if let Err(err) = self.prepare_pipeline(backend) {
+                if let Err(err) = self.prepare_pipeline() {
                     gst::error!(CAT, imp = self, "Failed to prepare pipeline: {}", err);
                     return Err(gst::StateChangeError);
                 }
-                gst::info!(CAT, imp = self, "Pipeline prepared for backend {:?}", backend);
+                gst::info!(CAT, imp = self, "Pipeline prepared");
             }
             _ => {}
         }
