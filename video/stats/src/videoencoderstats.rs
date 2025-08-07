@@ -91,8 +91,8 @@ impl fmt::Display for VideoEncoderStats {
         let processing_time = self.avg_processing_time();
         writeln!(
             f,
-            "Processing time: {:.3}",
-            processing_time.as_secs_f64()
+            "Processing time: {:?}",
+            processing_time
         )?;
 
         let cpu_time = self.threads_utime + self.threads_stime;
