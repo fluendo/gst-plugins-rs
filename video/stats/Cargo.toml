@@ -16,6 +16,9 @@ gst-video.workspace = true
 human_bytes = { version = "0.4", default-features = false }
 atomic_refcell = "0.1"
 
+[dev-dependencies]
+gst-check.workspace = true
+
 [lib]
 name = "gstvideostats"
 crate-type = ["cdylib", "rlib"]

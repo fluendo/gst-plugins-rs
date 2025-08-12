@@ -170,6 +170,7 @@ fn test() {
         threads_utime: 0,
         threads_stime: 0,
         framerate: None,
+        vmaf_score: 0.0,
     };
     let mut b = gst::Buffer::with_size(10).unwrap();
     let m = VideoEncoderStatsMeta::add(b.make_mut(), stats.clone());

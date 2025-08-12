@@ -10,7 +10,7 @@
 use gst::glib;
 
 mod videoencoderstats;
-mod videoencoderstatsmeta;
+pub mod videoencoderstatsmeta;
 mod comparemixer;
 mod encoderstats;
 
