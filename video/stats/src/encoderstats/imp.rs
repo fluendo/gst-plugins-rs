@@ -129,10 +129,11 @@ impl EncoderStats {
         match event.view() {
             Caps(event) => {
                 let caps = event.caps();
+                gst::info!(CAT, "Received caps {caps:?}");
                 let s = caps.structure(0).unwrap();
                 let fps = s.get::<gst::Fraction>("framerate").ok();
                 self.stats.lock().unwrap().framerate = fps;
-                gst::info!(CAT, "Received caps {caps:?}");
+                self.obj().by_name("vmaf0").unwrap().set_property("subsample", fps.unwrap().numer() as u32);
             }
             _ => {
                 gst::info!(CAT, "Other event");
