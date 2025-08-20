@@ -11,9 +11,18 @@ use std::collections::VecDeque;
 use std::time::Instant;
 use std::time::Duration;
 use std::fmt;
+use std::sync::LazyLock;
 
 use procfs::process::Process;
 use human_bytes::human_bytes;
+
+static CAT: LazyLock<gst::DebugCategory> = LazyLock::new(|| {
+    gst::DebugCategory::new(
+        "VideoEncoderStats",
+        gst::DebugColorFlags::empty(),
+        Some("VideoEncoderStats"),
+    )
+});
 
 #[derive(Default, Clone, PartialEq, Debug)]
 pub struct VideoEncoderStats {
@@ -35,6 +44,7 @@ impl VideoEncoderStats {
         if self.time_last_buffers.len() > self.max_buffers_inside {
             self.max_buffers_inside = self.time_last_buffers.len();
         }
+        gst::log!(CAT, "Current buffers lenght {}", self.time_last_buffers.len());
     }
 
     pub fn buffer_out(&mut self) {
@@ -93,6 +103,12 @@ impl fmt::Display for VideoEncoderStats {
             f,
             "Processing time: {:.3}",
             processing_time.as_secs_f64()
+        )?;
+
+        writeln!(
+            f,
+            "Max internal buffers: {}",
+            self.max_buffers_inside
         )?;
 
         let cpu_time = self.threads_utime + self.threads_stime;
