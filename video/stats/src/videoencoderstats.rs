@@ -14,7 +14,6 @@ use std::fmt;
 use std::sync::LazyLock;
 
 use procfs::process::Process;
-use human_bytes::human_bytes;
 
 static CAT: LazyLock<gst::DebugCategory> = LazyLock::new(|| {
     gst::DebugCategory::new(
@@ -78,13 +77,8 @@ impl fmt::Display for VideoEncoderStats {
         )?;
         writeln!(
             f,
-            "Buffers: {}",
-            self.num_buffers,
-        )?;
-        writeln!(
-            f,
-            "Bytes: {}",
-            self.num_bytes,
+            "Output size: {} KB",
+            self.num_bytes / 1024, // Convert to KB
         )?;
 
         let framerate = self.framerate.unwrap();
@@ -94,34 +88,33 @@ impl fmt::Display for VideoEncoderStats {
         } else {
             0.0
         };
-        let bitrate_str = human_bytes(bitrate);
+        let bitrate_str = bitrate/1024.0; // Convert to kbps
 
-        writeln!(f, "Bitrate: {}b/s", bitrate_str)?;
+        writeln!(f, "Bitrate: {:.3} kbps", bitrate_str)?;
 
-        let processing_time = self.avg_processing_time();
+        let throughput = (1.0 + self.time_last_buffers.len() as f64)/self.avg_processing_time().as_secs_f64();
         writeln!(
             f,
-            "Processing time: {:?}",
-            processing_time
-        )?;
-
-        writeln!(
-            f,
-            "Max internal buffers: {}",
-            self.max_buffers_inside
+            "Throughput: {:.2} fps",
+            throughput
         )?;
 
         let cpu_time = self.threads_utime + self.threads_stime;
+        #[cfg(target_os = "linux")]
+        let cpu_time_seconds = {
+            let ticks_per_second = procfs::ticks_per_second() as u64;
+            cpu_time as f64 / ticks_per_second as f64
+        };
         writeln!(
             f,
-            "CPU time: {}",
-            cpu_time
+            "CPU: {} s",
+            cpu_time_seconds
         )?;
 
         let vmaf_score = self.vmaf_score;
         writeln!(
             f,
-            "VMAF score: {:.3}",
+            "VMAF: {:.3}",
             vmaf_score
         )
     }
@@ -137,9 +130,8 @@ pub fn get_cpu_usage(name: String) -> (u64, u64) {
 
     for thread in process.tasks().unwrap().flatten() {
         let stat = thread.stat().unwrap();
-        // FIXME
-        //println!("Thread: {}, Comm: {}, Utime: {}, Stime: {}", thread.tid, stat.comm, stat.utime, stat.stime);
-        if stat.comm == name {
+        if stat.comm.contains(&name) {
+            gst::log!(CAT, "Thread: {}, Comm: {}, Utime: {}, Stime: {}", thread.tid, stat.comm, stat.utime, stat.stime);
             total_utime += stat.utime;
             total_stime += stat.stime;
         }
