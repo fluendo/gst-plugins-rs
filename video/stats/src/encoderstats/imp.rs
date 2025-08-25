@@ -190,13 +190,13 @@ impl EncoderStats {
         
         let tee0_src_0 = tee0.request_pad_simple("src_%u").expect("tee0 src pad");
         let queue0 = gst::ElementFactory::make("queue")
-        .name("encq0")
+        .name("encintq0")
         .build()
-        .expect("Failed to create queue encq0");
-        self.obj().add(&queue0).expect("Failed to add queue encq0");
+        .expect("Failed to create queue encintq0");
+        self.obj().add(&queue0).expect("Failed to add queue encintq0");
         let queue0_sink_pad = queue0.static_pad("sink").unwrap();
         let queue0_src_pad = queue0.static_pad("src").unwrap();
-        tee0_src_0.link(&queue0_sink_pad).expect("tee0.src_0 -> encq0.sink");
+        tee0_src_0.link(&queue0_sink_pad).expect("tee0.src_0 -> encintq0.sink");
         self.srcpad.set_target(Some(&queue0_src_pad)).unwrap();
 
         self.sinkpad
@@ -205,9 +205,9 @@ impl EncoderStats {
 
         let tee0_src_1 = tee0.request_pad_simple("src_%u").expect("tee0 src_1");
         let queue1 = gst::ElementFactory::make("queue")
-            .name("encq1")
+            .name("encintq1")
             .build()
-            .expect("Failed to create queue encq1");
+            .expect("Failed to create queue encintq1");
         
         // Use custom decoder if provided, otherwise use decodebin3
         let final_decoder = if let Some(custom_decoder) = decoder.clone() {
