@@ -81,7 +81,22 @@ impl EncoderStats {
             if encoder_name == "flulcevch264enc" {
                 // Fixme flulcevc uses multiple threads, so we need to get the CPU usage of all threads
                 let (utime, stime) = get_cpu_usage("lcevc".to_string());
-                gst::log!(CAT, "flulcevc utime: {}, stime: {}", utime, stime);
+                gst::log!(CAT, "flulcevc lcevc utime: {}, stime: {}", utime, stime);
+                // Add the  CPU usage to the total CPU usage
+                total_utime += utime;
+                total_stime += stime;
+
+                let (utime, stime) = get_cpu_usage("pool.".to_string());
+                gst::log!(CAT, "flulcevc pool utime: {}, stime: {}", utime, stime);
+                // Add the  CPU usage to the total CPU usage
+                total_utime += utime;
+                total_stime += stime;
+            }
+
+            if encoder_name == "lcevch264enc" {
+                // Fixme lcevc uses multiple threads, so we need to get the CPU usage of all threads
+                let (utime, stime) = get_cpu_usage("pool.".to_string());
+                gst::log!(CAT, "lcevc pool utime: {}, stime: {}", utime, stime);
                 // Add the  CPU usage to the total CPU usage
                 total_utime += utime;
                 total_stime += stime;
