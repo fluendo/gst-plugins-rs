@@ -15,7 +15,7 @@ gst.workspace = true
 gst-video.workspace = true
 human_bytes = { version = "0.4", default-features = false }
 atomic_refcell = "0.1"
-gst-plugin-originalbuffer = { path = "../../generic/originalbuffer" }
+gst-plugin-originalbuffer = { git = "https://gitlab.freedesktop.org/gstreamer/gst-plugins-rs", tag = "0.13.0" }
 
 [dev-dependencies]
 gst-check.workspace = true
