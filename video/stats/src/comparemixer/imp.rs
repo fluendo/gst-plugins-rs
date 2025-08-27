@@ -10,10 +10,14 @@
 use gst::glib;
 use gst::prelude::*;
 use gst::subclass::prelude::*;
+use gst_video::NavigationEvent;
 
 use crate::videoencoderstatsmeta::VideoEncoderStatsMeta;
+use crate::comparemixer::compositor::Compositor;
+use crate::comparemixer::compositor::Position;
+use crate::comparemixer::compositor::Mode;
 
-use std::sync::{LazyLock, Mutex};
+use std::sync::{LazyLock, Mutex, Arc};
 use std::vec::Vec;
 
 static CAT: LazyLock<gst::DebugCategory> = LazyLock::new(|| {
@@ -23,6 +27,15 @@ static CAT: LazyLock<gst::DebugCategory> = LazyLock::new(|| {
         Some("GstVideoCompareMixer"),
     )
 });
+
+#[derive(Default)]
+pub struct MouseState {
+    clicked: bool,
+    clicked_x: f64,
+    clicked_y: f64,
+    clicked_xpos: i32,
+    clicked_ypos: i32,
+}
 
 #[derive(Default, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Clone, Copy, glib::Enum)]
 #[enum_type(name = "GstVideoCompareMixerBackend")]
@@ -45,6 +58,17 @@ pub enum Backend {
 struct Settings {
     backend: Backend,
     split_screen: bool,
+    navigation_events: bool,
+}
+
+impl Default for Settings {
+    fn default() -> Self {
+        Self {
+            backend: Backend::default(),
+            split_screen: false,
+            navigation_events: true,
+        }
+    }
 }
 
 pub struct VideoCompareMixer {
@@ -56,15 +80,8 @@ pub struct VideoCompareMixer {
     overlay0: gst::Element,
     overlay1: gst::Element,
     settings: Mutex<Settings>,
-}
-
-impl Default for Settings {
-    fn default() -> Self {
-        Self {
-            backend: Backend::default(),
-            split_screen: false,
-        }
-    }
+    mouse_state: Arc<Mutex<MouseState>>,
+    compositor_helper: Arc<Mutex<Option<Compositor>>>,
 }
 
 impl VideoCompareMixer {
@@ -79,9 +96,247 @@ impl VideoCompareMixer {
         }
     }
 
+    pub fn add_navigation_events_probe(
+        &self,
+    ) {
+        let compositor_supports_crop: bool = self.settings.lock().unwrap().backend == Backend::GL;
+
+        let mixer = self.obj().by_name("compositor").unwrap();
+        let crop0 = self.obj().by_name("crop0").unwrap();
+        let crop1 = self.obj().by_name("crop1").unwrap();
+        let mixer_src_pad = mixer.static_pad("src").unwrap();
+        let mixer_sink_0_pad = mixer.static_pad("sink_0").unwrap();
+        let mixer_sink_1_pad = mixer.static_pad("sink_1").unwrap();
+
+        self.update_mixer(
+            &(*self.compositor_helper.lock().unwrap()).unwrap(),
+            &mixer_sink_0_pad,
+            &mixer_sink_1_pad,
+            &crop0,
+            &crop1,
+            compositor_supports_crop,
+        );
+
+        let compositor_helper_clone = self.compositor_helper.clone();
+        let mouse_state = self.mouse_state.clone();
+        let imp_weak = self.downgrade();
+        // Probe added in the sink pad to get direct navigation events w/o transformation done by the zoom_mixer
+        mixer_src_pad.add_probe(gst::PadProbeType::EVENT_UPSTREAM, move |_, probe_info| {
+            let Some(ev) = probe_info.event() else {
+                return gst::PadProbeReturn::Ok;
+            };
+
+            if ev.type_() != gst::EventType::Navigation {
+                return gst::PadProbeReturn::Ok;
+            };
+
+            let Ok(nav_event) = NavigationEvent::parse(ev) else {
+                return gst::PadProbeReturn::Ok;
+            };
+
+            let compositor = &mut  (*compositor_helper_clone.lock().unwrap()).unwrap();
+            let original_compositor = *compositor;
+            let nav_event_clone = nav_event.clone();
+
+            match nav_event {
+                NavigationEvent::KeyPress { key, .. } => match key.as_str() {
+                    "Left" | "Left arrow" => {
+                        compositor.move_pos(-10, 0);
+                    }
+                    "Right" | "Right arrow" => {
+                        compositor.move_pos(10, 0);
+                    }
+                    "Up" | "Up arrow" => {
+                        compositor.move_pos(0, -10);
+                    }
+                    "Down" | "Down arrow" => {
+                        compositor.move_pos(0, 10);
+                    }
+                    "plus" | "+" => {
+                        compositor.zoom_in();
+                    }
+                    "minus" | "-" => {
+                        compositor.zoom_out();
+                    }
+                    "r" => {
+                        compositor.reset_position();
+                    }
+                    "Shift_R" | "R" => {
+                        compositor.reset();
+                    }
+                    "1" => {
+                        compositor.split_mode();
+                        let w = compositor.width;
+                        compositor.move_border_to(w);
+                    }
+                    "2" => {
+                        compositor.split_mode();
+                        compositor.move_border_to(0);
+                    }
+                    "3" => {
+                        compositor.split_mode();
+                        compositor.reset_border();
+                    }
+                    "4" => {
+                        compositor.side_by_side_mode();
+                    }
+                    "5" => {
+                        compositor.split_mode();
+                        compositor.move_border(-10);
+                    }
+                    "6" => {
+                        compositor.split_mode();
+                        compositor.move_border(10);
+                    }
+                    _ => {
+                        gst::info!(CAT, "Unhandled key: {}", key);
+                    },
+                },
+                NavigationEvent::MouseMove { x, y, .. } => {
+                    let state = mouse_state.lock().unwrap();
+                    if state.clicked {
+                        let new_xpos = (x - state.clicked_x) as i32 + state.clicked_xpos;
+                        let new_ypos = (y - state.clicked_y) as i32 + state.clicked_ypos;
+
+                        compositor.move_pos_to(new_xpos, new_ypos);
+                    }
+                }
+                NavigationEvent::MouseButtonPress { button, x, y, .. } => {
+                    if button == 1 || button == 272 {
+                        let mut state = mouse_state.lock().unwrap();
+                        state.clicked = true;
+                        state.clicked_x = x;
+                        state.clicked_y = y;
+                        state.clicked_xpos = compositor.offset_x;
+                        state.clicked_ypos = compositor.offset_y;
+
+                        if y >= 600.0 {
+                            compositor.move_border_to(x as i32);
+                        }
+                    } else if button == 2 || button == 3 || button == 274 || button == 273 {
+                        compositor.reset();
+                    } else if button == 4 {
+                        compositor.zoom_in_center_at(x as i32, y as i32);
+                    } else if button == 5 {
+                        compositor.zoom_out_center_at(x as i32, y as i32);
+                    }
+                }
+                NavigationEvent::MouseButtonRelease { button, .. } => {
+                    if button == 1 || button == 272 {
+                        let mut state = mouse_state.lock().unwrap();
+                        state.clicked = false;
+                    }
+                }
+                // NavigationEvent::MouseScroll { x, y, delta_x, delta_y, ..} => {
+                //     if delta_y > 0.0 {
+                //         compositor.zoom_in_center_at(x as i32, y as i32);
+                //     } else if delta_y < 0.0 {
+                //         compositor.zoom_out_center_at(x as i32, y as i32);
+                //     }
+                // }
+                _ => (),
+            }
+
+            if original_compositor != *compositor {
+                gst::log!(CAT, "Compositor changed: {compositor:?}");
+                let Some(imp) = imp_weak.upgrade() else {
+                    return gst::PadProbeReturn::Ok;
+                };
+                imp.update_mixer(
+                    compositor,
+                    &mixer_sink_0_pad,
+                    &mixer_sink_1_pad,
+                    &crop0,
+                    &crop1,
+                    compositor_supports_crop,
+                );
+                *imp.compositor_helper.lock().unwrap() = Some(*compositor);
+            }
+
+            gst::log!(CAT, "Navigation event: {nav_event_clone:?}");
+
+            gst::PadProbeReturn::Ok
+        });
+    }
+
+    fn fix_pos(pos: &mut Position, width: i32, compositor_supports_crop: bool) {
+        // workaround to handle gst issue when width==0 with any video mixers
+        // see `glvideomixer sink_0::width=0` in README.md
+        if pos.width == 0 {
+            pos.width = width;
+            pos.xpos = width;
+        }
+
+        // workaround to handle gst issue when crop==total_width with compositor and vacompositor
+        // see `compositor and vacompositor video out of the box` in README.md
+        if !compositor_supports_crop {
+            if pos.crop_right == width {
+                pos.crop_right = width - 10;
+            }
+
+            if pos.crop_left == width {
+                pos.crop_left = width - 10;
+            }
+        }
+    }
+
+    fn update_mixer(
+        &self,
+        compositor_helper: &Compositor,
+        mixer_sink_0_pad: &gst::Pad,
+        mixer_sink_1_pad: &gst::Pad,
+        crop0: &gst::Element,
+        crop1: &gst::Element,
+        compositor_supports_crop: bool,
+    ) {
+        let (mut pos0, mut pos1) = compositor_helper.get_positions();
+
+        Self::fix_pos(&mut pos0, compositor_helper.width, compositor_supports_crop);
+        Self::fix_pos(&mut pos1, compositor_helper.width, compositor_supports_crop);
+
+        gst::log!(CAT, "Position 0: {}x{}+{}+{}, crop_right: {}", pos0.width, pos0.height, pos0.xpos, pos0.ypos, pos0.crop_right);
+        gst::log!(CAT, "Position 1: {}x{}+{}+{}, crop_left: {}", pos1.width, pos1.height, pos1.xpos, pos1.ypos, pos1.crop_left);
+
+        //TODO refactor avoid copy and paste
+        if compositor_supports_crop {
+            mixer_sink_0_pad.set_properties(&[
+                ("width", &pos0.width),
+                ("height", &pos0.height),
+                ("xpos", &pos0.xpos),
+                ("ypos", &pos0.ypos),
+                ("crop-right", &pos0.crop_right),
+            ]);
+
+            mixer_sink_1_pad.set_properties(&[
+                ("width", &pos1.width),
+                ("height", &pos1.height),
+                ("xpos", &pos1.xpos),
+                ("ypos", &pos1.ypos),
+                ("crop-left", &pos1.crop_left),
+            ]);
+        } else {
+            mixer_sink_0_pad.set_properties(&[
+                ("width", &pos0.width),
+                ("height", &pos0.height),
+                ("xpos", &pos0.xpos),
+                ("ypos", &pos0.ypos),
+            ]);
+
+            mixer_sink_1_pad.set_properties(&[
+                ("width", &pos1.width),
+                ("height", &pos1.height),
+                ("xpos", &pos1.xpos),
+                ("ypos", &pos1.ypos),
+            ]);
+
+            gst::log!(CAT, "right crop: {}, left crop: {}", pos0.crop_right, pos1.crop_left);
+            crop0.set_property("right", pos0.crop_right);
+            crop1.set_property("left", pos1.crop_left);
+        }
+    }
+
     fn prepare_pipeline(&self) -> Result<(), gst::ErrorMessage> {
         let settings = self.settings.lock().unwrap();
-        let split_screen = settings.split_screen;
         let backend = settings.backend;
         drop(settings);
 
@@ -90,22 +345,21 @@ impl VideoCompareMixer {
             .expect("Failed to create compositor element");
         compositor.set_property("name", "compositor");
 
-        if split_screen && backend != Backend::GL {
-            let crop0 = gst::ElementFactory::make("videocrop")
-                .build()
-                .expect("Failed to create crop0");
-            crop0.set_property("name", "crop0");
+        let crop0 = gst::ElementFactory::make("videocrop")
+            .build()
+            .expect("Failed to create crop0");
+        crop0.set_property("name", "crop0");
 
-            let crop1 = gst::ElementFactory::make("videocrop")
-                .build()
-                .expect("Failed to create crop1");
-            crop1.set_property("name", "crop1");
+        let crop1 = gst::ElementFactory::make("videocrop")
+            .build()
+            .expect("Failed to create crop1");
+        crop1.set_property("name", "crop1");
 
-            self.obj().add(&crop0).expect("Failed to add crop0 element");
-            self.obj().add(&crop1).expect("Failed to add crop1 element");
-        }
+        self.obj().add(&crop0).expect("Failed to add crop0 element");
+        self.obj().add(&crop1).expect("Failed to add crop1 element");
 
-        self.link_elements(&compositor, split_screen, backend)?;
+        // FIXME remove split_screen logic if not needed. It adds and links crops always
+        self.link_elements(&compositor, true, backend)?;
 
         self.add_overlay_probe(&self.overlay0);
         self.add_overlay_probe(&self.overlay1);
@@ -178,6 +432,14 @@ impl VideoCompareMixer {
             .add(&self.overlay1)
             .expect("Failed to add overlay1 element");
 
+        let caps_filter = gst::ElementFactory::make("capsfilter")
+            .name("capsfilter0")
+            .build()
+            .expect("Failed to create capsfilter0");
+        self.obj()
+            .add(&caps_filter)
+            .expect("Failed to add capsfilter0 element");
+
         self.sinkpad0
             .set_target(Some(&self.queue0.static_pad("sink").unwrap()))
             .expect("Failed to link sinkpad0 to queue0");
@@ -185,8 +447,10 @@ impl VideoCompareMixer {
             .set_target(Some(&self.queue1.static_pad("sink").unwrap()))
             .expect("Failed to link sinkpad1 to queue1");
 
+        compositor.link(&caps_filter).expect("Failed to link compositor to capsfilter");
+
         self.srcpad
-            .set_target(Some(&compositor.static_pad("src").unwrap()))
+            .set_target(Some(&caps_filter.static_pad("src").unwrap()))
             .expect("Failed to link srcpad to compositor");
 
         if split_screen && backend != Backend::GL {
@@ -263,35 +527,35 @@ impl VideoCompareMixer {
         match event.view() {
             Caps(c) => {
                 let caps = c.caps();
+                gst::info!(CAT, "Received caps {caps:?}");
                 let s = caps.structure(0).unwrap();
                 let width = s.get::<i32>("width").unwrap();
-                let half_width = width / 2;
+                let height = s.get::<i32>("height").unwrap();
 
                 let settings = self.settings.lock().unwrap();
                 let split_screen = settings.split_screen;
-                let backend = settings.backend;
+                let navigation_events = settings.navigation_events;
                 drop(settings);
 
-                let compositor_sink1_pad = self.obj().by_name("compositor").unwrap().static_pad("sink_1").unwrap();
-                if split_screen {
-                    if backend != Backend::GL {
-                        // Set crop properties for both crops
-                        if let Some(crop0) = self.obj().by_name("crop0") {
-                            crop0.set_property("right", half_width);
-                        }
-                        if let Some(crop1) = self.obj().by_name("crop1") {
-                            crop1.set_property("left", half_width);
-                        }
-                    } else {
-                        let compositor_sink0_pad = self.obj().by_name("compositor").unwrap().static_pad("sink_0").unwrap();
-                        compositor_sink0_pad.set_property("crop-right", half_width);
-                        compositor_sink1_pad.set_property("crop-left", half_width);
-                    }
-                    compositor_sink1_pad.set_property("xpos", half_width);
+                let caps = format!("video/x-raw,width={},height={}", width, height);
+                self.obj().by_name("capsfilter0").unwrap().set_property_from_str("caps", &caps.as_str());
+
+                let compositor_mode = if split_screen {
+                    Mode::Split
                 } else {
-                    compositor_sink1_pad.set_property("xpos", width);
+                    Mode::SideBySide
+                };
+
+                let compositor_helper = Compositor::new(
+                    compositor_mode,
+                    width,
+                    height,
+                );
+                *self.compositor_helper.lock().unwrap() = Some(compositor_helper);
+
+                if navigation_events {
+                    self.add_navigation_events_probe();
                 }
-                gst::info!(CAT, "Received caps {caps:?}");
             }
             _ => {
                 gst::info!(CAT, "Other event");
@@ -347,14 +611,13 @@ impl ObjectSubclass for VideoCompareMixer {
             overlay0,
             overlay1,
             settings: Mutex::new(Settings::default()),
+            mouse_state: Arc::new(Mutex::new(MouseState::default())),
+            compositor_helper: Default::default(),
         }
     }
 }
 
 impl ObjectImpl for VideoCompareMixer {
-    // TODO
-    // navigation-evets = default true
-
     fn properties() -> &'static [glib::ParamSpec] {
         static PROPERTIES: LazyLock<Vec<glib::ParamSpec>> = LazyLock::new(|| {
             vec![
@@ -367,6 +630,12 @@ impl ObjectImpl for VideoCompareMixer {
                     .nick("Split Screen Mode")
                     .blurb("Enable split-screen mode with cropping")
                     .default_value(false)
+                    .mutable_ready()
+                    .build(),
+                glib::ParamSpecBoolean::builder("navigation-events")
+                    .nick("Navigation Events")
+                    .blurb("Enable handling of navigation events for controlling the mixer")
+                    .default_value(true)
                     .mutable_ready()
                     .build(),
             ]
@@ -398,6 +667,16 @@ impl ObjectImpl for VideoCompareMixer {
                     settings.split_screen
                 );
             }
+            "navigation-events" => {
+                settings.navigation_events = value.get().expect("type checked upstream");
+
+                gst::info!(
+                    CAT,
+                    imp = self,
+                    "Set navigation-events to {:?}",
+                    settings.navigation_events
+                );
+            }
             _ => unimplemented!(),
         }
     }
@@ -407,6 +686,7 @@ impl ObjectImpl for VideoCompareMixer {
         match pspec.name() {
             "backend" => settings.backend.to_value(),
             "split-screen" => settings.split_screen.to_value(),
+            "navigation-events" => settings.navigation_events.to_value(),
             _ => unimplemented!(),
         }
     }

@@ -10,6 +10,7 @@
 use gst::glib;
 use gst::prelude::*;
 
+mod compositor;
 mod imp;
 
 glib::wrapper! {
