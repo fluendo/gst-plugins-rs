@@ -34,6 +34,8 @@ pub struct EncoderStats {
     encoder: Mutex<Option<gst::Element>>,
     decoder: Mutex<Option<gst::Element>>,
     request_pad: Mutex<Option<gst::GhostPad>>,
+    vmaf_stats: Mutex<bool>,
+    vmaf_available: bool,
 }
 
 impl EncoderStats {
@@ -157,7 +159,18 @@ impl EncoderStats {
                 let s = caps.structure(0).unwrap();
                 let fps = s.get::<gst::Fraction>("framerate").ok();
                 self.stats.lock().unwrap().framerate = fps;
-                self.obj().by_name("vmaf0").unwrap().set_property("subsample", fps.unwrap().numer() as u32);
+                
+                // Only set vmaf subsample if vmaf is available and enabled
+                let vmaf_enabled = {
+                    let vmaf_stats_guard = self.vmaf_stats.lock().unwrap();
+                    *vmaf_stats_guard && self.vmaf_available
+                };
+                
+                if vmaf_enabled {
+                    if let Some(vmaf) = self.obj().by_name("vmaf0") {
+                        vmaf.set_property("subsample", fps.unwrap().numer() as u32);
+                    }
+                }
             }
             _ => {
                 gst::info!(CAT, "Other event");
@@ -172,10 +185,10 @@ impl EncoderStats {
             let encoder_guard = self.encoder.lock().unwrap();
             encoder_guard.clone().expect("Encoder must be set")
         };
-        
-        let decoder = {
-            let decoder_guard = self.decoder.lock().unwrap();
-            decoder_guard.clone()
+
+        let vmaf_enabled = {
+            let vmaf_stats_guard = self.vmaf_stats.lock().unwrap();
+            *vmaf_stats_guard && self.vmaf_available
         };
 
         let has_request_pad = {
@@ -218,54 +231,62 @@ impl EncoderStats {
             .set_target(Some(&originalbuffersave.static_pad("sink").unwrap()))
             .expect("Failed to link sink pad to originalbuffersave element");
 
-        let tee0_src_1 = tee0.request_pad_simple("src_%u").expect("tee0 src_1");
-        let queue1 = gst::ElementFactory::make("queue")
-            .name("encintq1")
-            .build()
-            .expect("Failed to create queue encintq1");
-        
-        // Use custom decoder if provided, otherwise use decodebin3
-        let final_decoder = if let Some(custom_decoder) = decoder.clone() {
-            custom_decoder.set_property("name", "dec");
-            self.obj().add(&custom_decoder).expect("Failed to add custom decoder element");
-            custom_decoder
-        } else {
-            let decodebin3 = gst::ElementFactory::make("decodebin3")
-                .name("dec")
+        // Only create decoder branch if VMAF is enabled
+        if vmaf_enabled {
+            let decoder = {
+                let decoder_guard = self.decoder.lock().unwrap();
+                decoder_guard.clone()
+            };
+
+            let tee0_src_1 = tee0.request_pad_simple("src_%u").expect("tee0 src_1");
+            let queue1 = gst::ElementFactory::make("queue")
+                .name("encintq1")
                 .build()
-                .expect("Failed to create decodebin3");
-            self.obj().add(&decodebin3).expect("Failed to add decodebin3");
-            decodebin3
-        };
+                .expect("Failed to create queue encintq1");
+            
+            // Use custom decoder if provided, otherwise use decodebin3
+            let final_decoder = if let Some(custom_decoder) = decoder.clone() {
+                custom_decoder.set_property("name", "dec");
+                self.obj().add(&custom_decoder).expect("Failed to add custom decoder element");
+                custom_decoder
+            } else {
+                let decodebin3 = gst::ElementFactory::make("decodebin3")
+                    .name("dec")
+                    .build()
+                    .expect("Failed to create decodebin3");
+                self.obj().add(&decodebin3).expect("Failed to add decodebin3");
+                decodebin3
+            };
 
-        self.obj().add(&queue1).expect("Failed to add queue1");
-        tee0_src_1.link(&queue1.static_pad("sink").unwrap()).expect("tee0.src_1 -> queue1");
-        queue1.static_pad("src").unwrap().link(&final_decoder.static_pad("sink").unwrap()).expect("queue1.src -> decoder.sink");
+            self.obj().add(&queue1).expect("Failed to add queue1");
+            tee0_src_1.link(&queue1.static_pad("sink").unwrap()).expect("tee0.src_1 -> queue1");
+            queue1.static_pad("src").unwrap().link(&final_decoder.static_pad("sink").unwrap()).expect("queue1.src -> decoder.sink");
 
-        // Conditionally add tee after decoder if request pad exists
-        if has_request_pad {
-            let decoder_tee = gst::ElementFactory::make("tee")
-                .name("decoder_tee")
-                .build()
-                .expect("Failed to create decoder_tee");
-            self.obj().add(&decoder_tee).expect("Failed to add decoder_tee");
+            // Conditionally add tee after decoder if request pad exists
+            if has_request_pad {
+                let decoder_tee = gst::ElementFactory::make("tee")
+                    .name("decoder_tee")
+                    .build()
+                    .expect("Failed to create decoder_tee");
+                self.obj().add(&decoder_tee).expect("Failed to add decoder_tee");
 
-            // Set up decoder -> decoder_tee connection
-            self.setup_decoder_to_tee_connection(final_decoder.clone(), decoder_tee.clone(), decoder.is_some());
+                // Set up decoder -> decoder_tee connection
+                self.setup_decoder_to_tee_connection(final_decoder.clone(), decoder_tee.clone(), decoder.is_some());
 
-            // Connect decoder_tee src_0 to VMAF pipeline
-            let decoder_tee_src_0 = decoder_tee.request_pad_simple("src_%u").expect("decoder_tee src_0");
-            self.setup_vmaf_pipeline(decoder_tee_src_0);
+                // Connect decoder_tee src_0 to VMAF pipeline
+                let decoder_tee_src_0 = decoder_tee.request_pad_simple("src_%u").expect("decoder_tee src_0");
+                self.setup_vmaf_pipeline(decoder_tee_src_0);
 
-            // Connect decoder_tee src_1 to request pad
-            let decoder_tee_src_1 = decoder_tee.request_pad_simple("src_%u").expect("decoder_tee src_1");
-            let request_pad_guard = self.request_pad.lock().unwrap();
-            if let Some(ref request_pad) = *request_pad_guard {
-                request_pad.set_target(Some(&decoder_tee_src_1)).unwrap();
+                // Connect decoder_tee src_1 to request pad
+                let decoder_tee_src_1 = decoder_tee.request_pad_simple("src_%u").expect("decoder_tee src_1");
+                let request_pad_guard = self.request_pad.lock().unwrap();
+                if let Some(ref request_pad) = *request_pad_guard {
+                    request_pad.set_target(Some(&decoder_tee_src_1)).unwrap();
+                }
+            } else {
+                // No request pad - direct connection to VMAF pipeline
+                self.setup_decoder_to_vmaf_direct(final_decoder.clone(), decoder.is_some());
             }
-        } else {
-            // No request pad - direct connection to VMAF pipeline
-            self.setup_decoder_to_vmaf_direct(final_decoder.clone(), decoder.is_some());
         }
 
         unsafe
@@ -459,6 +480,14 @@ impl ObjectSubclass for EncoderStats {
             .expect("Failed to create identity element");
         identity.set_property("name", "identity");
 
+        // Check if vmaf element is available
+        let vmaf_available = if gst::ElementFactory::find("vmaf").is_none() {
+            gst::warning!(CAT, "VMAF element not found, VMAF stats will be disabled");
+            false
+        } else {
+            true
+        };
+
         Self {
             srcpad,
             sinkpad,
@@ -467,6 +496,8 @@ impl ObjectSubclass for EncoderStats {
             encoder: Mutex::new(None),
             decoder: Mutex::new(None),
             request_pad: Mutex::new(None),
+            vmaf_stats: Mutex::new(true), // Default enabled
+            vmaf_available,
         }
     }
 }
@@ -484,6 +515,11 @@ impl ObjectImpl for EncoderStats {
                     .nick("The decoder element")
                     .blurb("The decoder element to use for VMAF calculation (default: decodebin3)")
                     .build(),
+                glib::ParamSpecBoolean::builder("vmaf-stats")
+                    .nick("Enable VMAF stats")
+                    .blurb("Enable VMAF statistics calculation (requires vmaf element)")
+                    .default_value(true)
+                    .build(),
             ]
         });
 
@@ -499,6 +535,10 @@ impl ObjectImpl for EncoderStats {
             "decoder" => {
                 let decoder_guard = self.decoder.lock().unwrap();
                 decoder_guard.clone().to_value()
+            }
+            "vmaf-stats" => {
+                let vmaf_stats_guard = self.vmaf_stats.lock().unwrap();
+                (*vmaf_stats_guard && self.vmaf_available).to_value()
             }
             _ => unimplemented!(),
         }
@@ -526,6 +566,16 @@ impl ObjectImpl for EncoderStats {
                 if let Ok(Some(dec_obj)) = value.get::<Option<gst::Element>>() {
                     let mut decoder_guard = self.decoder.lock().unwrap();
                     *decoder_guard = Some(dec_obj);
+                }
+            }
+            "vmaf-stats" => {
+                if let Ok(vmaf_stats) = value.get::<bool>() {
+                    if vmaf_stats && !self.vmaf_available {
+                        gst::warning!(CAT, imp = self, "Cannot enable VMAF stats: vmaf element not available");
+                        return;
+                    }
+                    let mut vmaf_stats_guard = self.vmaf_stats.lock().unwrap();
+                    *vmaf_stats_guard = vmaf_stats;
                 }
             }
             _ => unimplemented!(),
@@ -599,6 +649,17 @@ impl ElementImpl for EncoderStats {
         // Only allow request pads before ReadyToPaused transition
         if self.obj().current_state() >= gst::State::Paused {
             gst::warning!(CAT, imp = self, "Cannot request pad after ReadyToPaused transition");
+            return None;
+        }
+
+        // Only allow request pads if VMAF is enabled (since that's when we have decoder)
+        let vmaf_enabled = {
+            let vmaf_stats_guard = self.vmaf_stats.lock().unwrap();
+            *vmaf_stats_guard && self.vmaf_available
+        };
+
+        if !vmaf_enabled {
+            gst::warning!(CAT, imp = self, "Cannot request decoder pad when VMAF stats are disabled");
             return None;
         }
 
