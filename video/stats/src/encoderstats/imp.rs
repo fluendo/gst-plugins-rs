@@ -49,9 +49,8 @@ impl EncoderStats {
         let encoder_name = encoder_factory.name();
 
         let stats = self.stats.clone();
-        let obj_name = self.obj().name().to_string();
         identity_src_pad.add_probe(gst::PadProbeType::BUFFER, move |_pad, probe_info| {
-            let Some(buffer) = probe_info.buffer_mut() else {
+            let Some(_) = probe_info.buffer() else {
                 return gst::PadProbeReturn::Ok;
             };
 
@@ -60,63 +59,10 @@ impl EncoderStats {
             let num_buffers = identity_stats.get::<u64>("num-buffers").unwrap();
 
             let mut stats = stats.lock().unwrap();
-            let fps_n: i32;
-            if let Some(fps) = stats.framerate {
-                fps_n = fps.numer();
-            } else {
-                return gst::PadProbeReturn::Ok;
-            }
 
-            if num_buffers % (fps_n as u64) != 0 {
-                gst::log!(CAT, "Skipping probe for buffer {num_buffers} as it is not a multiple of framerate {fps_n}");
-                return gst::PadProbeReturn::Ok;
-            }
-
-            // FIXME: integrates queues internally to calculate the CPU usage
-            let thread_name = if obj_name.contains("0") {
-                "encq0:src"
-            } else {
-                "encq1:src"
-            };
-            let (mut total_utime, mut total_stime) = get_cpu_usage(thread_name.to_string());
-
-            if encoder_name == "flulcevch264enc" {
-                // Fixme flulcevc uses multiple threads, so we need to get the CPU usage of all threads
-                let (utime, stime) = get_cpu_usage("lcevc".to_string());
-                gst::log!(CAT, "flulcevc lcevc utime: {}, stime: {}", utime, stime);
-                // Add the  CPU usage to the total CPU usage
-                total_utime += utime;
-                total_stime += stime;
-
-                let (utime, stime) = get_cpu_usage("pool.".to_string());
-                gst::log!(CAT, "flulcevc pool utime: {}, stime: {}", utime, stime);
-                // Add the  CPU usage to the total CPU usage
-                total_utime += utime;
-                total_stime += stime;
-            }
-
-            if encoder_name == "lcevch264enc" {
-                // Fixme lcevc uses multiple threads, so we need to get the CPU usage of all threads
-                let (utime, stime) = get_cpu_usage("pool.".to_string());
-                gst::log!(CAT, "lcevc pool utime: {}, stime: {}", utime, stime);
-                // Add the  CPU usage to the total CPU usage
-                total_utime += utime;
-                total_stime += stime;
-            }
-
-            stats.threads_utime = total_utime;
-            stats.threads_stime = total_stime;
             stats.num_bytes = num_bytes;
             stats.num_buffers = num_buffers;
             stats.name = encoder_name.to_string();
-
-            let buffer = buffer.make_mut();
-
-            // Add the VideoEncoderStatsMeta to the buffer
-            VideoEncoderStatsMeta::add(
-                buffer,
-                stats.clone(),
-            );
 
             gst::PadProbeReturn::Ok
         });
@@ -134,6 +80,9 @@ impl EncoderStats {
             };
             stats.lock().unwrap().buffer_in();
             gst::log!(CAT, "Buffer in encoder sink pad");
+            stats.lock().unwrap().pre_encode_time = *gst::ClockTime::from_nseconds(
+                gst::SystemClock::obtain().upcast::<gst::Clock>().time().unwrap().nseconds()
+            );
             gst::PadProbeReturn::Ok
         });
 
@@ -144,6 +93,9 @@ impl EncoderStats {
             };
             stats.lock().unwrap().buffer_out();
             gst::log!(CAT, "Buffer out encoder src pad");
+            stats.lock().unwrap().post_encode_time = *gst::ClockTime::from_nseconds(
+                gst::SystemClock::obtain().upcast::<gst::Clock>().time().unwrap().nseconds()
+            );
             gst::PadProbeReturn::Ok
         });
     }
@@ -211,6 +163,69 @@ impl EncoderStats {
             .build()
             .expect("Failed to create input queue");
         self.obj().add(&input_queue).expect("Failed to add input queue");
+
+        // Add probe to input queue src pad to log buffer flow
+        let input_queue_src_pad = input_queue.static_pad("src").unwrap();
+        let queue_name_clone = queue_name.to_string();
+        let stats_clone = self.stats.clone();
+        input_queue_src_pad.add_probe(gst::PadProbeType::BUFFER, move |_pad, probe_info| {
+            let Some(buffer) = probe_info.buffer_mut() else {
+                return gst::PadProbeReturn::Ok;
+            };
+            gst::info!(CAT, "Buffer received in {} src pad, PTS: {:?}, DTS: {:?}, size: {}", 
+                queue_name_clone, buffer.pts(), buffer.dts(), buffer.size());
+
+            let mut stats = stats_clone.lock().unwrap();
+
+            // Only update stats at framerate intervals
+            let fps_n: i32;
+            if let Some(fps) = stats.framerate {
+                fps_n = fps.numer();
+            } else {
+                return gst::PadProbeReturn::Ok;
+            }
+
+            let num_buffers = stats.num_buffers;
+
+            if num_buffers % (fps_n as u64) != 0 {
+                gst::log!(CAT, "Skipping probe for buffer {num_buffers} as it is not a multiple of framerate {fps_n}");
+                return gst::PadProbeReturn::Ok;
+            }
+
+            let queue_name = if obj_name.contains("0") { "encq0:src" } else { "encq1:src" };
+            let thread_patterns = match stats.name.as_str() {
+                "flulcevch264enc" => vec![queue_name, "lcevc", "pool."],
+                "lcevch264enc" => vec![queue_name, "pool."],
+                _ => vec![queue_name],
+            };
+
+            let (total_utime, total_stime) = thread_patterns.iter()
+                .map(|pattern| {
+                    let (utime, stime) = get_cpu_usage(pattern.to_string());
+                    gst::log!(CAT, "Thread pattern '{}' - utime: {}, stime: {}", pattern, utime, stime);
+                    (utime, stime)
+                })
+                .fold((0u64, 0u64), |(acc_utime, acc_stime), (utime, stime)| {
+                    (acc_utime + utime, acc_stime + stime)
+                });
+
+            stats.threads_utime = total_utime;
+            stats.threads_stime = total_stime;
+
+            stats.input_time = *gst::ClockTime::from_nseconds(
+                gst::SystemClock::obtain().upcast::<gst::Clock>().time().unwrap().nseconds()
+            );
+
+            let buffer = buffer.make_mut();
+
+            // Add the VideoEncoderStatsMeta to the buffer
+            VideoEncoderStatsMeta::add(
+                buffer,
+                stats.clone(),
+            );
+
+            gst::PadProbeReturn::Ok
+        });
 
         let originalbuffersave = gst::ElementFactory::make("originalbuffersave")
             .build()

@@ -13,6 +13,9 @@ use std::time::Duration;
 use std::fmt;
 use std::sync::LazyLock;
 
+use gst::ffi::GstClockTime;
+use gst::prelude::ClockExt;
+
 use procfs::process::Process;
 
 static CAT: LazyLock<gst::DebugCategory> = LazyLock::new(|| {
@@ -23,7 +26,7 @@ static CAT: LazyLock<gst::DebugCategory> = LazyLock::new(|| {
     )
 });
 
-#[derive(Default, Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug)]
 pub struct VideoEncoderStats {
     pub name: String,
     pub num_buffers: u64,
@@ -35,6 +38,29 @@ pub struct VideoEncoderStats {
     pub threads_stime: u64,
     pub framerate: Option<gst::Fraction>,
     pub vmaf_score: f64,
+    pub input_time: GstClockTime,
+    pub pre_encode_time: GstClockTime,
+    pub post_encode_time: GstClockTime,
+}
+
+impl Default for VideoEncoderStats {
+    fn default() -> Self {
+        Self {
+            name: String::new(),
+            framerate: None,
+            num_bytes: 0,
+            num_buffers: 0,
+            time_last_buffers: VecDeque::<Instant>::new(),
+            max_buffers_inside: 0,
+            total_processing_time: Duration::ZERO,
+            threads_utime: 0,
+            threads_stime: 0,
+            vmaf_score: 0.0,
+            input_time: 0,
+            pre_encode_time: 0,
+            post_encode_time: 0,
+        }
+    }
 }
 
 impl VideoEncoderStats {
@@ -116,6 +142,24 @@ impl fmt::Display for VideoEncoderStats {
             f,
             "VMAF: {:.3}",
             vmaf_score
+        )?;
+
+        let pre_encode_time = &self.pre_encode_time;
+        let post_encode_time = &self.post_encode_time;
+        let encode_latency = (*post_encode_time as f64 - *pre_encode_time as f64) / 1_000_000.0;
+        writeln!(
+            f,
+            "Encode latency: {:.3} ms",
+            encode_latency
+        )?;
+
+        let current_time = gst::SystemClock::obtain();
+        let latency = (current_time.time().unwrap().nseconds() as f64 - self.input_time as f64) / 1_000_000.0;
+
+        writeln!(
+            f,
+            "End2End latency: {:.3} ms",
+            latency
         )
     }
 }
