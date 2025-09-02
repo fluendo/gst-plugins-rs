@@ -13,7 +13,7 @@ use gst::prelude::*;
 fn main() -> Result<(), Error> {
     gst::init()?;
 
-    let pipeline = gst::parse::launch("souphttpsrc location=\"https://ftp.nluug.nl/pub/graphics/blender/demo/movies/ToS/tears_of_steel_1080p.mov\" ! qtdemux name=demux demux.video_0 ! queue ! decodebin3 ! videoconvertscale ! capsfilter caps=\"video/x-raw,aspect-ratio=1/1\" ! tee name=tee ! queue name=encq0 ! video-encoder-stats encoder=\"x264enc bitrate=1024\" decoder=\"h264parse ! avdec_h264\" name=vs0 ! fakesink tee. ! queue name=encq1 ! video-encoder-stats encoder=\"x264enc bitrate=512\" name=vs1 ! fakesink video-compare-mixer split-screen=false backend=CPU name=mixer vs0.decoder_src ! mixer.sink_0  vs1.decoder_src ! mixer.sink_1  mixer. ! autovideosink")?;
+    let pipeline = gst::parse::launch("souphttpsrc location=\"https://ftp.nluug.nl/pub/graphics/blender/demo/movies/ToS/tears_of_steel_1080p.mov\" ! qtdemux name=demux demux.video_0 ! queue ! decodebin3 ! videoconvertscale ! capsfilter caps=\"video/x-raw,aspect-ratio=1/1\" ! tee name=tee ! video-encoder-stats encoder=\"x264enc bitrate=1024\" decoder=\"h264parse ! avdec_h264\" name=vs0 ! fakesink tee. ! video-encoder-stats encoder=\"x264enc bitrate=512\" name=vs1 ! fakesink video-compare-mixer split-screen=false backend=CPU name=mixer vs0.decoder_src ! mixer.sink_0  vs1.decoder_src ! mixer.sink_1  mixer. ! autovideosink")?;
     pipeline.set_state(gst::State::Playing)?;
 
     let bus = pipeline.bus().unwrap();

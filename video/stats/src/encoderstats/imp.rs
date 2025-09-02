@@ -198,6 +198,20 @@ impl EncoderStats {
 
         encoder.set_property("name", "enc");
 
+        // Add internal queue at the beginning
+        let obj_name = self.obj().name().to_string();
+        let queue_name = if obj_name.contains("0") {
+            "encq0"
+        } else {
+            "encq1"
+        };
+
+        let input_queue = gst::ElementFactory::make("queue")
+            .name(queue_name)
+            .build()
+            .expect("Failed to create input queue");
+        self.obj().add(&input_queue).expect("Failed to add input queue");
+
         let originalbuffersave = gst::ElementFactory::make("originalbuffersave")
             .build()
             .expect("Failed to create originalbuffersave element");
@@ -212,6 +226,9 @@ impl EncoderStats {
         self.obj().add(&tee0).unwrap();
         
         self.obj().add(&encoder).expect("Failed to add encoder element");
+
+        // Link: input_queue -> originalbuffersave -> encoder -> identity -> tee0
+        input_queue.link(&originalbuffersave).expect("Failed to link input queue to originalbuffersave");
         originalbuffersave.link(&encoder).expect("Failed to link originalbuffersave to encoder");
         encoder.link(&self.identity).expect("Failed to link encoder to identity");
         self.identity.link(&tee0).expect("Failed to link identity to tee0");
@@ -227,9 +244,10 @@ impl EncoderStats {
         tee0_src_0.link(&queue0_sink_pad).expect("tee0.src_0 -> encintq0.sink");
         self.srcpad.set_target(Some(&queue0_src_pad)).unwrap();
 
+        // Connect sink ghostpad to input queue
         self.sinkpad
-            .set_target(Some(&originalbuffersave.static_pad("sink").unwrap()))
-            .expect("Failed to link sink pad to originalbuffersave element");
+            .set_target(Some(&input_queue.static_pad("sink").unwrap()))
+            .expect("Failed to link sink pad to input queue");
 
         // Only create decoder branch if VMAF is enabled
         if vmaf_enabled {
