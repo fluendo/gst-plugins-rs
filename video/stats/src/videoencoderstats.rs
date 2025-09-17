@@ -37,7 +37,7 @@ pub struct VideoEncoderStats {
     pub threads_utime: u64,
     pub threads_stime: u64,
     pub framerate: Option<gst::Fraction>,
-    pub vmaf_score: f64,
+    pub vmaf_score: Option<f64>,
     pub input_time: GstClockTime,
     pub pre_encode_time: GstClockTime,
     pub post_encode_time: GstClockTime,
@@ -55,7 +55,7 @@ impl Default for VideoEncoderStats {
             total_processing_time: Duration::ZERO,
             threads_utime: 0,
             threads_stime: 0,
-            vmaf_score: 0.0,
+            vmaf_score: None,
             input_time: 0,
             pre_encode_time: 0,
             post_encode_time: 0,
@@ -137,12 +137,11 @@ impl fmt::Display for VideoEncoderStats {
             cpu_time_seconds
         )?;
 
-        let vmaf_score = self.vmaf_score;
-        writeln!(
-            f,
-            "VMAF: {:.3}",
-            vmaf_score
-        )?;
+        let vmaf_score_str = match self.vmaf_score {
+            Some(score) => format!("{:.3}", score),
+            None => "N/A".to_string(),
+        };
+        writeln!(f, "VMAF: {}", vmaf_score_str)?;
 
         let pre_encode_time = &self.pre_encode_time;
         let post_encode_time = &self.post_encode_time;
