@@ -36,6 +36,8 @@ pub struct EncoderStats {
     request_pad: Mutex<Option<gst::GhostPad>>,
     vmaf_stats: Mutex<bool>,
     vmaf_available: bool,
+    silent: Mutex<bool>,
+    last_message: Arc<Mutex<Option<String>>>,
 }
 
 impl EncoderStats {
@@ -168,6 +170,9 @@ impl EncoderStats {
         let input_queue_src_pad = input_queue.static_pad("src").unwrap();
         let queue_name_clone = queue_name.to_string();
         let stats_clone = self.stats.clone();
+        let element_weak = self.obj().downgrade();
+        let silent_arc = Arc::new(self.silent.lock().unwrap().clone());
+        let last_message_arc = self.last_message.clone();
         input_queue_src_pad.add_probe(gst::PadProbeType::BUFFER, move |_pad, probe_info| {
             let Some(buffer) = probe_info.buffer_mut() else {
                 return gst::PadProbeReturn::Ok;
@@ -215,6 +220,27 @@ impl EncoderStats {
             stats.input_time = *gst::ClockTime::from_nseconds(
                 gst::SystemClock::obtain().upcast::<gst::Clock>().time().unwrap().nseconds()
             );
+
+            if let Some(element) = element_weak.upgrade() {
+                let stats_message = format!("{}", stats.clone());
+                
+                let structure = gst::Structure::builder("encoder-stats")
+                    .field("message", &stats_message)
+                    .build();
+                
+                let message = gst::message::Application::new(structure);
+                let _ = element.post_message(message);
+
+                let silent = *silent_arc;
+                
+                if !silent {
+                    {
+                        let mut last_message_guard = last_message_arc.lock().unwrap();
+                        *last_message_guard = Some(stats_message);
+                    }
+                    element.notify("last-message");
+                }
+            }
 
             let buffer = buffer.make_mut();
 
@@ -532,6 +558,8 @@ impl ObjectSubclass for EncoderStats {
             request_pad: Mutex::new(None),
             vmaf_stats: Mutex::new(true), // Default enabled
             vmaf_available,
+            silent: Mutex::new(false), // Default: not silent
+            last_message: Arc::new(Mutex::new(None)),
         }
     }
 }
@@ -554,6 +582,15 @@ impl ObjectImpl for EncoderStats {
                     .blurb("Enable VMAF statistics calculation (requires vmaf element)")
                     .default_value(true)
                     .build(),
+                glib::ParamSpecBoolean::builder("silent")
+                    .nick("Silent")
+                    .blurb("Enable silent mode (disable stdout output of stats)")
+                    .default_value(false)
+                    .build(),
+                glib::ParamSpecString::builder("last-message")
+                    .nick("Last Message")
+                    .blurb("The message describing current encoder statistics")
+                    .build(),
             ]
         });
 
@@ -573,6 +610,14 @@ impl ObjectImpl for EncoderStats {
             "vmaf-stats" => {
                 let vmaf_stats_guard = self.vmaf_stats.lock().unwrap();
                 (*vmaf_stats_guard && self.vmaf_available).to_value()
+            }
+            "silent" => {
+                let silent_guard = self.silent.lock().unwrap();
+                (*silent_guard).to_value()
+            }
+            "last-message" => {
+                let last_message_guard = self.last_message.lock().unwrap();
+                last_message_guard.clone().to_value()
             }
             _ => unimplemented!(),
         }
@@ -610,6 +655,12 @@ impl ObjectImpl for EncoderStats {
                     }
                     let mut vmaf_stats_guard = self.vmaf_stats.lock().unwrap();
                     *vmaf_stats_guard = vmaf_stats;
+                }
+            }
+            "silent" => {
+                if let Ok(silent) = value.get::<bool>() {
+                    let mut silent_guard = self.silent.lock().unwrap();
+                    *silent_guard = silent;
                 }
             }
             _ => unimplemented!(),
