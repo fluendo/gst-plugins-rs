@@ -50,9 +50,12 @@ impl EncoderStats {
         let encoder_factory = encoder.factory().expect("encoder should have a factory");
         let encoder_name = encoder_factory.name();
 
-        let stats = self.stats.clone();
+        let element_weak = self.obj().downgrade();
+        let silent_arc = Arc::new(self.silent.lock().unwrap().clone());
+        let last_message_arc = self.last_message.clone();
+
         identity_src_pad.add_probe(gst::PadProbeType::BUFFER, move |_pad, probe_info| {
-            let Some(_) = probe_info.buffer() else {
+            let Some(buffer) = probe_info.buffer_mut() else {
                 return gst::PadProbeReturn::Ok;
             };
 
@@ -60,12 +63,43 @@ impl EncoderStats {
             let num_bytes = identity_stats.get::<u64>("num-bytes").unwrap();
             let num_buffers = identity_stats.get::<u64>("num-buffers").unwrap();
 
-            let mut stats = stats.lock().unwrap();
+            let buffer = buffer.make_mut();
+            if let Some(mut meta) = buffer.meta_mut::<VideoEncoderStatsMeta>() {
+                let mut new_stats = meta.stats().clone();
+                new_stats.num_bytes = num_bytes;
+                new_stats.num_buffers = num_buffers;
+                new_stats.name = encoder_name.to_string();
 
-            stats.num_bytes = num_bytes;
-            stats.num_buffers = num_buffers;
-            stats.name = encoder_name.to_string();
+                let stats_clone = new_stats.clone();
+                meta.replace(new_stats);
 
+                gst::log!(CAT, "Updated meta stats: encoder={}, buffers={}, bytes={}",
+                    encoder_name, num_buffers, num_bytes);
+
+                if let Some(element) = element_weak.upgrade() {
+                    let stats_message = format!("{}", stats_clone.clone());
+
+                    let structure = gst::Structure::builder("encoder-stats")
+                        .field("message", &stats_message)
+                        .build();
+
+                    let message = gst::message::Application::new(structure);
+                    let _ = element.post_message(message);
+
+                    let silent = *silent_arc;
+
+                    if !silent {
+                        {
+                            let mut last_message_guard = last_message_arc.lock().unwrap();
+                            *last_message_guard = Some(stats_message);
+                        }
+                        element.notify("last-message");
+                    }
+                }
+
+            } else {
+                gst::warning!(CAT, "No VideoEncoderStatsMeta found on buffer");
+            }
             gst::PadProbeReturn::Ok
         });
     }
@@ -77,27 +111,55 @@ impl EncoderStats {
 
         let stats = self.stats.clone();
         encoder_sink_pad.add_probe(gst::PadProbeType::BUFFER, move |_, probe_info| {
-            let Some(_) = probe_info.buffer() else {
+            let Some(buffer) = probe_info.buffer_mut() else {
                 return gst::PadProbeReturn::Ok;
             };
             stats.lock().unwrap().buffer_in();
             gst::log!(CAT, "Buffer in encoder sink pad");
-            stats.lock().unwrap().pre_encode_time = *gst::ClockTime::from_nseconds(
+
+            let current_time = *gst::ClockTime::from_nseconds(
                 gst::SystemClock::obtain().upcast::<gst::Clock>().time().unwrap().nseconds()
             );
+
+            let buffer = buffer.make_mut();
+            if let Some(mut meta) = buffer.meta_mut::<VideoEncoderStatsMeta>() {
+                let mut new_stats = meta.stats().clone();
+                new_stats.pre_encode_time = current_time;
+
+                meta.replace(new_stats);
+
+                gst::log!(CAT, "Buffer in encoder sink pad, pre_encode_time: {}", current_time);
+            } else {
+                gst::warning!(CAT, "No VideoEncoderStatsMeta found on buffer in encoder sink probe");
+            }
+
             gst::PadProbeReturn::Ok
         });
 
         let stats = self.stats.clone();
         encoder_src_pad.add_probe(gst::PadProbeType::BUFFER, move |_, probe_info| {
-            let Some(_) = probe_info.buffer() else {
+            let Some(buffer) = probe_info.buffer_mut() else {
                 return gst::PadProbeReturn::Ok;
             };
             stats.lock().unwrap().buffer_out();
             gst::log!(CAT, "Buffer out encoder src pad");
-            stats.lock().unwrap().post_encode_time = *gst::ClockTime::from_nseconds(
+
+            let current_time = *gst::ClockTime::from_nseconds(
                 gst::SystemClock::obtain().upcast::<gst::Clock>().time().unwrap().nseconds()
             );
+
+            let buffer = buffer.make_mut();
+            if let Some(mut meta) = buffer.meta_mut::<VideoEncoderStatsMeta>() {
+                let mut new_stats = meta.stats().clone();
+                new_stats.post_encode_time = current_time;
+
+                meta.replace(new_stats);
+
+                gst::log!(CAT, "Buffer out encoder src pad, post_encode_time: {}", current_time);
+            } else {
+                gst::warning!(CAT, "No VideoEncoderStatsMeta found on buffer in encoder src probe");
+            }
+
             gst::PadProbeReturn::Ok
         });
     }
@@ -113,13 +175,13 @@ impl EncoderStats {
                 let s = caps.structure(0).unwrap();
                 let fps = s.get::<gst::Fraction>("framerate").ok();
                 self.stats.lock().unwrap().framerate = fps;
-                
+
                 // Only set vmaf subsample if vmaf is available and enabled
                 let vmaf_enabled = {
                     let vmaf_stats_guard = self.vmaf_stats.lock().unwrap();
                     *vmaf_stats_guard && self.vmaf_available
                 };
-                
+
                 if vmaf_enabled {
                     if let Some(vmaf) = self.obj().by_name("vmaf0") {
                         vmaf.set_property("subsample", fps.unwrap().numer() as u32);
@@ -170,19 +232,20 @@ impl EncoderStats {
         let input_queue_src_pad = input_queue.static_pad("src").unwrap();
         let queue_name_clone = queue_name.to_string();
         let stats_clone = self.stats.clone();
-        let element_weak = self.obj().downgrade();
-        let silent_arc = Arc::new(self.silent.lock().unwrap().clone());
-        let last_message_arc = self.last_message.clone();
         input_queue_src_pad.add_probe(gst::PadProbeType::BUFFER, move |_pad, probe_info| {
             let Some(buffer) = probe_info.buffer_mut() else {
                 return gst::PadProbeReturn::Ok;
             };
-            gst::info!(CAT, "Buffer received in {} src pad, PTS: {:?}, DTS: {:?}, size: {}", 
+            gst::info!(CAT, "Buffer received in {} src pad, PTS: {:?}, DTS: {:?}, size: {}",
                 queue_name_clone, buffer.pts(), buffer.dts(), buffer.size());
 
             let mut stats = stats_clone.lock().unwrap();
 
-            // Only update stats at framerate intervals
+            stats.input_time = *gst::ClockTime::from_nseconds(
+                gst::SystemClock::obtain().upcast::<gst::Clock>().time().unwrap().nseconds()
+            );
+
+            // Only update CPU stats at framerate intervals as it takes time
             let fps_n: i32;
             if let Some(fps) = stats.framerate {
                 fps_n = fps.numer();
@@ -192,59 +255,30 @@ impl EncoderStats {
 
             let num_buffers = stats.num_buffers;
 
-            if num_buffers % (fps_n as u64) != 0 {
-                gst::log!(CAT, "Skipping probe for buffer {num_buffers} as it is not a multiple of framerate {fps_n}");
-                return gst::PadProbeReturn::Ok;
-            }
+            if num_buffers % (fps_n as u64) == 0 {
+                let queue_name = if obj_name.contains("0") { "encq0:src" } else { "encq1:src" };
+                let thread_patterns = match stats.name.as_str() {
+                    "flulcevch264enc" => vec![queue_name, "lcevc", "pool."],
+                    "lcevch264enc" => vec![queue_name, "pool."],
+                    _ => vec![queue_name],
+                };
 
-            let queue_name = if obj_name.contains("0") { "encq0:src" } else { "encq1:src" };
-            let thread_patterns = match stats.name.as_str() {
-                "flulcevch264enc" => vec![queue_name, "lcevc", "pool."],
-                "lcevch264enc" => vec![queue_name, "pool."],
-                _ => vec![queue_name],
-            };
+                let (total_utime, total_stime) = thread_patterns.iter()
+                    .map(|pattern| {
+                        let (utime, stime) = get_cpu_usage(pattern.to_string());
+                        gst::log!(CAT, "Thread pattern '{}' - utime: {}, stime: {}", pattern, utime, stime);
+                        (utime, stime)
+                    })
+                    .fold((0u64, 0u64), |(acc_utime, acc_stime), (utime, stime)| {
+                        (acc_utime + utime, acc_stime + stime)
+                    });
 
-            let (total_utime, total_stime) = thread_patterns.iter()
-                .map(|pattern| {
-                    let (utime, stime) = get_cpu_usage(pattern.to_string());
-                    gst::log!(CAT, "Thread pattern '{}' - utime: {}, stime: {}", pattern, utime, stime);
-                    (utime, stime)
-                })
-                .fold((0u64, 0u64), |(acc_utime, acc_stime), (utime, stime)| {
-                    (acc_utime + utime, acc_stime + stime)
-                });
-
-            stats.threads_utime = total_utime;
-            stats.threads_stime = total_stime;
-
-            stats.input_time = *gst::ClockTime::from_nseconds(
-                gst::SystemClock::obtain().upcast::<gst::Clock>().time().unwrap().nseconds()
-            );
-
-            if let Some(element) = element_weak.upgrade() {
-                let stats_message = format!("{}", stats.clone());
-                
-                let structure = gst::Structure::builder("encoder-stats")
-                    .field("message", &stats_message)
-                    .build();
-                
-                let message = gst::message::Application::new(structure);
-                let _ = element.post_message(message);
-
-                let silent = *silent_arc;
-                
-                if !silent {
-                    {
-                        let mut last_message_guard = last_message_arc.lock().unwrap();
-                        *last_message_guard = Some(stats_message);
-                    }
-                    element.notify("last-message");
-                }
+                stats.threads_utime = total_utime;
+                stats.threads_stime = total_stime;
             }
 
             let buffer = buffer.make_mut();
 
-            // Add the VideoEncoderStatsMeta to the buffer
             VideoEncoderStatsMeta::add(
                 buffer,
                 stats.clone(),
@@ -265,7 +299,7 @@ impl EncoderStats {
             .build()
             .expect("Failed to create tee0 element");
         self.obj().add(&tee0).unwrap();
-        
+
         self.obj().add(&encoder).expect("Failed to add encoder element");
 
         // Link: input_queue -> originalbuffersave -> encoder -> identity -> tee0
@@ -273,7 +307,7 @@ impl EncoderStats {
         originalbuffersave.link(&encoder).expect("Failed to link originalbuffersave to encoder");
         encoder.link(&self.identity).expect("Failed to link encoder to identity");
         self.identity.link(&tee0).expect("Failed to link identity to tee0");
-        
+
         let tee0_src_0 = tee0.request_pad_simple("src_%u").expect("tee0 src pad");
         let queue0 = gst::ElementFactory::make("queue")
         .name("encintq0")
@@ -302,7 +336,7 @@ impl EncoderStats {
                 .name("encintq1")
                 .build()
                 .expect("Failed to create queue encintq1");
-            
+
             // Use custom decoder if provided, otherwise use decodebin3
             let final_decoder = if let Some(custom_decoder) = decoder.clone() {
                 custom_decoder.set_property("name", "dec");
@@ -433,7 +467,7 @@ impl EncoderStats {
     }
 
     fn setup_vmaf_pipeline(&self, input_pad: gst::Pad) {
-        let (videoconvert, capsfilter, tee1, originalbufferstore, queue_vmaf_0, queue_vmaf_1, vmaf, fakesink) = 
+        let (videoconvert, capsfilter, tee1, originalbufferstore, queue_vmaf_0, queue_vmaf_1, vmaf, fakesink) =
             self.create_vmaf_pipeline_elements();
 
         self.obj().add_many([
@@ -446,7 +480,7 @@ impl EncoderStats {
         input_pad.link(&videoconvert_sink).expect("input -> videoconvert");
         videoconvert.link(&capsfilter).expect("videoconvert -> capsfilter");
         capsfilter.link(&tee1).expect("capsfilter -> tee1");
-        
+
         let tee1_src_0 = tee1.request_pad_simple("src_%u").expect("tee1 src_0");
         tee1_src_0.link(&originalbufferstore.static_pad("sink").unwrap()).expect("tee1.src_0 -> originalbufferstore");
         originalbufferstore.link(&queue_vmaf_0).expect("originalbufferrestore -> queue_vmaf_0");
@@ -460,7 +494,7 @@ impl EncoderStats {
     }
 
     fn setup_decoder_to_vmaf_direct(&self, final_decoder: gst::Element, is_manual_decoder: bool) {
-        let (videoconvert, capsfilter, tee1, originalbufferstore, queue_vmaf_0, queue_vmaf_1, vmaf, fakesink) = 
+        let (videoconvert, capsfilter, tee1, originalbufferstore, queue_vmaf_0, queue_vmaf_1, vmaf, fakesink) =
             self.create_vmaf_pipeline_elements();
 
         self.obj().add_many([
@@ -473,7 +507,7 @@ impl EncoderStats {
             final_decoder.link(&videoconvert).expect("decoder -> videoconvert");
             videoconvert.link(&capsfilter).expect("videoconvert -> capsfilter");
             capsfilter.link(&tee1).expect("capsfilter -> tee1");
-            
+
             let tee1_src_0 = tee1.request_pad_simple("src_%u").expect("tee1 src_0");
             tee1_src_0.link(&originalbufferstore.static_pad("sink").unwrap()).expect("tee1.src_0 -> originalbufferstore");
             originalbufferstore.link(&queue_vmaf_0).expect("originalbufferrestore -> queue_vmaf_0");
@@ -636,7 +670,7 @@ impl ObjectImpl for EncoderStats {
                         gst::error!(CAT, "The element is not a video encoder");
                         panic!("The element is not a video encoder");
                     }
-                    
+
                     let mut encoder_guard = self.encoder.lock().unwrap();
                     *encoder_guard = Some(enc_obj);
                 }
@@ -765,7 +799,7 @@ impl ElementImpl for EncoderStats {
             request_pad.set_property("name", &pad_name);
             self.obj().add_pad(&request_pad).unwrap();
             *request_pad_guard = Some(request_pad.clone());
-            
+
             gst::info!(CAT, imp = self, "Created request pad: {}", pad_name);
             Some(request_pad.upcast())
         } else {

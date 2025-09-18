@@ -41,6 +41,10 @@ impl VideoEncoderStatsMeta {
     pub fn stats(&self) -> &VideoEncoderStats {
         &self.0.stats
     }
+
+    pub fn replace(&mut self, stats: VideoEncoderStats) {
+        self.0.stats = stats;
+    }
 }
 
 unsafe impl MetaAPI for VideoEncoderStatsMeta {
