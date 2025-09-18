@@ -118,11 +118,11 @@ impl fmt::Display for VideoEncoderStats {
 
         writeln!(f, "Bitrate: {:.3} kbps", bitrate_str)?;
 
-        let throughput = (1.0 + self.time_last_buffers.len() as f64)/self.avg_processing_time().as_secs_f64();
+        let avg_processing_time = self.avg_processing_time().as_millis();
         writeln!(
             f,
-            "Throughput: {:.2} fps",
-            throughput
+            "Processing time: {:.2} ms",
+            avg_processing_time
         )?;
 
         let cpu_time = self.threads_utime + self.threads_stime;
