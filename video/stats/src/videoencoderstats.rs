@@ -14,7 +14,6 @@ use std::fmt;
 use std::sync::LazyLock;
 
 use gst::ffi::GstClockTime;
-use gst::prelude::ClockExt;
 
 use procfs::process::Process;
 
@@ -150,15 +149,6 @@ impl fmt::Display for VideoEncoderStats {
             f,
             "Encode latency: {:.3} ms",
             encode_latency
-        )?;
-
-        let current_time = gst::SystemClock::obtain();
-        let latency = (current_time.time().unwrap().nseconds() as f64 - self.input_time as f64) / 1_000_000.0;
-
-        writeln!(
-            f,
-            "End2End latency: {:.3} ms",
-            latency
         )
     }
 }
