@@ -104,7 +104,7 @@ impl fmt::Display for VideoEncoderStats {
         writeln!(
             f,
             "Output size: {} KB",
-            self.num_bytes / 1024, // Convert to KB
+            self.num_bytes / 1000, // Convert to KB
         )?;
 
         let framerate = self.framerate.unwrap();
