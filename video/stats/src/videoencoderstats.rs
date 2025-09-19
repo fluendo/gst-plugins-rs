@@ -114,7 +114,7 @@ impl fmt::Display for VideoEncoderStats {
         } else {
             0.0
         };
-        let bitrate_str = bitrate/1024.0; // Convert to kbps
+        let bitrate_str = bitrate/1000.0; // Convert to kbps
 
         writeln!(f, "Bitrate: {:.3} kbps", bitrate_str)?;
 
