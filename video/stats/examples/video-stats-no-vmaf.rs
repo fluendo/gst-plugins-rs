@@ -13,6 +13,8 @@ use gst::prelude::*;
 fn main() -> Result<(), Error> {
     gst::init()?;
 
+    gstvideostats::plugin_register_static().expect("Failed to register videostats plugin");
+
     let pipeline = gst::parse::launch("souphttpsrc location=\"https://ftp.nluug.nl/pub/graphics/blender/demo/movies/ToS/tears_of_steel_1080p.mov\" ! qtdemux name=demux demux.video_0 ! queue ! decodebin3 ! videoconvertscale ! capsfilter caps=\"video/x-raw,aspect-ratio=1/1\" ! tee name=tee ! video-encoder-stats encoder=\"x264enc bitrate=1024\" name=vs0 vmaf-stats=false tee. ! video-encoder-stats encoder=\"x264enc bitrate=512\" name=vs1 video-compare-mixer split-screen=true backend=CPU name=mixer vs0.src ! h264parse ! avdec_h264 ! mixer.sink_0  vs1.src ! h264parse ! avdec_h264 ! mixer.sink_1  mixer. ! autovideosink")?;
     pipeline.set_state(gst::State::Playing)?;
 
