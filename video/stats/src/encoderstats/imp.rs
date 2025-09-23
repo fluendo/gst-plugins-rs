@@ -118,7 +118,7 @@ impl EncoderStats {
             gst::log!(CAT, "Buffer in encoder sink pad");
 
             let current_time = *gst::ClockTime::from_nseconds(
-                gst::SystemClock::obtain().upcast::<gst::Clock>().time().unwrap().nseconds()
+                gst::SystemClock::obtain().upcast::<gst::Clock>().time().nseconds()
             );
 
             let buffer = buffer.make_mut();
@@ -145,7 +145,7 @@ impl EncoderStats {
             gst::log!(CAT, "Buffer out encoder src pad");
 
             let current_time = *gst::ClockTime::from_nseconds(
-                gst::SystemClock::obtain().upcast::<gst::Clock>().time().unwrap().nseconds()
+                gst::SystemClock::obtain().upcast::<gst::Clock>().time().nseconds()
             );
 
             let buffer = buffer.make_mut();
@@ -242,7 +242,7 @@ impl EncoderStats {
             let mut stats = stats_clone.lock().unwrap();
 
             stats.input_time = *gst::ClockTime::from_nseconds(
-                gst::SystemClock::obtain().upcast::<gst::Clock>().time().unwrap().nseconds()
+                gst::SystemClock::obtain().upcast::<gst::Clock>().time().nseconds()
             );
 
             // Only update CPU stats at framerate intervals as it takes time
