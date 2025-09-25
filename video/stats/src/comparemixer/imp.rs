@@ -60,6 +60,7 @@ struct Settings {
     backend: Backend,
     split_screen: bool,
     navigation_events: bool,
+    overlay_stats: bool,
 }
 
 impl Default for Settings {
@@ -68,6 +69,7 @@ impl Default for Settings {
             backend: Backend::default(),
             split_screen: false,
             navigation_events: true,
+            overlay_stats: true,
         }
     }
 }
@@ -508,17 +510,22 @@ impl VideoCompareMixer {
         let compositor_src_pad = compositor.static_pad("src").unwrap();
         let overlay = self.overlay.clone();
         let queue_stats = self.queue_stats.clone();
+        let imp_weak = self.downgrade();
 
         compositor_src_pad.add_probe(gst::PadProbeType::BUFFER, move |_: &gst::Pad, probe_info| {
             let Some(_) = probe_info.buffer() else {
                 return gst::PadProbeReturn::Ok;
             };
 
-            // Use formatted queue stats as overlay text
-            let stats = queue_stats.lock().unwrap();
-            let stats_text = format!("{}", *stats);
-            overlay.set_property("text", stats_text);
+            let Some(imp) = imp_weak.upgrade() else {
+                return gst::PadProbeReturn::Ok;
+            };
 
+            if imp.settings.lock().unwrap().overlay_stats {
+                let stats = queue_stats.lock().unwrap();
+                let stats_text = format!("{}", *stats);
+                overlay.set_property("text", stats_text);
+            };
             gst::PadProbeReturn::Ok
         });
     }
@@ -739,6 +746,11 @@ impl ObjectImpl for VideoCompareMixer {
                     .default_value(true)
                     .mutable_ready()
                     .build(),
+                glib::ParamSpecBoolean::builder("overlay-stats")
+                    .nick("Overlay Stats")
+                    .blurb("Enable/disable the text overlay displaying encoder statistics")
+                    .default_value(true)
+                    .build(),
             ]
         });
 
@@ -778,6 +790,16 @@ impl ObjectImpl for VideoCompareMixer {
                     settings.navigation_events
                 );
             }
+            "overlay-stats" => {
+                settings.overlay_stats = value.get().expect("type checked upstream");
+
+                gst::info!(
+                    CAT,
+                    imp = self,
+                    "Set overlay-stats to {:?}",
+                    settings.overlay_stats
+                );
+            }
             _ => unimplemented!(),
         }
     }
@@ -788,6 +810,7 @@ impl ObjectImpl for VideoCompareMixer {
             "backend" => settings.backend.to_value(),
             "split-screen" => settings.split_screen.to_value(),
             "navigation-events" => settings.navigation_events.to_value(),
+            "overlay-stats" => settings.overlay_stats.to_value(),
             _ => unimplemented!(),
         }
     }
