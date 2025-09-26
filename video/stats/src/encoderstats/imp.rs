@@ -454,7 +454,6 @@ impl EncoderStats {
                     move |_vmaf: &gst::Element, score: f64| {
                         let mut stats = stats.lock().unwrap();
                         stats.vmaf_score = Some(score);
-                        println!("VMAF score: {:.3}", score);
                 }
                 ),
             );
