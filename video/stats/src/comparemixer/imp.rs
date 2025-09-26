@@ -450,8 +450,7 @@ impl VideoCompareMixer {
         self.obj().add(&crop0).expect("Failed to add crop0 element");
         self.obj().add(&crop1).expect("Failed to add crop1 element");
 
-        // FIXME remove split_screen logic if not needed. It adds and links crops always
-        self.link_elements(&compositor, true, backend)?;
+        self.link_elements(&compositor, backend)?;
 
         self.add_queue_probe(&self.queue0, 0);
         self.add_queue_probe(&self.queue1, 1);
@@ -533,7 +532,6 @@ impl VideoCompareMixer {
     fn link_elements(
         &self,
         compositor: &gst::Element,
-        split_screen: bool,
         backend: Backend,
     ) -> Result<(), gst::ErrorMessage> {
         let compositor_pad0 = compositor
@@ -578,7 +576,7 @@ impl VideoCompareMixer {
             .set_target(Some(&caps_filter.static_pad("src").unwrap()))
             .expect("Failed to link srcpad to capsfilter");
 
-        if split_screen && backend != Backend::GL {
+        if backend != Backend::GL {
             // Get crop elements by name since we can't store them in struct easily
             let crop0 = self.obj().by_name("crop0").expect("crop0 should exist");
             let crop1 = self.obj().by_name("crop1").expect("crop1 should exist");
