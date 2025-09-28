@@ -100,52 +100,58 @@ impl fmt::Display for QueueStats {
         let stats1_str = self.stats1.as_deref().unwrap_or("No stats available");
 
         // Parse stats from both sides
-        let (encoder0, size0, buffers0, bitrate0, proc_time0, cpu0, vmaf0, latency0) =
+        let (encoder0, size0, bitrate0, proc_time0, cpu0, vmaf0, latency0) =
             parse_stats_string(stats0_str);
-        let (encoder1, size1, buffers1, bitrate1, proc_time1, cpu1, vmaf1, latency1) =
+        let (encoder1, size1, bitrate1, proc_time1, cpu1, vmaf1, latency1) =
             parse_stats_string(stats1_str);
 
-        // Calculate dynamic spacing based on left side content length
-        let total_width: usize = 80; // Total desired width
-
+        let total_width: usize = 100;
         let encoder0_full = format!("Encoder: {}", encoder0);
-        let encoder_spacing = total_width.saturating_sub(encoder0_full.len());
-        writeln!(f, "{}{:>width$}Encoder: {}", encoder0_full, "", encoder1, width = encoder_spacing)?;
+        let encoder1_full = format!("Encoder: {}", encoder1);
+        let encoder_spacing = total_width.saturating_sub(encoder0_full.len()+encoder1_full.len());
+        writeln!(f, "{}{:>width$}{}", encoder0_full, "", encoder1_full, width = encoder_spacing)?;
 
+        let total_width: usize = 100;
         let size0_full = format!("Output size: {}", size0);
-        let size_spacing = total_width.saturating_sub(size0_full.len());
-        writeln!(f, "{}{:>width$}Output size: {}", size0_full, "", size1, width = size_spacing)?;
+        let size1_full = format!("Output size: {}", size1);
+        let size_spacing = total_width.saturating_sub(size0_full.len()+size1_full.len());
+        writeln!(f, "{}{:>width$}{}", size0_full, "", size1_full, width = size_spacing)?;
 
-        let buffers0_full = format!("Num buffers: {}", buffers0);
-        let buffers_spacing = total_width.saturating_sub(buffers0_full.len());
-        writeln!(f, "{}{:>width$}Num buffers: {}", buffers0_full, "", buffers1, width = buffers_spacing)?;
-
+        let total_width: usize = 100;
         let bitrate0_full = format!("Bitrate: {}", bitrate0);
-        let bitrate_spacing = total_width.saturating_sub(bitrate0_full.len());
-        writeln!(f, "{}{:>width$}Bitrate: {}", bitrate0_full, "", bitrate1, width = bitrate_spacing)?;
+        let bitrate1_full = format!("Bitrate: {}", bitrate1);
+        let bitrate_spacing = total_width.saturating_sub(bitrate0_full.len()+bitrate1_full.len());
+        writeln!(f, "{}{:>width$}{}", bitrate0_full, "", bitrate1_full, width = bitrate_spacing)?;
 
+        let total_width: usize = 95;
         let proc_time0_full = format!("Processing time: {}", proc_time0);
-        let proc_time_spacing = total_width.saturating_sub(proc_time0_full.len());
-        writeln!(f, "{}{:>width$}Processing time: {}", proc_time0_full, "", proc_time1, width = proc_time_spacing)?;
+        let proc_time1_full = format!("Processing time: {}", proc_time1);
+        let proc_time_spacing = total_width.saturating_sub(proc_time0_full.len()+proc_time1_full.len());
+        writeln!(f, "{}{:>width$}{}", proc_time0_full, "", proc_time1_full, width = proc_time_spacing)?;
 
+        let total_width: usize = 120;
         let cpu0_full = format!("CPU: {}", cpu0);
-        let cpu_spacing = total_width.saturating_sub(cpu0_full.len());
-        writeln!(f, "{}{:>width$}CPU: {}", cpu0_full, "", cpu1, width = cpu_spacing)?;
+        let cpu1_full = format!("CPU: {}", cpu1);
+        let cpu_spacing = total_width.saturating_sub(cpu0_full.len()+cpu1_full.len());
+        writeln!(f, "{}{:>width$}{}", cpu0_full, "", cpu1_full, width = cpu_spacing)?;
 
+        let total_width: usize = 112;
         let vmaf0_full = format!("VMAF: {}", vmaf0);
-        let vmaf_spacing = total_width.saturating_sub(vmaf0_full.len());
-        writeln!(f, "{}{:>width$}VMAF: {}", vmaf0_full, "", vmaf1, width = vmaf_spacing)?;
+        let vmaf1_full = format!("VMAF: {}", vmaf1);
+        let vmaf_spacing = total_width.saturating_sub(vmaf0_full.len()+vmaf1_full.len());
+        writeln!(f, "{}{:>width$}{}", vmaf0_full, "", vmaf1_full, width = vmaf_spacing)?;
 
-        let latency0_full = format!("Encode latency: {}", latency0);
-        let latency_spacing = total_width.saturating_sub(latency0_full.len());
-        writeln!(f, "{}{:>width$}Encode latency: {}", latency0_full, "", latency1, width = latency_spacing)
+        let total_width: usize = 87;
+        let latency0_full = format!("Encoding latency: {}", latency0);
+        let latency1_full = format!("Encoding latency: {}", latency1);
+        let latency_spacing = total_width.saturating_sub(latency0_full.len()+latency1_full.len());
+        writeln!(f, "{}{:>width$}{}", latency0_full, "", latency1_full, width = latency_spacing)
     }
 }
 
-fn parse_stats_string(stats_str: &str) -> (String, String, String, String, String, String, String, String) {
+fn parse_stats_string(stats_str: &str) -> (String, String, String, String, String, String, String) {
     let mut encoder = "Unknown".to_string();
     let mut size = "0 KB".to_string();
-    let mut buffers = "0".to_string();
     let mut bitrate = "0.000 kbps".to_string();
     let mut proc_time = "0.00 ms".to_string();
     let mut cpu = "0 s".to_string();
@@ -157,8 +163,6 @@ fn parse_stats_string(stats_str: &str) -> (String, String, String, String, Strin
             encoder = line.replace("Encoder: ", "");
         } else if line.starts_with("Output size: ") {
             size = line.replace("Output size: ", "");
-        } else if line.starts_with("Num buffers: ") {
-            buffers = line.replace("Num buffers: ", "");
         } else if line.starts_with("Bitrate: ") {
             bitrate = line.replace("Bitrate: ", "");
         } else if line.starts_with("Processing time: ") {
@@ -172,7 +176,7 @@ fn parse_stats_string(stats_str: &str) -> (String, String, String, String, Strin
         }
     }
 
-    (encoder, size, buffers, bitrate, proc_time, cpu, vmaf, latency)
+    (encoder, size, bitrate, proc_time, cpu, vmaf, latency)
 }
 
 impl VideoCompareMixer {
