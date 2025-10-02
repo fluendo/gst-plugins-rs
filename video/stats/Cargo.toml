@@ -5,7 +5,7 @@ authors = ["Diego Nieto <dnieto@fluendo.com>"]
 repository = "https://gitlab.freedesktop.org/gstreamer/gst-plugins-rs"
 license = "MPL-2.0"
 edition = "2021"
-description = "videostats plugin"
+description = "GStreamer Video Stats Plugin"
 
 [dependencies]
 hound = "3"
