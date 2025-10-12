@@ -214,7 +214,13 @@ impl EncoderStats {
 
         encoder.set_property("name", "enc");
 
-        // Add internal queue at the beginning
+        // Add originalbuffersave at the beginning
+        let originalbuffersave = gst::ElementFactory::make("originalbuffersave")
+            .build()
+            .expect("Failed to create originalbuffersave element");
+        self.obj().add(&originalbuffersave).expect("Failed to add originalbuffersave element");
+
+        // Add internal queue after originalbuffersave
         let obj_name = self.obj().name().to_string();
         let queue_name = if obj_name.contains("0") {
             "encq0"
@@ -287,12 +293,14 @@ impl EncoderStats {
             gst::PadProbeReturn::Ok
         });
 
-        let originalbuffersave = gst::ElementFactory::make("originalbuffersave")
-            .build()
-            .expect("Failed to create originalbuffersave element");
-        self.obj().add(&originalbuffersave).expect("Failed to add originalbuffersave element");
-
         self.obj().add(&self.identity).unwrap();
+
+        // Add new queue after encoder
+        let encoder_output_queue = gst::ElementFactory::make("queue")
+            .name("encoder_output_queue")
+            .build()
+            .expect("Failed to create encoder output queue");
+        self.obj().add(&encoder_output_queue).expect("Failed to add encoder output queue");
 
         let tee0 = gst::ElementFactory::make("tee")
             .name("tee0")
@@ -302,10 +310,11 @@ impl EncoderStats {
 
         self.obj().add(&encoder).expect("Failed to add encoder element");
 
-        // Link: input_queue -> originalbuffersave -> encoder -> identity -> tee0
-        input_queue.link(&originalbuffersave).expect("Failed to link input queue to originalbuffersave");
-        originalbuffersave.link(&encoder).expect("Failed to link originalbuffersave to encoder");
-        encoder.link(&self.identity).expect("Failed to link encoder to identity");
+        // Link: originalbuffersave -> input_queue -> encoder -> encoder_output_queue -> identity -> tee0
+        originalbuffersave.link(&input_queue).expect("Failed to link originalbuffersave to input queue");
+        input_queue.link(&encoder).expect("Failed to link input queue to encoder");
+        encoder.link(&encoder_output_queue).expect("Failed to link encoder to encoder output queue");
+        encoder_output_queue.link(&self.identity).expect("Failed to link encoder output queue to identity");
         self.identity.link(&tee0).expect("Failed to link identity to tee0");
 
         let tee0_src_0 = tee0.request_pad_simple("src_%u").expect("tee0 src pad");
@@ -319,10 +328,10 @@ impl EncoderStats {
         tee0_src_0.link(&queue0_sink_pad).expect("tee0.src_0 -> encintq0.sink");
         self.srcpad.set_target(Some(&queue0_src_pad)).unwrap();
 
-        // Connect sink ghostpad to input queue
+        // Connect sink ghostpad to originalbuffersave
         self.sinkpad
-            .set_target(Some(&input_queue.static_pad("sink").unwrap()))
-            .expect("Failed to link sink pad to input queue");
+            .set_target(Some(&originalbuffersave.static_pad("sink").unwrap()))
+            .expect("Failed to link sink pad to originalbuffersave");
 
         // Only create decoder branch if VMAF is enabled
         if vmaf_enabled {
