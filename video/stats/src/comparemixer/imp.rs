@@ -105,43 +105,37 @@ impl fmt::Display for QueueStats {
         let (encoder1, size1, bitrate1, proc_time1, cpu1, vmaf1, latency1) =
             parse_stats_string(stats1_str);
 
-        let total_width: usize = 100;
+        let total_width: usize = 60;
         let encoder0_full = format!("Encoder: {}", encoder0);
         let encoder1_full = format!("Encoder: {}", encoder1);
         let encoder_spacing = total_width.saturating_sub(encoder0_full.len()+encoder1_full.len());
         writeln!(f, "{}{:>width$}{}", encoder0_full, "", encoder1_full, width = encoder_spacing)?;
 
-        let total_width: usize = 100;
         let size0_full = format!("Output size: {}", size0);
         let size1_full = format!("Output size: {}", size1);
         let size_spacing = total_width.saturating_sub(size0_full.len()+size1_full.len());
         writeln!(f, "{}{:>width$}{}", size0_full, "", size1_full, width = size_spacing)?;
 
-        let total_width: usize = 100;
         let bitrate0_full = format!("Bitrate: {}", bitrate0);
         let bitrate1_full = format!("Bitrate: {}", bitrate1);
         let bitrate_spacing = total_width.saturating_sub(bitrate0_full.len()+bitrate1_full.len());
         writeln!(f, "{}{:>width$}{}", bitrate0_full, "", bitrate1_full, width = bitrate_spacing)?;
 
-        let total_width: usize = 95;
         let proc_time0_full = format!("Processing time: {}", proc_time0);
         let proc_time1_full = format!("Processing time: {}", proc_time1);
         let proc_time_spacing = total_width.saturating_sub(proc_time0_full.len()+proc_time1_full.len());
         writeln!(f, "{}{:>width$}{}", proc_time0_full, "", proc_time1_full, width = proc_time_spacing)?;
 
-        let total_width: usize = 120;
         let cpu0_full = format!("CPU: {}", cpu0);
         let cpu1_full = format!("CPU: {}", cpu1);
         let cpu_spacing = total_width.saturating_sub(cpu0_full.len()+cpu1_full.len());
         writeln!(f, "{}{:>width$}{}", cpu0_full, "", cpu1_full, width = cpu_spacing)?;
 
-        let total_width: usize = 112;
         let vmaf0_full = format!("VMAF: {}", vmaf0);
         let vmaf1_full = format!("VMAF: {}", vmaf1);
         let vmaf_spacing = total_width.saturating_sub(vmaf0_full.len()+vmaf1_full.len());
         writeln!(f, "{}{:>width$}{}", vmaf0_full, "", vmaf1_full, width = vmaf_spacing)?;
 
-        let total_width: usize = 87;
         let latency0_full = format!("Encoding latency: {}", latency0);
         let latency1_full = format!("Encoding latency: {}", latency1);
         let latency_spacing = total_width.saturating_sub(latency0_full.len()+latency1_full.len());
@@ -711,6 +705,7 @@ impl ObjectSubclass for VideoCompareMixer {
             .build()
             .expect("Failed to create overlay");
         overlay.set_property("name", "overlay");
+        overlay.set_property_from_str("font-desc", "Consolas 10");
 
         Self {
             srcpad,
