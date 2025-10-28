@@ -49,10 +49,18 @@ impl EncoderStats {
         let encoder = self.obj().by_name("enc").expect("expected encoder");
         let encoder_factory = encoder.factory().expect("encoder should have a factory");
         let encoder_name = encoder_factory.name();
+        let identity_clone = identity.clone();
+        let stats_clone_eos = self.stats.clone();
+        let element_weak_eos = self.obj().downgrade();
+        let encoder_name_eos = encoder_name.clone();
 
         let element_weak = self.obj().downgrade();
         let silent_arc = Arc::new(self.silent.lock().unwrap().clone());
         let last_message_arc = self.last_message.clone();
+
+        // Clone Arc values for first probe
+        let silent_arc_buffer = silent_arc.clone();
+        let last_message_arc_buffer = last_message_arc.clone();
 
         identity_src_pad.add_probe(gst::PadProbeType::BUFFER, move |_pad, probe_info| {
             let Some(buffer) = probe_info.buffer_mut() else {
@@ -76,21 +84,19 @@ impl EncoderStats {
                 gst::log!(CAT, "Updated meta stats: encoder={}, buffers={}, bytes={}",
                     encoder_name, num_buffers, num_bytes);
 
-                if let Some(element) = element_weak.upgrade() {
-                    let stats_message = format!("{}", stats_clone.clone());
+                if !*silent_arc_buffer {
+                    if let Some(element) = element_weak.upgrade() {
+                        let stats_message = format!("{}", stats_clone.clone());
 
-                    let structure = gst::Structure::builder("encoder-stats")
-                        .field("message", &stats_message)
-                        .build();
+                        let structure = gst::Structure::builder("encoder-stats")
+                            .field("message", &stats_message)
+                            .build();
 
-                    let message = gst::message::Application::new(structure);
-                    let _ = element.post_message(message);
+                        let message = gst::message::Application::new(structure);
 
-                    let silent = *silent_arc;
-
-                    if !silent {
+                        let _ = element.post_message(message);
                         {
-                            let mut last_message_guard = last_message_arc.lock().unwrap();
+                            let mut last_message_guard = last_message_arc_buffer.lock().unwrap();
                             *last_message_guard = Some(stats_message);
                         }
                         element.notify("last-message");
@@ -99,6 +105,43 @@ impl EncoderStats {
 
             } else {
                 gst::warning!(CAT, "No VideoEncoderStatsMeta found on buffer");
+            }
+            gst::PadProbeReturn::Ok
+        });
+
+        identity_src_pad.add_probe(gst::PadProbeType::EVENT_DOWNSTREAM, move |_pad, probe_info| {
+            if let Some(event) = probe_info.event() {
+                if event.type_() == gst::EventType::Eos {
+                    gst::info!(CAT, "EOS received, posting final stats");
+
+                    // Update global stats with final values from identity
+                    let identity_stats = identity_clone.property::<gst::Structure>("stats");
+                    let num_bytes = identity_stats.get::<u64>("num-bytes").unwrap_or(0);
+                    let num_buffers = identity_stats.get::<u64>("num-buffers").unwrap_or(0);
+
+                    {
+                        let mut stats = stats_clone_eos.lock().unwrap();
+                        stats.num_bytes = num_bytes;
+                        stats.num_buffers = num_buffers;
+                        stats.name = encoder_name_eos.to_string();
+                    }
+
+                    if let Some(element) = element_weak_eos.upgrade() {
+                        let stats_message = format!("{}", stats_clone_eos.lock().unwrap());
+
+                        let structure = gst::Structure::builder("encoder-stats")
+                            .field("message", &stats_message)
+                            .build();
+
+                        let message = gst::message::Application::new(structure);
+                        let _ = element.post_message(message);
+                        {
+                            let mut last_message_guard = last_message_arc.lock().unwrap();
+                            *last_message_guard = Some(stats_message);
+                        }
+                        element.notify("last-message");
+                    }
+                }
             }
             gst::PadProbeReturn::Ok
         });
