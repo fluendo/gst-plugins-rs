@@ -32,6 +32,7 @@ pub struct VideoEncoderStats {
     pub num_bytes: u64,
     pub time_last_buffers: VecDeque<Instant>,
     pub max_buffers_inside: usize,
+    pub num_buffers_first_output: i32,
     pub total_processing_time: Duration,
     pub threads_utime: u64,
     pub threads_stime: u64,
@@ -51,6 +52,7 @@ impl Default for VideoEncoderStats {
             num_buffers: 0,
             time_last_buffers: VecDeque::<Instant>::new(),
             max_buffers_inside: 0,
+            num_buffers_first_output: -1,
             total_processing_time: Duration::ZERO,
             threads_utime: 0,
             threads_stime: 0,
@@ -72,6 +74,9 @@ impl VideoEncoderStats {
     }
 
     pub fn buffer_out(&mut self) {
+        if self.num_buffers_first_output == -1 {
+            self.num_buffers_first_output = self.time_last_buffers.len() as i32;
+        }
         if let Some(arrive) = self.time_last_buffers.pop_front() {
             let diff = arrive.elapsed();
             self.total_processing_time += diff;
@@ -109,6 +114,11 @@ impl fmt::Display for VideoEncoderStats {
             f,
             "Max. Buffers inside: {}",
             self.max_buffers_inside
+        )?;
+        writeln!(
+            f,
+            "Num. Buffers first output: {}",
+            self.num_buffers_first_output
         )?;
 
         let framerate = self.framerate.unwrap();
