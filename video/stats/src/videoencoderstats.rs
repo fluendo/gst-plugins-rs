@@ -105,6 +105,11 @@ impl fmt::Display for VideoEncoderStats {
             "Output size: {} KB",
             self.num_bytes / 1000, // Convert to KB
         )?;
+        writeln!(
+            f,
+            "Max. Buffers inside: {}",
+            self.max_buffers_inside
+        )?;
 
         let framerate = self.framerate.unwrap();
         let total_time_secs = self.num_buffers as f64 / framerate.numer() as f64;
