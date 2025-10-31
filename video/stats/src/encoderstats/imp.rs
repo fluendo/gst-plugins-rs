@@ -539,9 +539,9 @@ impl EncoderStats {
         vmaf.link(&fakesink).expect("vmaf -> fakesink");
 
         let tee1_src_1 = tee1.request_pad_simple("src_%u").expect("tee1 src_1");
-        let vmaf_sink_1 = vmaf.request_pad_simple("sink_1").expect("vmaf sink_1");
+        let vmaf_dist_sink_0 = vmaf.request_pad_simple("dist_sink_%u").expect("vmaf dist_sink_0");
         tee1_src_1.link(&queue_vmaf_1.static_pad("sink").unwrap()).expect("tee1.src_1 -> queue_vmaf_1");
-        queue_vmaf_1.static_pad("src").unwrap().link(&vmaf_sink_1).expect("queue_vmaf_1.src -> vmaf.sink_1");
+        queue_vmaf_1.static_pad("src").unwrap().link(&vmaf_dist_sink_0).expect("queue_vmaf_1.src -> vmaf.dist_sink_0");
     }
 
     fn setup_decoder_to_vmaf_direct(&self, final_decoder: gst::Element, is_manual_decoder: bool) {
@@ -566,9 +566,9 @@ impl EncoderStats {
             vmaf.link(&fakesink).expect("vmaf -> fakesink");
 
             let tee1_src_1 = tee1.request_pad_simple("src_%u").expect("tee1 src_1");
-            let vmaf_sink_1 = vmaf.request_pad_simple("sink_1").expect("vmaf sink_1");
+            let vmaf_dist_sink_0 = vmaf.request_pad_simple("dist_sink_%u").expect("vmaf dist_sink_0");
             tee1_src_1.link(&queue_vmaf_1.static_pad("sink").unwrap()).expect("tee1.src_1 -> queue_vmaf_1");
-            queue_vmaf_1.static_pad("src").unwrap().link(&vmaf_sink_1).expect("queue_vmaf_1.src -> vmaf.sink_1");
+            queue_vmaf_1.static_pad("src").unwrap().link(&vmaf_dist_sink_0).expect("queue_vmaf_1.src -> vmaf.dist_sink_0");
         } else {
             // decodebin3 case: use connect_pad_added for dynamic linking
             let tee1_clone = tee1.clone();
@@ -596,9 +596,9 @@ impl EncoderStats {
                             vmaf_clone.link(&fakesink_clone).expect("vmaf -> fakesink");
 
                             let tee1_src_1 = tee1_clone.request_pad_simple("src_%u").expect("tee1 src_1");
-                            let vmaf_sink_1 = vmaf_clone.request_pad_simple("sink_1").expect("vmaf sink_1");
+                            let vmaf_dist_sink_0 = vmaf_clone.request_pad_simple("dist_sink_%u").expect("vmaf dist_sink_0");
                             tee1_src_1.link(&queue_vmaf_1_clone.static_pad("sink").unwrap()).expect("tee1.src_1 -> queue_vmaf_1");
-                            queue_vmaf_1_clone.static_pad("src").unwrap().link(&vmaf_sink_1).expect("queue_vmaf_1.src -> vmaf.sink_1");
+                            queue_vmaf_1_clone.static_pad("src").unwrap().link(&vmaf_dist_sink_0).expect("queue_vmaf_1.src -> vmaf.dist_sink_0");
                         }
                     }
                 }
