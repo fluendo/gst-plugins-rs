@@ -23,6 +23,7 @@ members = [
     "generic/inter",
     "generic/streamgrouper",
     "generic/gopbuffer",
+    "generic/dsc",
 
     "mux/flavors",
     "mux/fmp4",
