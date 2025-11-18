@@ -897,9 +897,9 @@ dependencies = [
 
 [[package]]
 name = "base64ct"
-version = "1.6.0"
+version = "1.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8c3c1a368f70d6cf7302d78f8f7093da241fb8e8807c05cc9e51a125895a6d5b"
+checksum = "55248b47b0caf0546f7988906588779981c43bb1bc9d0c44087278f80cdb44ba"
 
 [[package]]
 name = "bincode"
@@ -1086,7 +1086,7 @@ source = "git+https://github.com/gtk-rs/gtk-rs-core?branch=main#bbe4d709b7337f1b
 dependencies = [
  "bitflags 2.9.4",
  "cairo-sys-rs",
- "glib",
+ "glib 0.22.0",
  "libc",
 ]
 
@@ -1095,7 +1095,7 @@ name = "cairo-sys-rs"
 version = "0.22.0"
 source = "git+https://github.com/gtk-rs/gtk-rs-core?branch=main#bbe4d709b7337f1bfea7b2a347524689979c6756"
 dependencies = [
- "glib-sys",
+ "glib-sys 0.22.0",
  "libc",
  "system-deps",
 ]
@@ -2419,7 +2419,7 @@ source = "git+https://github.com/gtk-rs/gtk-rs-core?branch=main#bbe4d709b7337f1b
 dependencies = [
  "gdk-pixbuf-sys",
  "gio",
- "glib",
+ "glib 0.22.0",
  "libc",
 ]
 
@@ -2428,9 +2428,9 @@ name = "gdk-pixbuf-sys"
 version = "0.22.0"
 source = "git+https://github.com/gtk-rs/gtk-rs-core?branch=main#bbe4d709b7337f1bfea7b2a347524689979c6756"
 dependencies = [
- "gio-sys",
- "glib-sys",
- "gobject-sys",
+ "gio-sys 0.22.0",
+ "glib-sys 0.22.0",
+ "gobject-sys 0.22.0",
  "libc",
  "system-deps",
 ]
@@ -2444,7 +2444,7 @@ dependencies = [
  "gdk-pixbuf",
  "gdk4-sys",
  "gio",
- "glib",
+ "glib 0.22.0",
  "libc",
  "pango",
 ]
@@ -2456,9 +2456,9 @@ source = "git+https://github.com/gtk-rs/gtk4-rs?branch=main#e8b597d2285cebf2c133
 dependencies = [
  "cairo-sys-rs",
  "gdk-pixbuf-sys",
- "gio-sys",
- "glib-sys",
- "gobject-sys",
+ "gio-sys 0.22.0",
+ "glib-sys 0.22.0",
+ "gobject-sys 0.22.0",
  "libc",
  "pango-sys",
  "pkg-config",
@@ -2473,7 +2473,7 @@ dependencies = [
  "gdk4",
  "gdk4-wayland-sys",
  "gio",
- "glib",
+ "glib 0.22.0",
  "libc",
 ]
 
@@ -2482,7 +2482,7 @@ name = "gdk4-wayland-sys"
 version = "0.11.0"
 source = "git+https://github.com/gtk-rs/gtk4-rs?branch=main#e8b597d2285cebf2c13373dc883e9a7e2bec2a00"
 dependencies = [
- "glib-sys",
+ "glib-sys 0.22.0",
  "libc",
  "system-deps",
 ]
@@ -2495,7 +2495,7 @@ dependencies = [
  "gdk4",
  "gdk4-win32-sys",
  "gio",
- "glib",
+ "glib 0.22.0",
  "khronos-egl",
  "libc",
 ]
@@ -2506,7 +2506,7 @@ version = "0.11.0"
 source = "git+https://github.com/gtk-rs/gtk4-rs?branch=main#e8b597d2285cebf2c13373dc883e9a7e2bec2a00"
 dependencies = [
  "gdk4-sys",
- "glib-sys",
+ "glib-sys 0.22.0",
  "libc",
  "system-deps",
 ]
@@ -2519,7 +2519,7 @@ dependencies = [
  "gdk4",
  "gdk4-x11-sys",
  "gio",
- "glib",
+ "glib 0.22.0",
  "libc",
 ]
 
@@ -2529,7 +2529,7 @@ version = "0.11.0"
 source = "git+https://github.com/gtk-rs/gtk4-rs?branch=main#e8b597d2285cebf2c13373dc883e9a7e2bec2a00"
 dependencies = [
  "gdk4-sys",
- "glib-sys",
+ "glib-sys 0.22.0",
  "libc",
  "system-deps",
 ]
@@ -2607,8 +2607,8 @@ dependencies = [
  "futures-core",
  "futures-io",
  "futures-util",
- "gio-sys",
- "glib",
+ "gio-sys 0.22.0",
+ "glib 0.22.0",
  "libc",
  "pin-project-lite",
  "smallvec",
@@ -2616,14 +2616,46 @@ dependencies = [
 
 [[package]]
 name = "gio-sys"
+version = "0.20.12"
+source = "git+https://github.com/gtk-rs/gtk-rs-core?branch=0.20#337dde55bb1665a0a1286e689ec2819383d4e299"
+dependencies = [
+ "glib-sys 0.20.12",
+ "gobject-sys 0.20.12",
+ "libc",
+ "system-deps",
+ "windows-sys 0.59.0",
+]
+
+[[package]]
+name = "gio-sys"
 version = "0.22.0"
 source = "git+https://github.com/gtk-rs/gtk-rs-core?branch=main#bbe4d709b7337f1bfea7b2a347524689979c6756"
 dependencies = [
- "glib-sys",
- "gobject-sys",
+ "glib-sys 0.22.0",
+ "gobject-sys 0.22.0",
  "libc",
  "system-deps",
  "windows-sys 0.61.0",
+]
+
+[[package]]
+name = "glib"
+version = "0.20.12"
+source = "git+https://github.com/gtk-rs/gtk-rs-core?branch=0.20#337dde55bb1665a0a1286e689ec2819383d4e299"
+dependencies = [
+ "bitflags 2.9.4",
+ "futures-channel",
+ "futures-core",
+ "futures-executor",
+ "futures-task",
+ "futures-util",
+ "gio-sys 0.20.12",
+ "glib-macros 0.20.12",
+ "glib-sys 0.20.12",
+ "gobject-sys 0.20.12",
+ "libc",
+ "memchr",
+ "smallvec",
 ]
 
 [[package]]
@@ -2637,13 +2669,25 @@ dependencies = [
  "futures-executor",
  "futures-task",
  "futures-util",
- "gio-sys",
- "glib-macros",
- "glib-sys",
- "gobject-sys",
+ "gio-sys 0.22.0",
+ "glib-macros 0.22.0",
+ "glib-sys 0.22.0",
+ "gobject-sys 0.22.0",
  "libc",
  "memchr",
  "smallvec",
+]
+
+[[package]]
+name = "glib-macros"
+version = "0.20.12"
+source = "git+https://github.com/gtk-rs/gtk-rs-core?branch=0.20#337dde55bb1665a0a1286e689ec2819383d4e299"
+dependencies = [
+ "heck 0.5.0",
+ "proc-macro-crate",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.106",
 ]
 
 [[package]]
@@ -2656,6 +2700,15 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.106",
+]
+
+[[package]]
+name = "glib-sys"
+version = "0.20.12"
+source = "git+https://github.com/gtk-rs/gtk-rs-core?branch=0.20#337dde55bb1665a0a1286e689ec2819383d4e299"
+dependencies = [
+ "libc",
+ "system-deps",
 ]
 
 [[package]]
@@ -2675,10 +2728,20 @@ checksum = "0cc23270f6e1808e30a928bdc84dea0b9b4136a8bc82338574f23baf47bbd280"
 
 [[package]]
 name = "gobject-sys"
+version = "0.20.12"
+source = "git+https://github.com/gtk-rs/gtk-rs-core?branch=0.20#337dde55bb1665a0a1286e689ec2819383d4e299"
+dependencies = [
+ "glib-sys 0.20.12",
+ "libc",
+ "system-deps",
+]
+
+[[package]]
+name = "gobject-sys"
 version = "0.22.0"
 source = "git+https://github.com/gtk-rs/gtk-rs-core?branch=main#bbe4d709b7337f1bfea7b2a347524689979c6756"
 dependencies = [
- "glib-sys",
+ "glib-sys 0.22.0",
  "libc",
  "system-deps",
 ]
@@ -2709,7 +2772,7 @@ name = "graphene-rs"
 version = "0.22.0"
 source = "git+https://github.com/gtk-rs/gtk-rs-core?branch=main#bbe4d709b7337f1bfea7b2a347524689979c6756"
 dependencies = [
- "glib",
+ "glib 0.22.0",
  "graphene-sys",
  "libc",
 ]
@@ -2719,7 +2782,7 @@ name = "graphene-sys"
 version = "0.22.0"
 source = "git+https://github.com/gtk-rs/gtk-rs-core?branch=main#bbe4d709b7337f1bfea7b2a347524689979c6756"
 dependencies = [
- "glib-sys",
+ "glib-sys 0.22.0",
  "libc",
  "pkg-config",
  "system-deps",
@@ -2743,7 +2806,7 @@ source = "git+https://github.com/gtk-rs/gtk4-rs?branch=main#e8b597d2285cebf2c133
 dependencies = [
  "cairo-rs",
  "gdk4",
- "glib",
+ "glib 0.22.0",
  "graphene-rs",
  "gsk4-sys",
  "libc",
@@ -2757,8 +2820,8 @@ source = "git+https://github.com/gtk-rs/gtk4-rs?branch=main#e8b597d2285cebf2c133
 dependencies = [
  "cairo-sys-rs",
  "gdk4-sys",
- "glib-sys",
- "gobject-sys",
+ "glib-sys 0.22.0",
+ "gobject-sys 0.22.0",
  "graphene-sys",
  "libc",
  "pango-sys",
@@ -2770,14 +2833,14 @@ name = "gst-plugin-analytics"
 version = "0.15.0-alpha.1"
 dependencies = [
  "chrono",
- "glib",
- "gst-plugin-version-helper",
- "gstreamer",
+ "glib 0.22.0",
+ "gst-plugin-version-helper 0.8.1",
+ "gstreamer 0.25.0",
  "gstreamer-analytics",
- "gstreamer-base",
+ "gstreamer-base 0.25.0",
  "gstreamer-check",
  "gstreamer-rtp",
- "gstreamer-video",
+ "gstreamer-video 0.25.0",
  "xmltree",
 ]
 
@@ -2789,11 +2852,11 @@ dependencies = [
  "atomic_refcell",
  "byte-slice-cast",
  "ebur128",
- "gst-plugin-version-helper",
- "gstreamer",
+ "gst-plugin-version-helper 0.8.1",
+ "gstreamer 0.25.0",
  "gstreamer-app",
  "gstreamer-audio",
- "gstreamer-base",
+ "gstreamer-base 0.25.0",
  "gstreamer-check",
  "hrtf",
  "nnnoiseless",
@@ -2806,8 +2869,8 @@ dependencies = [
 name = "gst-plugin-audioparsers"
 version = "0.15.0-alpha.1"
 dependencies = [
- "gst-plugin-version-helper",
- "gstreamer",
+ "gst-plugin-version-helper 0.8.1",
+ "gstreamer 0.25.0",
 ]
 
 [[package]]
@@ -2831,12 +2894,12 @@ dependencies = [
  "env_logger",
  "futures",
  "gio",
- "gst-plugin-version-helper",
- "gstreamer",
+ "gst-plugin-version-helper 0.8.1",
+ "gstreamer 0.25.0",
  "gstreamer-audio",
- "gstreamer-base",
+ "gstreamer-base 0.25.0",
  "gstreamer-check",
- "gstreamer-video",
+ "gstreamer-video 0.25.0",
  "percent-encoding",
  "rand 0.9.2",
  "serde",
@@ -2856,11 +2919,11 @@ version = "0.15.0-alpha.1"
 dependencies = [
  "cdg",
  "cdg_renderer",
- "gst-plugin-version-helper",
- "gstreamer",
+ "gst-plugin-version-helper 0.8.1",
+ "gstreamer 0.25.0",
  "gstreamer-app",
- "gstreamer-base",
- "gstreamer-video",
+ "gstreamer-base 0.25.0",
+ "gstreamer-video 0.25.0",
  "image",
 ]
 
@@ -2871,8 +2934,8 @@ dependencies = [
  "atomic_refcell",
  "byte-slice-cast",
  "claxon",
- "gst-plugin-version-helper",
- "gstreamer",
+ "gst-plugin-version-helper 0.8.1",
+ "gstreamer 0.25.0",
  "gstreamer-audio",
  "gstreamer-check",
 ]
@@ -2892,11 +2955,11 @@ dependencies = [
  "chrono",
  "clap",
  "either",
- "gst-plugin-version-helper",
- "gstreamer",
- "gstreamer-base",
+ "gst-plugin-version-helper 0.8.1",
+ "gstreamer 0.25.0",
+ "gstreamer-base 0.25.0",
  "gstreamer-check",
- "gstreamer-video",
+ "gstreamer-video 0.25.0",
  "itertools 0.14.0",
  "pango",
  "pangocairo",
@@ -2915,10 +2978,10 @@ version = "0.15.0-alpha.1"
 dependencies = [
  "byte-slice-cast",
  "csound",
- "gst-plugin-version-helper",
- "gstreamer",
+ "gst-plugin-version-helper 0.8.1",
+ "gstreamer 0.25.0",
  "gstreamer-audio",
- "gstreamer-base",
+ "gstreamer-base 0.25.0",
  "gstreamer-check",
 ]
 
@@ -2927,11 +2990,33 @@ name = "gst-plugin-dav1d"
 version = "0.15.0-alpha.1"
 dependencies = [
  "dav1d",
- "gst-plugin-version-helper",
- "gstreamer",
- "gstreamer-base",
- "gstreamer-video",
+ "gst-plugin-version-helper 0.8.1",
+ "gstreamer 0.25.0",
+ "gstreamer-base 0.25.0",
+ "gstreamer-video 0.25.0",
  "num_cpus",
+]
+
+[[package]]
+name = "gst-plugin-dsc"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "atomic_refcell",
+ "base64ct",
+ "glib 0.22.0",
+ "gst-plugin-originalbuffer 0.13.0",
+ "gst-plugin-version-helper 0.8.1 (git+https://gitlab.freedesktop.org/gstreamer/gst-plugins-rs)",
+ "gstreamer 0.25.0",
+ "gstreamer-base 0.25.0",
+ "gstreamer-video 0.25.0",
+ "hound",
+ "human_bytes",
+ "once_cell",
+ "openssl",
+ "rand 0.9.2",
+ "rsa",
+ "sha2",
 ]
 
 [[package]]
@@ -2941,10 +3026,10 @@ dependencies = [
  "anyhow",
  "bytes",
  "futures",
- "gst-plugin-version-helper",
- "gstreamer",
+ "gst-plugin-version-helper 0.8.1",
+ "gstreamer 0.25.0",
  "gstreamer-audio",
- "gstreamer-base",
+ "gstreamer-base 0.25.0",
  "reqwest 0.12.23",
  "rustls 0.23.31",
  "serde",
@@ -2959,13 +3044,13 @@ version = "0.15.0-alpha.1"
 dependencies = [
  "gio",
  "gst-plugin-gtk4",
- "gst-plugin-version-helper",
- "gstreamer",
+ "gst-plugin-version-helper 0.8.1",
+ "gstreamer 0.25.0",
  "gstreamer-app",
  "gstreamer-audio",
- "gstreamer-base",
+ "gstreamer-base 0.25.0",
  "gstreamer-check",
- "gstreamer-video",
+ "gstreamer-video 0.25.0",
  "gtk4",
  "parking_lot",
  "rand 0.9.2",
@@ -2977,19 +3062,19 @@ version = "0.15.0-alpha.1"
 dependencies = [
  "byte-slice-cast",
  "ffv1",
- "gst-plugin-version-helper",
- "gstreamer",
+ "gst-plugin-version-helper 0.8.1",
+ "gstreamer 0.25.0",
  "gstreamer-check",
- "gstreamer-video",
+ "gstreamer-video 0.25.0",
 ]
 
 [[package]]
 name = "gst-plugin-file"
 version = "0.15.0-alpha.1"
 dependencies = [
- "gst-plugin-version-helper",
- "gstreamer",
- "gstreamer-base",
+ "gst-plugin-version-helper 0.8.1",
+ "gstreamer 0.25.0",
+ "gstreamer-base 0.25.0",
  "url",
 ]
 
@@ -2999,10 +3084,10 @@ version = "0.15.0-alpha.1"
 dependencies = [
  "byteorder",
  "flavors",
- "gst-plugin-version-helper",
- "gstreamer",
+ "gst-plugin-version-helper 0.8.1",
+ "gstreamer 0.25.0",
  "gstreamer-audio",
- "gstreamer-base",
+ "gstreamer-base 0.25.0",
  "nom 7.1.3",
  "num-rational",
  "smallvec",
@@ -3016,15 +3101,15 @@ dependencies = [
  "bitstream-io",
  "chrono",
  "dash-mpd",
- "gst-plugin-version-helper",
- "gstreamer",
+ "gst-plugin-version-helper 0.8.1",
+ "gstreamer 0.25.0",
  "gstreamer-app",
  "gstreamer-audio",
- "gstreamer-base",
+ "gstreamer-base 0.25.0",
  "gstreamer-check",
  "gstreamer-pbutils",
  "gstreamer-tag",
- "gstreamer-video",
+ "gstreamer-video 0.25.0",
  "m3u8-rs",
  "quick-xml 0.38.3",
  "serde",
@@ -3036,10 +3121,10 @@ version = "0.15.0-alpha.1"
 dependencies = [
  "atomic_refcell",
  "gif",
- "gst-plugin-version-helper",
- "gstreamer",
+ "gst-plugin-version-helper 0.8.1",
+ "gstreamer 0.25.0",
  "gstreamer-check",
- "gstreamer-video",
+ "gstreamer-video 0.25.0",
 ]
 
 [[package]]
@@ -3047,11 +3132,11 @@ name = "gst-plugin-gopbuffer"
 version = "0.15.0-alpha.1"
 dependencies = [
  "anyhow",
- "gst-plugin-version-helper",
- "gstreamer",
+ "gst-plugin-version-helper 0.8.1",
+ "gstreamer 0.25.0",
  "gstreamer-app",
  "gstreamer-check",
- "gstreamer-video",
+ "gstreamer-video 0.25.0",
 ]
 
 [[package]]
@@ -3062,15 +3147,15 @@ dependencies = [
  "gdk4-wayland",
  "gdk4-win32",
  "gdk4-x11",
- "gst-plugin-version-helper",
- "gstreamer",
+ "gst-plugin-version-helper 0.8.1",
+ "gstreamer 0.25.0",
  "gstreamer-allocators",
- "gstreamer-base",
+ "gstreamer-base 0.25.0",
  "gstreamer-gl",
  "gstreamer-gl-egl",
  "gstreamer-gl-wayland",
  "gstreamer-gl-x11",
- "gstreamer-video",
+ "gstreamer-video 0.25.0",
  "gtk4",
  "windows-sys 0.61.0",
 ]
@@ -3088,13 +3173,13 @@ dependencies = [
  "gio",
  "gst-plugin-fmp4",
  "gst-plugin-hlssink3",
- "gst-plugin-version-helper",
- "gstreamer",
+ "gst-plugin-version-helper 0.8.1",
+ "gstreamer 0.25.0",
  "gstreamer-app",
  "gstreamer-audio",
  "gstreamer-check",
  "gstreamer-pbutils",
- "gstreamer-video",
+ "gstreamer-video 0.25.0",
  "m3u8-rs",
  "serial_test",
  "thiserror 2.0.16",
@@ -3108,13 +3193,13 @@ dependencies = [
  "chrono",
  "gio",
  "gst-plugin-fmp4",
- "gst-plugin-version-helper",
- "gstreamer",
+ "gst-plugin-version-helper 0.8.1",
+ "gstreamer 0.25.0",
  "gstreamer-app",
  "gstreamer-audio",
  "gstreamer-check",
  "gstreamer-pbutils",
- "gstreamer-video",
+ "gstreamer-video 0.25.0",
  "m3u8-rs",
  "sprintf",
 ]
@@ -3124,12 +3209,12 @@ name = "gst-plugin-hsv"
 version = "0.15.0-alpha.1"
 dependencies = [
  "byte-slice-cast",
- "gst-plugin-version-helper",
- "gstreamer",
+ "gst-plugin-version-helper 0.8.1",
+ "gstreamer 0.25.0",
  "gstreamer-audio",
- "gstreamer-base",
+ "gstreamer-base 0.25.0",
  "gstreamer-check",
- "gstreamer-video",
+ "gstreamer-video 0.25.0",
  "num-traits",
 ]
 
@@ -3139,8 +3224,8 @@ version = "0.15.0-alpha.1"
 dependencies = [
  "anyhow",
  "futures",
- "gst-plugin-version-helper",
- "gstreamer",
+ "gst-plugin-version-helper 0.8.1",
+ "gstreamer 0.25.0",
  "gstreamer-app",
  "gstreamer-check",
  "gstreamer-utils",
@@ -3154,8 +3239,8 @@ dependencies = [
 name = "gst-plugin-json"
 version = "0.15.0-alpha.1"
 dependencies = [
- "gst-plugin-version-helper",
- "gstreamer",
+ "gst-plugin-version-helper 0.8.1",
+ "gstreamer 0.25.0",
  "gstreamer-check",
  "serde",
  "serde_json",
@@ -3167,8 +3252,8 @@ version = "0.15.0-alpha.1"
 dependencies = [
  "atomic_refcell",
  "byte-slice-cast",
- "gst-plugin-version-helper",
- "gstreamer",
+ "gst-plugin-version-helper 0.8.1",
+ "gstreamer 0.25.0",
  "gstreamer-audio",
  "gstreamer-check",
  "lewton",
@@ -3180,8 +3265,8 @@ version = "0.15.0-alpha.1"
 dependencies = [
  "gio",
  "gst-plugin-gtk4",
- "gst-plugin-version-helper",
- "gstreamer",
+ "gst-plugin-version-helper 0.8.1",
+ "gstreamer 0.25.0",
  "gstreamer-audio",
  "gstreamer-check",
  "gtk4",
@@ -3195,13 +3280,13 @@ version = "0.15.0-alpha.1"
 dependencies = [
  "anyhow",
  "bitstream-io",
- "gst-plugin-version-helper",
- "gstreamer",
+ "gst-plugin-version-helper 0.8.1",
+ "gstreamer 0.25.0",
  "gstreamer-audio",
- "gstreamer-base",
+ "gstreamer-base 0.25.0",
  "gstreamer-pbutils",
  "gstreamer-tag",
- "gstreamer-video",
+ "gstreamer-video 0.25.0",
  "mp4-atom",
  "num-integer",
  "tempfile",
@@ -3214,8 +3299,8 @@ version = "0.15.0-alpha.1"
 dependencies = [
  "anyhow",
  "bitstream-io",
- "gst-plugin-version-helper",
- "gstreamer",
+ "gst-plugin-version-helper 0.8.1",
+ "gstreamer 0.25.0",
  "smallvec",
 ]
 
@@ -3227,12 +3312,12 @@ dependencies = [
  "byte-slice-cast",
  "byteorder",
  "data-encoding",
- "glib",
- "gst-plugin-version-helper",
- "gstreamer",
+ "glib 0.22.0",
+ "gst-plugin-version-helper 0.8.1",
+ "gstreamer 0.25.0",
  "gstreamer-audio",
- "gstreamer-base",
- "gstreamer-video",
+ "gstreamer-base 0.25.0",
+ "gstreamer-video 0.25.0",
  "libloading",
  "quick-xml 0.38.3",
  "smallvec",
@@ -3245,11 +3330,11 @@ version = "0.15.0-alpha.1"
 dependencies = [
  "cairo-rs",
  "chrono",
- "gst-plugin-version-helper",
- "gstreamer",
- "gstreamer-base",
+ "gst-plugin-version-helper 0.8.1",
+ "gstreamer 0.25.0",
+ "gstreamer-base 0.25.0",
  "gstreamer-rtp",
- "gstreamer-video",
+ "gstreamer-video 0.25.0",
  "pango",
  "pangocairo",
  "xmlparser",
@@ -3258,23 +3343,36 @@ dependencies = [
 
 [[package]]
 name = "gst-plugin-originalbuffer"
+version = "0.13.0"
+source = "git+https://gitlab.freedesktop.org/gstreamer/gst-plugins-rs?tag=0.13.0#fea2343968da83f3cce860f5a76fa2a2b0f22c16"
+dependencies = [
+ "atomic_refcell",
+ "glib 0.20.12",
+ "gst-plugin-version-helper 0.8.1 (git+https://gitlab.freedesktop.org/gstreamer/gst-plugins-rs?tag=0.13.0)",
+ "gstreamer 0.23.7",
+ "gstreamer-video 0.23.7",
+ "once_cell",
+]
+
+[[package]]
+name = "gst-plugin-originalbuffer"
 version = "0.15.0-alpha.1"
 dependencies = [
  "atomic_refcell",
- "glib",
- "gst-plugin-version-helper",
- "gstreamer",
- "gstreamer-video",
+ "glib 0.22.0",
+ "gst-plugin-version-helper 0.8.1",
+ "gstreamer 0.25.0",
+ "gstreamer-video 0.25.0",
 ]
 
 [[package]]
 name = "gst-plugin-png"
 version = "0.15.0-alpha.1"
 dependencies = [
- "gst-plugin-version-helper",
- "gstreamer",
+ "gst-plugin-version-helper 0.8.1",
+ "gstreamer 0.25.0",
  "gstreamer-check",
- "gstreamer-video",
+ "gstreamer-video 0.25.0",
  "parking_lot",
  "png",
 ]
@@ -3289,10 +3387,10 @@ dependencies = [
  "ctrlc",
  "env_logger",
  "futures",
- "glib",
- "gst-plugin-version-helper",
- "gstreamer",
- "gstreamer-base",
+ "glib 0.22.0",
+ "gst-plugin-version-helper 0.8.1",
+ "gstreamer 0.25.0",
+ "gstreamer-base 0.25.0",
  "gstreamer-check",
  "itertools 0.14.0",
  "quinn",
@@ -3312,9 +3410,9 @@ dependencies = [
 name = "gst-plugin-raptorq"
 version = "0.15.0-alpha.1"
 dependencies = [
- "gst-plugin-version-helper",
- "gstreamer",
- "gstreamer-base",
+ "gst-plugin-version-helper 0.8.1",
+ "gstreamer 0.25.0",
+ "gstreamer-base 0.25.0",
  "gstreamer-check",
  "gstreamer-rtp",
  "rand 0.9.2",
@@ -3326,10 +3424,10 @@ name = "gst-plugin-rav1e"
 version = "0.15.0-alpha.1"
 dependencies = [
  "atomic_refcell",
- "gst-plugin-version-helper",
- "gstreamer",
+ "gst-plugin-version-helper 0.8.1",
+ "gstreamer 0.25.0",
  "gstreamer-check",
- "gstreamer-video",
+ "gstreamer-video 0.25.0",
  "rav1e",
 ]
 
@@ -3337,8 +3435,8 @@ dependencies = [
 name = "gst-plugin-regex"
 version = "0.15.0-alpha.1"
 dependencies = [
- "gst-plugin-version-helper",
- "gstreamer",
+ "gst-plugin-version-helper 0.8.1",
+ "gstreamer 0.25.0",
  "gstreamer-check",
  "regex",
 ]
@@ -3349,9 +3447,9 @@ version = "0.15.0-alpha.1"
 dependencies = [
  "bytes",
  "futures",
- "gst-plugin-version-helper",
- "gstreamer",
- "gstreamer-base",
+ "gst-plugin-version-helper 0.8.1",
+ "gstreamer 0.25.0",
+ "gstreamer-base 0.25.0",
  "headers",
  "http-body-util",
  "hyper 1.7.0",
@@ -3374,16 +3472,16 @@ dependencies = [
  "chrono",
  "futures",
  "gio",
- "glib",
- "gst-plugin-version-helper",
- "gstreamer",
+ "glib 0.22.0",
+ "gst-plugin-version-helper 0.8.1",
+ "gstreamer 0.25.0",
  "gstreamer-app",
  "gstreamer-audio",
- "gstreamer-base",
+ "gstreamer-base 0.25.0",
  "gstreamer-check",
  "gstreamer-net",
  "gstreamer-rtp",
- "gstreamer-video",
+ "gstreamer-video 0.25.0",
  "hex",
  "itertools 0.14.0",
  "log",
@@ -3406,8 +3504,8 @@ dependencies = [
  "atomic_refcell",
  "data-encoding",
  "futures",
- "gst-plugin-version-helper",
- "gstreamer",
+ "gst-plugin-version-helper 0.8.1",
+ "gstreamer 0.25.0",
  "gstreamer-app",
  "gstreamer-net",
  "gstreamer-pbutils",
@@ -3425,11 +3523,11 @@ dependencies = [
 name = "gst-plugin-skia"
 version = "0.15.0-alpha.1"
 dependencies = [
- "gst-plugin-version-helper",
- "gstreamer",
- "gstreamer-base",
+ "gst-plugin-version-helper 0.8.1",
+ "gstreamer 0.25.0",
+ "gstreamer-base 0.25.0",
  "gstreamer-check",
- "gstreamer-video",
+ "gstreamer-video 0.25.0",
  "skia-safe",
 ]
 
@@ -3438,10 +3536,10 @@ name = "gst-plugin-sodium"
 version = "0.15.0-alpha.1"
 dependencies = [
  "clap",
- "gst-plugin-version-helper",
- "gstreamer",
+ "gst-plugin-version-helper 0.8.1",
+ "gstreamer 0.25.0",
  "gstreamer-app",
- "gstreamer-base",
+ "gstreamer-base 0.25.0",
  "gstreamer-check",
  "hex",
  "pretty_assertions",
@@ -3459,10 +3557,10 @@ dependencies = [
  "async-tungstenite",
  "atomic_refcell",
  "futures",
- "gst-plugin-version-helper",
- "gstreamer",
+ "gst-plugin-version-helper 0.8.1",
+ "gstreamer 0.25.0",
  "gstreamer-audio",
- "gstreamer-base",
+ "gstreamer-base 0.25.0",
  "http 1.3.1",
  "rustls 0.23.31",
  "serde",
@@ -3477,9 +3575,9 @@ version = "0.15.0-alpha.1"
 dependencies = [
  "anyhow",
  "futures",
- "gst-plugin-version-helper",
- "gstreamer",
- "gstreamer-base",
+ "gst-plugin-version-helper 0.8.1",
+ "gstreamer 0.25.0",
+ "gstreamer-base 0.25.0",
  "librespot-core",
  "librespot-metadata",
  "librespot-playback",
@@ -3491,8 +3589,8 @@ dependencies = [
 name = "gst-plugin-streamgrouper"
 version = "0.15.0-alpha.1"
 dependencies = [
- "gst-plugin-version-helper",
- "gstreamer",
+ "gst-plugin-version-helper 0.8.1",
+ "gstreamer 0.25.0",
  "gstreamer-check",
 ]
 
@@ -3501,8 +3599,8 @@ name = "gst-plugin-textaccumulate"
 version = "0.15.0-alpha.1"
 dependencies = [
  "anyhow",
- "gst-plugin-version-helper",
- "gstreamer",
+ "gst-plugin-version-helper 0.8.1",
+ "gstreamer 0.25.0",
  "icu_locale",
  "icu_provider",
  "icu_segmenter",
@@ -3514,16 +3612,16 @@ dependencies = [
 name = "gst-plugin-textahead"
 version = "0.15.0-alpha.1"
 dependencies = [
- "gst-plugin-version-helper",
- "gstreamer",
+ "gst-plugin-version-helper 0.8.1",
+ "gstreamer 0.25.0",
 ]
 
 [[package]]
 name = "gst-plugin-textwrap"
 version = "0.15.0-alpha.1"
 dependencies = [
- "gst-plugin-version-helper",
- "gstreamer",
+ "gst-plugin-version-helper 0.8.1",
+ "gstreamer 0.25.0",
  "gstreamer-check",
  "hyphenation",
  "textwrap",
@@ -3544,8 +3642,8 @@ dependencies = [
  "getifaddrs",
  "gio",
  "gst-plugin-rtp",
- "gst-plugin-version-helper",
- "gstreamer",
+ "gst-plugin-version-helper 0.8.1",
+ "gstreamer 0.25.0",
  "gstreamer-app",
  "gstreamer-audio",
  "gstreamer-check",
@@ -3571,11 +3669,11 @@ dependencies = [
  "either",
  "gio",
  "gst-plugin-gtk4",
- "gst-plugin-version-helper",
- "gstreamer",
+ "gst-plugin-version-helper 0.8.1",
+ "gstreamer 0.25.0",
  "gstreamer-audio",
  "gstreamer-check",
- "gstreamer-video",
+ "gstreamer-video 0.25.0",
  "gtk4",
  "parking_lot",
 ]
@@ -3590,8 +3688,8 @@ dependencies = [
  "chrono",
  "etherparse",
  "futures",
- "gst-plugin-version-helper",
- "gstreamer",
+ "gst-plugin-version-helper 0.8.1",
+ "gstreamer 0.25.0",
  "pcap-file",
  "regex",
  "serde",
@@ -3608,11 +3706,11 @@ name = "gst-plugin-tutorial"
 version = "0.15.0-alpha.1"
 dependencies = [
  "byte-slice-cast",
- "gst-plugin-version-helper",
- "gstreamer",
+ "gst-plugin-version-helper 0.8.1",
+ "gstreamer 0.25.0",
  "gstreamer-audio",
- "gstreamer-base",
- "gstreamer-video",
+ "gstreamer-base 0.25.0",
+ "gstreamer-video 0.25.0",
  "num-traits",
 ]
 
@@ -3622,8 +3720,8 @@ version = "0.15.0-alpha.1"
 dependencies = [
  "anyhow",
  "clap",
- "gst-plugin-version-helper",
- "gstreamer",
+ "gst-plugin-version-helper 0.8.1",
+ "gstreamer 0.25.0",
  "gstreamer-app",
  "more-asserts",
  "reqwest 0.12.23",
@@ -3641,6 +3739,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "gst-plugin-version-helper"
+version = "0.8.1"
+source = "git+https://gitlab.freedesktop.org/gstreamer/gst-plugins-rs?tag=0.13.0#fea2343968da83f3cce860f5a76fa2a2b0f22c16"
+dependencies = [
+ "chrono",
+ "toml_edit 0.22.27",
+]
+
+[[package]]
+name = "gst-plugin-version-helper"
+version = "0.8.1"
+source = "git+https://gitlab.freedesktop.org/gstreamer/gst-plugins-rs#bb157d672357afbaa0da59dd83e019e4c4b2ca57"
+dependencies = [
+ "chrono",
+ "toml_edit 0.23.5",
+]
+
+[[package]]
 name = "gst-plugin-videofx"
 version = "0.15.0-alpha.1"
 dependencies = [
@@ -3649,11 +3765,11 @@ dependencies = [
  "color-name",
  "color-thief",
  "dssim-core",
- "gst-plugin-version-helper",
- "gstreamer",
- "gstreamer-base",
+ "gst-plugin-version-helper 0.8.1",
+ "gstreamer 0.25.0",
+ "gstreamer-base 0.25.0",
  "gstreamer-check",
- "gstreamer-video",
+ "gstreamer-video 0.25.0",
  "image",
  "image_hasher",
  "rgb",
@@ -3663,11 +3779,11 @@ dependencies = [
 name = "gst-plugin-vvdec"
 version = "0.15.0-alpha.1"
 dependencies = [
- "gst-plugin-version-helper",
- "gstreamer",
+ "gst-plugin-version-helper 0.8.1",
+ "gstreamer 0.25.0",
  "gstreamer-audio",
  "gstreamer-check",
- "gstreamer-video",
+ "gstreamer-video 0.25.0",
  "vvdec",
 ]
 
@@ -3675,10 +3791,10 @@ dependencies = [
 name = "gst-plugin-webp"
 version = "0.15.0-alpha.1"
 dependencies = [
- "gst-plugin-version-helper",
- "gstreamer",
+ "gst-plugin-version-helper 0.8.1",
+ "gstreamer 0.25.0",
  "gstreamer-check",
- "gstreamer-video",
+ "gstreamer-video 0.25.0",
  "libwebp-sys2",
  "pretty_assertions",
 ]
@@ -3708,18 +3824,18 @@ dependencies = [
  "fastrand",
  "futures",
  "gst-plugin-rtp",
- "gst-plugin-version-helper",
+ "gst-plugin-version-helper 0.8.1",
  "gst-plugin-webrtc-signalling",
  "gst-plugin-webrtc-signalling-protocol",
- "gstreamer",
+ "gstreamer 0.25.0",
  "gstreamer-app",
  "gstreamer-audio",
- "gstreamer-base",
+ "gstreamer-base 0.25.0",
  "gstreamer-net",
  "gstreamer-rtp",
  "gstreamer-sdp",
  "gstreamer-utils",
- "gstreamer-video",
+ "gstreamer-video 0.25.0",
  "gstreamer-webrtc",
  "http 1.3.1",
  "human_bytes",
@@ -3789,14 +3905,38 @@ dependencies = [
  "async-recursion",
  "bytes",
  "futures",
- "gst-plugin-version-helper",
- "gstreamer",
+ "gst-plugin-version-helper 0.8.1",
+ "gstreamer 0.25.0",
  "gstreamer-sdp",
  "gstreamer-webrtc",
  "parse_link_header",
  "reqwest 0.12.23",
  "rustls 0.23.31",
  "tokio",
+]
+
+[[package]]
+name = "gstreamer"
+version = "0.23.7"
+source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=0.23#0f9f71821ada8ec7c16c27e08181523cfb5d2a30"
+dependencies = [
+ "cfg-if",
+ "futures-channel",
+ "futures-core",
+ "futures-util",
+ "glib 0.20.12",
+ "gstreamer-sys 0.23.7",
+ "itertools 0.14.0",
+ "libc",
+ "muldiv",
+ "num-integer",
+ "num-rational",
+ "once_cell",
+ "option-operations 0.5.0",
+ "paste",
+ "pin-project-lite",
+ "smallvec",
+ "thiserror 2.0.16",
 ]
 
 [[package]]
@@ -3808,15 +3948,15 @@ dependencies = [
  "futures-channel",
  "futures-core",
  "futures-util",
- "glib",
- "gstreamer-sys",
+ "glib 0.22.0",
+ "gstreamer-sys 0.25.0",
  "itertools 0.14.0",
  "kstring",
  "libc",
  "muldiv",
  "num-integer",
  "num-rational",
- "option-operations",
+ "option-operations 0.6.0",
  "pastey",
  "pin-project-lite",
  "serde",
@@ -3830,8 +3970,8 @@ name = "gstreamer-allocators"
 version = "0.25.0"
 source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=main#8a41295b995e4154dee1c18cfea77efc25ec3817"
 dependencies = [
- "glib",
- "gstreamer",
+ "glib 0.22.0",
+ "gstreamer 0.25.0",
  "gstreamer-allocators-sys",
  "libc",
 ]
@@ -3841,9 +3981,9 @@ name = "gstreamer-allocators-sys"
 version = "0.25.0"
 source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=main#8a41295b995e4154dee1c18cfea77efc25ec3817"
 dependencies = [
- "glib-sys",
- "gobject-sys",
- "gstreamer-sys",
+ "glib-sys 0.22.0",
+ "gobject-sys 0.22.0",
+ "gstreamer-sys 0.25.0",
  "libc",
  "system-deps",
 ]
@@ -3853,8 +3993,8 @@ name = "gstreamer-analytics"
 version = "0.25.0"
 source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=main#8a41295b995e4154dee1c18cfea77efc25ec3817"
 dependencies = [
- "glib",
- "gstreamer",
+ "glib 0.22.0",
+ "gstreamer 0.25.0",
  "gstreamer-analytics-sys",
  "libc",
 ]
@@ -3864,8 +4004,8 @@ name = "gstreamer-analytics-sys"
 version = "0.25.0"
 source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=main#8a41295b995e4154dee1c18cfea77efc25ec3817"
 dependencies = [
- "glib-sys",
- "gstreamer-sys",
+ "glib-sys 0.22.0",
+ "gstreamer-sys 0.25.0",
  "libc",
  "system-deps",
 ]
@@ -3877,10 +4017,10 @@ source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=main#
 dependencies = [
  "futures-core",
  "futures-sink",
- "glib",
- "gstreamer",
+ "glib 0.22.0",
+ "gstreamer 0.25.0",
  "gstreamer-app-sys",
- "gstreamer-base",
+ "gstreamer-base 0.25.0",
  "libc",
 ]
 
@@ -3889,9 +4029,9 @@ name = "gstreamer-app-sys"
 version = "0.25.0"
 source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=main#8a41295b995e4154dee1c18cfea77efc25ec3817"
 dependencies = [
- "glib-sys",
- "gstreamer-base-sys",
- "gstreamer-sys",
+ "glib-sys 0.22.0",
+ "gstreamer-base-sys 0.25.0",
+ "gstreamer-sys 0.25.0",
  "libc",
  "system-deps",
 ]
@@ -3902,10 +4042,10 @@ version = "0.25.0"
 source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=main#8a41295b995e4154dee1c18cfea77efc25ec3817"
 dependencies = [
  "cfg-if",
- "glib",
- "gstreamer",
+ "glib 0.22.0",
+ "gstreamer 0.25.0",
  "gstreamer-audio-sys",
- "gstreamer-base",
+ "gstreamer-base 0.25.0",
  "libc",
  "serde",
  "smallvec",
@@ -3916,12 +4056,25 @@ name = "gstreamer-audio-sys"
 version = "0.25.0"
 source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=main#8a41295b995e4154dee1c18cfea77efc25ec3817"
 dependencies = [
- "glib-sys",
- "gobject-sys",
- "gstreamer-base-sys",
- "gstreamer-sys",
+ "glib-sys 0.22.0",
+ "gobject-sys 0.22.0",
+ "gstreamer-base-sys 0.25.0",
+ "gstreamer-sys 0.25.0",
  "libc",
  "system-deps",
+]
+
+[[package]]
+name = "gstreamer-base"
+version = "0.23.7"
+source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=0.23#0f9f71821ada8ec7c16c27e08181523cfb5d2a30"
+dependencies = [
+ "atomic_refcell",
+ "cfg-if",
+ "glib 0.20.12",
+ "gstreamer 0.23.7",
+ "gstreamer-base-sys 0.23.7",
+ "libc",
 ]
 
 [[package]]
@@ -3931,10 +4084,22 @@ source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=main#
 dependencies = [
  "atomic_refcell",
  "cfg-if",
- "glib",
- "gstreamer",
- "gstreamer-base-sys",
+ "glib 0.22.0",
+ "gstreamer 0.25.0",
+ "gstreamer-base-sys 0.25.0",
  "libc",
+]
+
+[[package]]
+name = "gstreamer-base-sys"
+version = "0.23.7"
+source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=0.23#0f9f71821ada8ec7c16c27e08181523cfb5d2a30"
+dependencies = [
+ "glib-sys 0.20.12",
+ "gobject-sys 0.20.12",
+ "gstreamer-sys 0.23.7",
+ "libc",
+ "system-deps",
 ]
 
 [[package]]
@@ -3942,9 +4107,9 @@ name = "gstreamer-base-sys"
 version = "0.25.0"
 source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=main#8a41295b995e4154dee1c18cfea77efc25ec3817"
 dependencies = [
- "glib-sys",
- "gobject-sys",
- "gstreamer-sys",
+ "glib-sys 0.22.0",
+ "gobject-sys 0.22.0",
+ "gstreamer-sys 0.25.0",
  "libc",
  "system-deps",
 ]
@@ -3954,8 +4119,8 @@ name = "gstreamer-check"
 version = "0.25.0"
 source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=main#8a41295b995e4154dee1c18cfea77efc25ec3817"
 dependencies = [
- "glib",
- "gstreamer",
+ "glib 0.22.0",
+ "gstreamer 0.25.0",
  "gstreamer-check-sys",
 ]
 
@@ -3964,9 +4129,9 @@ name = "gstreamer-check-sys"
 version = "0.25.0"
 source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=main#8a41295b995e4154dee1c18cfea77efc25ec3817"
 dependencies = [
- "glib-sys",
- "gobject-sys",
- "gstreamer-sys",
+ "glib-sys 0.22.0",
+ "gobject-sys 0.22.0",
+ "gstreamer-sys 0.25.0",
  "libc",
  "system-deps",
 ]
@@ -3976,11 +4141,11 @@ name = "gstreamer-gl"
 version = "0.25.0"
 source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=main#8a41295b995e4154dee1c18cfea77efc25ec3817"
 dependencies = [
- "glib",
- "gstreamer",
- "gstreamer-base",
+ "glib 0.22.0",
+ "gstreamer 0.25.0",
+ "gstreamer-base 0.25.0",
  "gstreamer-gl-sys",
- "gstreamer-video",
+ "gstreamer-video 0.25.0",
  "libc",
 ]
 
@@ -3989,8 +4154,8 @@ name = "gstreamer-gl-egl"
 version = "0.25.0"
 source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=main#8a41295b995e4154dee1c18cfea77efc25ec3817"
 dependencies = [
- "glib",
- "gstreamer",
+ "glib 0.22.0",
+ "gstreamer 0.25.0",
  "gstreamer-gl",
  "gstreamer-gl-egl-sys",
  "libc",
@@ -4001,7 +4166,7 @@ name = "gstreamer-gl-egl-sys"
 version = "0.25.0"
 source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=main#8a41295b995e4154dee1c18cfea77efc25ec3817"
 dependencies = [
- "glib-sys",
+ "glib-sys 0.22.0",
  "gstreamer-gl-sys",
  "libc",
  "system-deps",
@@ -4012,11 +4177,11 @@ name = "gstreamer-gl-sys"
 version = "0.25.0"
 source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=main#8a41295b995e4154dee1c18cfea77efc25ec3817"
 dependencies = [
- "glib-sys",
- "gobject-sys",
- "gstreamer-base-sys",
- "gstreamer-sys",
- "gstreamer-video-sys",
+ "glib-sys 0.22.0",
+ "gobject-sys 0.22.0",
+ "gstreamer-base-sys 0.25.0",
+ "gstreamer-sys 0.25.0",
+ "gstreamer-video-sys 0.25.0",
  "libc",
  "system-deps",
 ]
@@ -4026,8 +4191,8 @@ name = "gstreamer-gl-wayland"
 version = "0.25.0"
 source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=main#8a41295b995e4154dee1c18cfea77efc25ec3817"
 dependencies = [
- "glib",
- "gstreamer",
+ "glib 0.22.0",
+ "gstreamer 0.25.0",
  "gstreamer-gl",
  "gstreamer-gl-wayland-sys",
  "libc",
@@ -4038,7 +4203,7 @@ name = "gstreamer-gl-wayland-sys"
 version = "0.25.0"
 source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=main#8a41295b995e4154dee1c18cfea77efc25ec3817"
 dependencies = [
- "glib-sys",
+ "glib-sys 0.22.0",
  "gstreamer-gl-sys",
  "libc",
  "system-deps",
@@ -4049,8 +4214,8 @@ name = "gstreamer-gl-x11"
 version = "0.25.0"
 source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=main#8a41295b995e4154dee1c18cfea77efc25ec3817"
 dependencies = [
- "glib",
- "gstreamer",
+ "glib 0.22.0",
+ "gstreamer 0.25.0",
  "gstreamer-gl",
  "gstreamer-gl-x11-sys",
  "libc",
@@ -4061,7 +4226,7 @@ name = "gstreamer-gl-x11-sys"
 version = "0.25.0"
 source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=main#8a41295b995e4154dee1c18cfea77efc25ec3817"
 dependencies = [
- "glib-sys",
+ "glib-sys 0.22.0",
  "gstreamer-gl-sys",
  "libc",
  "system-deps",
@@ -4073,8 +4238,8 @@ version = "0.25.0"
 source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=main#8a41295b995e4154dee1c18cfea77efc25ec3817"
 dependencies = [
  "gio",
- "glib",
- "gstreamer",
+ "glib 0.22.0",
+ "gstreamer 0.25.0",
  "gstreamer-net-sys",
 ]
 
@@ -4083,9 +4248,9 @@ name = "gstreamer-net-sys"
 version = "0.25.0"
 source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=main#8a41295b995e4154dee1c18cfea77efc25ec3817"
 dependencies = [
- "gio-sys",
- "glib-sys",
- "gstreamer-sys",
+ "gio-sys 0.22.0",
+ "glib-sys 0.22.0",
+ "gstreamer-sys 0.25.0",
  "libc",
  "system-deps",
 ]
@@ -4095,11 +4260,11 @@ name = "gstreamer-pbutils"
 version = "0.25.0"
 source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=main#8a41295b995e4154dee1c18cfea77efc25ec3817"
 dependencies = [
- "glib",
- "gstreamer",
+ "glib 0.22.0",
+ "gstreamer 0.25.0",
  "gstreamer-audio",
  "gstreamer-pbutils-sys",
- "gstreamer-video",
+ "gstreamer-video 0.25.0",
  "libc",
  "thiserror 2.0.16",
 ]
@@ -4109,11 +4274,11 @@ name = "gstreamer-pbutils-sys"
 version = "0.25.0"
 source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=main#8a41295b995e4154dee1c18cfea77efc25ec3817"
 dependencies = [
- "glib-sys",
- "gobject-sys",
+ "glib-sys 0.22.0",
+ "gobject-sys 0.22.0",
  "gstreamer-audio-sys",
- "gstreamer-sys",
- "gstreamer-video-sys",
+ "gstreamer-sys 0.25.0",
+ "gstreamer-video-sys 0.25.0",
  "libc",
  "system-deps",
 ]
@@ -4123,8 +4288,8 @@ name = "gstreamer-rtp"
 version = "0.25.0"
 source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=main#8a41295b995e4154dee1c18cfea77efc25ec3817"
 dependencies = [
- "glib",
- "gstreamer",
+ "glib 0.22.0",
+ "gstreamer 0.25.0",
  "gstreamer-rtp-sys",
  "libc",
 ]
@@ -4134,9 +4299,9 @@ name = "gstreamer-rtp-sys"
 version = "0.25.0"
 source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=main#8a41295b995e4154dee1c18cfea77efc25ec3817"
 dependencies = [
- "glib-sys",
- "gstreamer-base-sys",
- "gstreamer-sys",
+ "glib-sys 0.22.0",
+ "gstreamer-base-sys 0.25.0",
+ "gstreamer-sys 0.25.0",
  "libc",
  "system-deps",
 ]
@@ -4146,8 +4311,8 @@ name = "gstreamer-sdp"
 version = "0.25.0"
 source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=main#8a41295b995e4154dee1c18cfea77efc25ec3817"
 dependencies = [
- "glib",
- "gstreamer",
+ "glib 0.22.0",
+ "gstreamer 0.25.0",
  "gstreamer-sdp-sys",
 ]
 
@@ -4156,8 +4321,19 @@ name = "gstreamer-sdp-sys"
 version = "0.25.0"
 source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=main#8a41295b995e4154dee1c18cfea77efc25ec3817"
 dependencies = [
- "glib-sys",
- "gstreamer-sys",
+ "glib-sys 0.22.0",
+ "gstreamer-sys 0.25.0",
+ "libc",
+ "system-deps",
+]
+
+[[package]]
+name = "gstreamer-sys"
+version = "0.23.7"
+source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=0.23#0f9f71821ada8ec7c16c27e08181523cfb5d2a30"
+dependencies = [
+ "glib-sys 0.20.12",
+ "gobject-sys 0.20.12",
  "libc",
  "system-deps",
 ]
@@ -4168,8 +4344,8 @@ version = "0.25.0"
 source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=main#8a41295b995e4154dee1c18cfea77efc25ec3817"
 dependencies = [
  "cfg-if",
- "glib-sys",
- "gobject-sys",
+ "glib-sys 0.22.0",
+ "gobject-sys 0.22.0",
  "libc",
  "system-deps",
 ]
@@ -4179,8 +4355,8 @@ name = "gstreamer-tag"
 version = "0.25.0"
 source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=main#8a41295b995e4154dee1c18cfea77efc25ec3817"
 dependencies = [
- "glib",
- "gstreamer",
+ "glib 0.22.0",
+ "gstreamer 0.25.0",
  "gstreamer-tag-sys",
  "libc",
 ]
@@ -4190,9 +4366,9 @@ name = "gstreamer-tag-sys"
 version = "0.25.0"
 source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=main#8a41295b995e4154dee1c18cfea77efc25ec3817"
 dependencies = [
- "glib-sys",
- "gobject-sys",
- "gstreamer-sys",
+ "glib-sys 0.22.0",
+ "gobject-sys 0.22.0",
+ "gstreamer-sys 0.25.0",
  "libc",
  "system-deps",
 ]
@@ -4202,9 +4378,25 @@ name = "gstreamer-utils"
 version = "0.25.0"
 source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=main#8a41295b995e4154dee1c18cfea77efc25ec3817"
 dependencies = [
- "gstreamer",
+ "gstreamer 0.25.0",
  "gstreamer-app",
- "gstreamer-video",
+ "gstreamer-video 0.25.0",
+ "thiserror 2.0.16",
+]
+
+[[package]]
+name = "gstreamer-video"
+version = "0.23.7"
+source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=0.23#0f9f71821ada8ec7c16c27e08181523cfb5d2a30"
+dependencies = [
+ "cfg-if",
+ "futures-channel",
+ "glib 0.20.12",
+ "gstreamer 0.23.7",
+ "gstreamer-base 0.23.7",
+ "gstreamer-video-sys 0.23.7",
+ "libc",
+ "once_cell",
  "thiserror 2.0.16",
 ]
 
@@ -4215,10 +4407,10 @@ source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=main#
 dependencies = [
  "cfg-if",
  "futures-channel",
- "glib",
- "gstreamer",
- "gstreamer-base",
- "gstreamer-video-sys",
+ "glib 0.22.0",
+ "gstreamer 0.25.0",
+ "gstreamer-base 0.25.0",
+ "gstreamer-video-sys 0.25.0",
  "libc",
  "serde",
  "thiserror 2.0.16",
@@ -4226,13 +4418,26 @@ dependencies = [
 
 [[package]]
 name = "gstreamer-video-sys"
+version = "0.23.7"
+source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=0.23#0f9f71821ada8ec7c16c27e08181523cfb5d2a30"
+dependencies = [
+ "glib-sys 0.20.12",
+ "gobject-sys 0.20.12",
+ "gstreamer-base-sys 0.23.7",
+ "gstreamer-sys 0.23.7",
+ "libc",
+ "system-deps",
+]
+
+[[package]]
+name = "gstreamer-video-sys"
 version = "0.25.0"
 source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=main#8a41295b995e4154dee1c18cfea77efc25ec3817"
 dependencies = [
- "glib-sys",
- "gobject-sys",
- "gstreamer-base-sys",
- "gstreamer-sys",
+ "glib-sys 0.22.0",
+ "gobject-sys 0.22.0",
+ "gstreamer-base-sys 0.25.0",
+ "gstreamer-sys 0.25.0",
  "libc",
  "system-deps",
 ]
@@ -4242,8 +4447,8 @@ name = "gstreamer-webrtc"
 version = "0.25.0"
 source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=main#8a41295b995e4154dee1c18cfea77efc25ec3817"
 dependencies = [
- "glib",
- "gstreamer",
+ "glib 0.22.0",
+ "gstreamer 0.25.0",
  "gstreamer-sdp",
  "gstreamer-webrtc-sys",
  "libc",
@@ -4254,9 +4459,9 @@ name = "gstreamer-webrtc-sys"
 version = "0.25.0"
 source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=main#8a41295b995e4154dee1c18cfea77efc25ec3817"
 dependencies = [
- "glib-sys",
+ "glib-sys 0.22.0",
  "gstreamer-sdp-sys",
- "gstreamer-sys",
+ "gstreamer-sys 0.25.0",
  "libc",
  "system-deps",
 ]
@@ -4272,7 +4477,7 @@ dependencies = [
  "gdk-pixbuf",
  "gdk4",
  "gio",
- "glib",
+ "glib 0.22.0",
  "graphene-rs",
  "gsk4",
  "gtk4-macros",
@@ -4300,9 +4505,9 @@ dependencies = [
  "cairo-sys-rs",
  "gdk-pixbuf-sys",
  "gdk4-sys",
- "gio-sys",
- "glib-sys",
- "gobject-sys",
+ "gio-sys 0.22.0",
+ "glib-sys 0.22.0",
+ "gobject-sys 0.22.0",
  "graphene-sys",
  "gsk4-sys",
  "libc",
@@ -4430,6 +4635,12 @@ checksum = "589533453244b0995c858700322199b2becb13b627df2851f64a2775d024abcf"
 dependencies = [
  "windows-sys 0.59.0",
 ]
+
+[[package]]
+name = "hound"
+version = "3.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "62adaabb884c94955b19907d60019f4e145d091c75345379e70d1ee696f7854f"
 
 [[package]]
 name = "hrtf"
@@ -5989,6 +6200,15 @@ dependencies = [
 
 [[package]]
 name = "option-operations"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7c26d27bb1aeab65138e4bf7666045169d1717febcc9ff870166be8348b223d0"
+dependencies = [
+ "paste",
+]
+
+[[package]]
+name = "option-operations"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b31ce827892359f23d3cd1cc4c75a6c241772bbd2db17a92dcf27cbefdf52689"
@@ -6019,7 +6239,7 @@ version = "0.22.0"
 source = "git+https://github.com/gtk-rs/gtk-rs-core?branch=main#bbe4d709b7337f1bfea7b2a347524689979c6756"
 dependencies = [
  "gio",
- "glib",
+ "glib 0.22.0",
  "libc",
  "pango-sys",
 ]
@@ -6029,8 +6249,8 @@ name = "pango-sys"
 version = "0.22.0"
 source = "git+https://github.com/gtk-rs/gtk-rs-core?branch=main#bbe4d709b7337f1bfea7b2a347524689979c6756"
 dependencies = [
- "glib-sys",
- "gobject-sys",
+ "glib-sys 0.22.0",
+ "gobject-sys 0.22.0",
  "libc",
  "system-deps",
 ]
@@ -6041,7 +6261,7 @@ version = "0.22.0"
 source = "git+https://github.com/gtk-rs/gtk-rs-core?branch=main#bbe4d709b7337f1bfea7b2a347524689979c6756"
 dependencies = [
  "cairo-rs",
- "glib",
+ "glib 0.22.0",
  "libc",
  "pango",
  "pangocairo-sys",
@@ -6053,7 +6273,7 @@ version = "0.22.0"
 source = "git+https://github.com/gtk-rs/gtk-rs-core?branch=main#bbe4d709b7337f1bfea7b2a347524689979c6756"
 dependencies = [
  "cairo-sys-rs",
- "glib-sys",
+ "glib-sys 0.22.0",
  "libc",
  "pango-sys",
  "system-deps",
