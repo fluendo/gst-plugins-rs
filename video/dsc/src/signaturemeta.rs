@@ -21,10 +21,16 @@ impl SignatureMeta {
     pub fn add<'a>(
         buffer: &'a mut gst::BufferRef,
         signature: &[u8],
+        hash_method: u8,
+        cert_uri: Option<&str>,
+        content_uuid: Option<&[u8; 16]>,
     ) -> gst::MetaRefMut<'a, Self, gst::meta::Standalone> {
         unsafe {
             let mut params = mem::ManuallyDrop::new(imp::SignatureMetaParams {
                 signature: signature.to_vec(),
+                hash_method,
+                cert_uri: cert_uri.map(|s| s.to_string()),
+                content_uuid: content_uuid.copied(),
             });
 
             let meta = gst::ffi::gst_buffer_add_meta(
@@ -39,6 +45,18 @@ impl SignatureMeta {
 
     pub fn signature(&self) -> &[u8] {
         &self.0.signature
+    }
+
+    pub fn hash_method(&self) -> u8 {
+        self.0.hash_method
+    }
+
+    pub fn cert_uri(&self) -> Option<&str> {
+        self.0.cert_uri.as_deref()
+    }
+
+    pub fn content_uuid(&self) -> Option<&[u8; 16]> {
+        self.0.content_uuid.as_ref()
     }
 }
 
@@ -58,8 +76,14 @@ impl fmt::Debug for SignatureMeta {
     }
 }
 
-pub fn add_signature_meta(buffer: &mut gst::BufferRef, signature: &[u8]) {
-    SignatureMeta::add(buffer, signature);
+pub fn add_signature_meta(
+    buffer: &mut gst::BufferRef, 
+    signature: &[u8],
+    hash_method: u8,
+    cert_uri: Option<&str>,
+    content_uuid: Option<&[u8; 16]>,
+) {
+    SignatureMeta::add(buffer, signature, hash_method, cert_uri, content_uuid);
 }
 
 pub fn register_signature_meta() {
@@ -75,12 +99,18 @@ mod imp {
 
     pub(super) struct SignatureMetaParams {
         pub signature: Vec<u8>,
+        pub hash_method: u8,
+        pub cert_uri: Option<String>,
+        pub content_uuid: Option<[u8; 16]>,
     }
 
     #[repr(C)]
     pub struct SignatureMeta {
         parent: gst::ffi::GstMeta,
+        pub(super) hash_method: u8,
         pub(super) signature: Vec<u8>,
+        pub(super) cert_uri: Option<String>,
+        pub(super) content_uuid: Option<[u8; 16]>,
     }
 
     pub(super) fn signature_meta_api_get_type() -> glib::Type {
@@ -111,9 +141,17 @@ mod imp {
         let meta = &mut *(meta as *mut SignatureMeta);
         let params = ptr::read(params as *const SignatureMetaParams);
 
-        let SignatureMetaParams { signature } = params;
+        let SignatureMetaParams { 
+            signature, 
+            hash_method, 
+            cert_uri, 
+            content_uuid 
+        } = params;
 
         ptr::write(&mut meta.signature, signature);
+        meta.hash_method = hash_method;
+        ptr::write(&mut meta.cert_uri, cert_uri);
+        meta.content_uuid = content_uuid;
 
         true.into_glib()
     }
@@ -124,6 +162,7 @@ mod imp {
     ) {
         let meta = &mut *(meta as *mut SignatureMeta);
         ptr::drop_in_place(&mut meta.signature);
+        ptr::drop_in_place(&mut meta.cert_uri);
     }
 
     unsafe extern "C" fn signature_meta_transform(
@@ -140,7 +179,13 @@ mod imp {
             return true.into_glib();
         }
         
-        super::SignatureMeta::add(dest, &meta.signature);
+        super::SignatureMeta::add(
+            dest, 
+            &meta.signature, 
+            meta.hash_method,
+            meta.cert_uri.as_deref(),
+            meta.content_uuid.as_ref()
+        );
 
         true.into_glib()
     }

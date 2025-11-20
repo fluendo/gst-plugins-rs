@@ -48,3 +48,28 @@ impl ToString for HashMethod {
         }.to_string()
     }
 }
+
+impl From<u8> for HashMethod {
+    fn from(value: u8) -> Self {
+        match value {
+            0 => HashMethod::Sha1,
+            1 => HashMethod::Sha224,
+            2 => HashMethod::Sha256,
+            3 => HashMethod::Sha384,
+            4 => HashMethod::Sha512,
+            _ => HashMethod::Sha256, // default
+        }
+    }
+}
+
+impl Into<u8> for HashMethod {
+    fn into(self) -> u8 {
+        match self {
+            HashMethod::Sha1 => 0,
+            HashMethod::Sha224 => 1,
+            HashMethod::Sha256 => 2,
+            HashMethod::Sha384 => 3,
+            HashMethod::Sha512 => 4,
+        }
+    }
+}
