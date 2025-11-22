@@ -14,7 +14,6 @@ use gst::prelude::*;
 use gst::subclass::prelude::*;
 use gst_base::subclass::prelude::*;
 
-use openssl::hash::Hasher;
 use openssl::pkey::PKey;
 use openssl::sign::Verifier;
 
@@ -27,6 +26,8 @@ use anyhow::Result;
 
 use crate::signaturemeta::SignatureMeta;
 use crate::common::HashMethod;
+use crate::nal_parser::{NalParser, VideoCodec};
+use crate::dsc_substream::DscSubstreamManager;
 
 static CAT: LazyLock<gst::DebugCategory> = LazyLock::new(|| {
     gst::DebugCategory::new(
@@ -37,19 +38,17 @@ static CAT: LazyLock<gst::DebugCategory> = LazyLock::new(|| {
 });
 
 struct GopVerificationState {
-    hasher: Option<Hasher>,
-    last_digest: Option<Vec<u8>>,
-    previous_gop_digest: Option<Vec<u8>>, // NEW: Store the digest of the GOP we just finished
+    dsc_manager: Option<DscSubstreamManager>,
     gop_started: bool,
+    nal_parser: Option<NalParser>,
 }
 
 impl Default for GopVerificationState {
     fn default() -> Self {
         Self {
-            hasher: None,
-            last_digest: None,
-            previous_gop_digest: None, // NEW
+            dsc_manager: None,
             gop_started: false,
+            nal_parser: None,
         }
     }
 }
@@ -59,7 +58,6 @@ pub struct DscVerifier {
     pub hash_method: RwLock<HashMethod>,
     pub public_key: Mutex<Option<PKey<openssl::pkey::Public>>>,
     pub public_key_path: RwLock<Option<String>>,
-    pub enable_verification: RwLock<bool>,
     gop_state: Mutex<GopVerificationState>,
 }
 
@@ -122,11 +120,6 @@ impl ObjectImpl for DscVerifier {
                     }
                 }
             }
-            "enable-verification" => {
-                let enabled = value.get::<bool>().unwrap();
-                *self.enable_verification.write().unwrap() = enabled;
-                gst::info!(*CAT, "Set enable-verification property to {}", enabled);
-            }
             _ => {}
         }
     }
@@ -135,7 +128,6 @@ impl ObjectImpl for DscVerifier {
         match pspec.name() {
             "hash-method" => self.hash_method.read().unwrap().to_string().to_value(),
             "public-key-path" => self.public_key_path.read().unwrap().clone().to_value(),
-            "enable-verification" => self.enable_verification.read().unwrap().to_value(),
             _ => Value::from_type(pspec.value_type()),
         }
     }
@@ -151,12 +143,6 @@ impl ObjectImpl for DscVerifier {
             ParamSpecString::builder("public-key-path")
                 .nick("Public Key Path")
                 .blurb("Path to PEM-encoded public key")
-                .readwrite()
-                .build(),
-            glib::ParamSpecBoolean::builder("enable-verification")
-                .nick("Enable Verification")
-                .blurb("Enable or disable verification (default: true)")
-                .default_value(true)
                 .readwrite()
                 .build(),
         ]);
@@ -225,6 +211,23 @@ impl BaseTransformImpl for DscVerifier {
     const PASSTHROUGH_ON_SAME_CAPS: bool = false;
     const TRANSFORM_IP_ON_PASSTHROUGH: bool = false;
 
+    fn set_caps(&self, incaps: &gst::Caps, outcaps: &gst::Caps) -> Result<(), gst::LoggableError> {
+        gst::debug!(*CAT, imp = self, "Negotiating caps");
+        gst::debug!(*CAT, imp = self, "Input caps: {}", incaps);
+        gst::debug!(*CAT, imp = self, "Output caps: {}", outcaps);
+
+        // Initialize NAL parser based on codec
+        if let Ok(codec) = VideoCodec::from_caps(incaps) {
+            let mut gop_state = self.gop_state.lock().unwrap();
+            gop_state.nal_parser = Some(NalParser::new(codec));
+            gst::info!(*CAT, imp = self, "Initialized NAL parser for codec: {:?}", codec);
+        } else {
+            gst::warning!(*CAT, imp = self, "Could not determine codec from caps, falling back to raw frame verification");
+        }
+
+        Ok(())
+    }
+
     fn transform_ip(
         &self,
         buffer: &mut gst::BufferRef,
@@ -261,156 +264,105 @@ impl BaseTransformImpl for DscVerifier {
         let hash_method = self.hash_method.read().unwrap().to_openssl();
         let mut gop_state = self.gop_state.lock().unwrap();
         
-        // Handle I-frame: check for signature from previous GOP and start new GOP
+        // Handle I-frame: verify signature if present, then start new GOP  
         if is_i_frame {
-            // FIRST: Check if this I-frame has signature meta from previous GOP (BEFORE finalizing current GOP)
-            let has_signature = buffer.meta::<SignatureMeta>().is_some();
+            // Check if this I-frame has signature meta from previous GOP
+            let signature_meta = buffer.meta::<SignatureMeta>();
             
-            // Finalize the current GOP 
-            if gop_state.gop_started {
-                if let Some(mut hasher) = gop_state.hasher.take() {
-                    match hasher.finish() {
-                        Ok(current_digest) => {
-                            gst::debug!(*CAT, imp = self, "Finalized current GOP hash, digest length: {}", current_digest.len());
-                            gst::debug!(*CAT, imp = self, "Current GOP digest: {:02x?}", &current_digest[..std::cmp::min(8, current_digest.len())]);
-                            
-                            // If we have a signature to verify, do it now BEFORE updating previous_gop_digest
-                            if has_signature {
-                                if let Some(ref previous_digest) = gop_state.previous_gop_digest {
-                                    let sig_meta = buffer.meta::<SignatureMeta>().unwrap();
-                                    let signature = sig_meta.signature();
-                                    
-                                    gst::debug!(*CAT, imp = self, "Verifying signature against STORED previous GOP digest: {:02x?}", &previous_digest[..std::cmp::min(8, previous_digest.len())]);
-                                    
-                                    // Create data packet for verification (must match signer's packet)
-                                    let mut data_packet = Vec::new();
-                                    
-                                    // Add reference digest (last GOP's digest or zeros for first GOP)
-                                    if let Some(ref last_digest) = gop_state.last_digest {
-                                        data_packet.extend_from_slice(last_digest);
-                                        gst::debug!(*CAT, imp = self, "VERIFIER: Added reference digest: {} bytes", last_digest.len());
-                                    } else {
-                                        // First GOP after stream start: use zero digest
-                                        let zero_digest = vec![0u8; previous_digest.len()];
-                                        data_packet.extend_from_slice(&zero_digest);
-                                        gst::debug!(*CAT, imp = self, "VERIFIER: Added zero reference digest: {} bytes", zero_digest.len());
-                                    }
-                                    
-                                    // Add previous digest (the one the signature was created for)
-                                    data_packet.extend_from_slice(previous_digest);
-                                    gst::debug!(*CAT, imp = self, "VERIFIER: Added current digest: {} bytes", previous_digest.len());
-                                    
-                                    // Add hash method type (as single byte)
-                                    let hash_method_byte = match hash_method {
-                                        m if m == openssl::hash::MessageDigest::sha1() => 0u8,
-                                        m if m == openssl::hash::MessageDigest::sha224() => 1u8,
-                                        m if m == openssl::hash::MessageDigest::sha256() => 2u8,
-                                        m if m == openssl::hash::MessageDigest::sha384() => 3u8,
-                                        m if m == openssl::hash::MessageDigest::sha512() => 4u8,
-                                        _ => 2u8,
-                                    };
-                                    data_packet.push(hash_method_byte);
-                                    gst::debug!(*CAT, imp = self, "VERIFIER: Added hash method byte: {}", hash_method_byte);
-                                    
-                                    gst::info!(*CAT, imp = self, "VERIFIER: Verifying data packet: {} bytes total", data_packet.len());
-                                    gst::debug!(*CAT, imp = self, "VERIFIER: Previous digest used: {:02x?}", &previous_digest[..std::cmp::min(8, previous_digest.len())]);
+            // If we have a signature, verify it against the PREVIOUS GOP's accumulated data
+            if let Some(sig_meta) = signature_meta {
+                if gop_state.gop_started {
+                    if let Some(ref mut dsc_manager) = gop_state.dsc_manager {
+                        match dsc_manager.create_data_packet(0) {
+                            Ok(data_packet) => {
+                                gst::debug!(*CAT, imp = self, "Created data packet for PREVIOUS GOP verification: {} bytes", data_packet.len());
+                                gst::info!(*CAT, imp = self, "VERIFIER: Verifying PREVIOUS GOP data packet: {} bytes", data_packet.len());
+                                
+                                let signature = sig_meta.signature();
+                                
+                                gst::debug!(*CAT, imp = self, "VERIFIER: Data packet content: {:02x?}", &data_packet[..std::cmp::min(32, data_packet.len())]);
+                                gst::debug!(*CAT, imp = self, "Verifying signature against PREVIOUS GOP data packet");
 
-                                    // Verify the signature against the data packet
-                                    let mut verifier = match Verifier::new(hash_method, pkey) {
-                                        Ok(v) => v,
-                                        Err(e) => {
-                                            gst::error!(*CAT, imp = self, "Failed to create verifier: {}", e);
-                                            let msg = gst::message::Error::new(
-                                                gst::CoreError::Failed,
-                                                &format!("Failed to create verifier: {}", e),
-                                            );
-                                            let _ = obj.post_message(msg);
-                                            return Err(gst::FlowError::Error);
-                                        }
-                                    };
-                                    
-                                    if let Err(e) = verifier.update(&data_packet) {
-                                        gst::error!(*CAT, imp = self, "Failed to update verifier: {}", e);
+                                // Verify the signature against the data packet
+                                let mut verifier = match Verifier::new(hash_method, pkey) {
+                                    Ok(v) => v,
+                                    Err(e) => {
+                                        gst::error!(*CAT, imp = self, "Failed to create verifier: {}", e);
                                         let msg = gst::message::Error::new(
                                             gst::CoreError::Failed,
-                                            &format!("Failed to update verifier: {}", e),
+                                            &format!("Failed to create verifier: {}", e),
                                         );
                                         let _ = obj.post_message(msg);
                                         return Err(gst::FlowError::Error);
                                     }
-                                    
-                                    match verifier.verify(signature) {
-                                        Ok(true) => {
-                                            gst::info!(*CAT, imp = self, "GOP signature verified successfully");
-                                            // Store previous digest as last digest for next GOP
-                                            gop_state.last_digest = Some(previous_digest.clone());
-                                        },
-                                        Ok(false) => {
-                                            gst::error!(*CAT, imp = self, "GOP signature verification FAILED");
-                                            let msg = gst::message::Error::new(
-                                                gst::CoreError::Failed,
-                                                "GOP signature verification failed",
-                                            );
-                                            let _ = obj.post_message(msg);
-                                            return Err(gst::FlowError::Error);
-                                        },
-                                        Err(e) => {
-                                            gst::error!(*CAT, imp = self, "Error during signature verification: {}", e);
-                                            let msg = gst::message::Error::new(
-                                                gst::CoreError::Failed,
-                                                &format!("Error during signature verification: {}", e),
-                                            );
-                                            let _ = obj.post_message(msg);
-                                            return Err(gst::FlowError::Error);
-                                        }
-                                    }
-                                } else {
-                                    gst::warning!(*CAT, imp = self, "I-frame with signature but no stored previous GOP digest available");
+                                };
+                                
+                                if let Err(e) = verifier.update(&data_packet) {
+                                    gst::error!(*CAT, imp = self, "Failed to update verifier: {}", e);
+                                    let msg = gst::message::Error::new(
+                                        gst::CoreError::Failed,
+                                        &format!("Failed to update verifier: {}", e),
+                                    );
+                                    let _ = obj.post_message(msg);
+                                    return Err(gst::FlowError::Error);
                                 }
+                                
+                                match verifier.verify(signature) {
+                                    Ok(true) => {
+                                        gst::info!(*CAT, imp = self, "✅ PREVIOUS GOP signature verified successfully");
+                                    },
+                                    Ok(false) => {
+                                        gst::error!(*CAT, imp = self, "❌ PREVIOUS GOP signature verification FAILED");
+                                        let msg = gst::message::Error::new(
+                                            gst::CoreError::Failed,
+                                            "GOP signature verification failed",
+                                        );
+                                        let _ = obj.post_message(msg);
+                                        return Err(gst::FlowError::Error);
+                                    },
+                                    Err(e) => {
+                                        gst::error!(*CAT, imp = self, "Error during signature verification: {}", e);
+                                        let msg = gst::message::Error::new(
+                                            gst::CoreError::Failed,
+                                            &format!("Error during signature verification: {}", e),
+                                        );
+                                        let _ = obj.post_message(msg);
+                                        return Err(gst::FlowError::Error);
+                                    }
+                                }
+                            },
+                            Err(e) => {
+                                gst::error!(*CAT, imp = self, "Failed to create data packet for verification: {}", e);
+                                let msg = gst::message::Error::new(
+                                    gst::CoreError::Failed,
+                                    &format!("Failed to create data packet: {}", e),
+                                );
+                                let _ = obj.post_message(msg);
+                                return Err(gst::FlowError::Error);
                             }
-                            
-                            // Update previous GOP digest for next verification
-                            gop_state.previous_gop_digest = Some(current_digest.to_vec());
-                        },
-                        Err(e) => {
-                            gst::error!(*CAT, imp = self, "Failed to finish hash for current GOP: {}", e);
-                            let msg = gst::message::Error::new(
-                                gst::CoreError::Failed,
-                                &format!("Failed to finish hash: {}", e),
-                            );
-                            let _ = obj.post_message(msg);
-                            return Err(gst::FlowError::Error);
                         }
                     }
                 } else {
-                    gst::warning!(*CAT, imp = self, "GOP was started but no hasher available");
+                    gst::debug!(*CAT, imp = self, "First I-frame with signature - no previous GOP to verify");
                 }
-            } else if has_signature {
-                // First I-frame without previous GOP
-                gst::debug!(*CAT, imp = self, "I-frame without signature meta (first GOP or no signature)");
             }
             
-            // Start new GOP - initialize hasher
-            let new_hasher = match Hasher::new(hash_method) {
-                Ok(h) => h,
-                Err(e) => {
-                    gst::error!(*CAT, imp = self, "Failed to create hasher for new GOP: {}", e);
-                    let msg = gst::message::Error::new(
-                        gst::CoreError::Failed,
-                        &format!("Failed to create hasher: {}", e),
-                    );
-                    let _ = obj.post_message(msg);
-                    return Err(gst::FlowError::Error);
-                }
-            };
+            // Start new GOP with DscSubstreamManager
+            let hash_method_byte: u8 = (*self.hash_method.read().unwrap()).into();
             
-            gop_state.hasher = Some(new_hasher);
+            let new_dsc_manager = DscSubstreamManager::new(
+                hash_method,
+                hash_method_byte,
+                None, // TODO: To be filled in case meta provides it
+            );
+            
+            gop_state.dsc_manager = Some(new_dsc_manager);
             gop_state.gop_started = true;
             
-            gst::debug!(*CAT, imp = self, "Started new GOP for verification");
+            gst::debug!(*CAT, imp = self, "Started new GOP for verification with DscSubstreamManager");
         }
         
-        // For ALL frames (including I-frames), accumulate data into current GOP
+        // For ALL frames (including I-frames), accumulate data into CURRENT GOP
         if !gop_state.gop_started {
             gst::warning!(*CAT, imp = self, "Received frame before first I-frame, skipping");
             return Ok(gst::FlowSuccess::Ok);
@@ -429,21 +381,45 @@ impl BaseTransformImpl for DscVerifier {
             }
         };
         
-        if is_i_frame {
-            gst::trace!(*CAT, imp = self, "Including I-frame data in GOP hash, size: {}", map.size());
+        // Extract data to hash using NAL parser
+        let data_to_hash = if let Some(ref nal_parser) = gop_state.nal_parser {
+            match nal_parser.extract_signable_data(&map) {
+                Ok(nal_data) => {
+                    gst::debug!(*CAT, imp = self, "Using NAL-level verification: {} bytes from {} raw bytes", 
+                        nal_data.len(), map.len());
+                    nal_data
+                },
+                Err(e) => {
+                    gst::error!(*CAT, imp = self, "NAL parsing failed: {}", e);
+                    let msg = gst::message::Error::new(
+                        gst::CoreError::Failed,
+                        &format!("NAL parsing failed: {}", e),
+                    );
+                    let _ = obj.post_message(msg);
+                    return Err(gst::FlowError::Error);
+                }
+            }
         } else {
-            gst::trace!(*CAT, imp = self, "Accumulating frame data into GOP hash, size: {}", map.size());
-        }
-        
-        if let Some(ref mut hasher) = gop_state.hasher {
-            if let Err(e) = hasher.update(&map) {
-                gst::error!(*CAT, imp = self, "Failed to update hasher: {}", e);
-                let msg = gst::message::Error::new(
-                    gst::CoreError::Failed,
-                    &format!("Failed to update hasher: {}", e),
-                );
-                let _ = obj.post_message(msg);
+            gst::error!(*CAT, imp = self, "No NAL parser available - codec not supported");
+            let msg = gst::message::Error::new(
+                gst::CoreError::Failed,
+                "No NAL parser available - codec not supported",
+            );
+            let _ = obj.post_message(msg);
+            return Err(gst::FlowError::Error);
+        };
+
+        // Add data to DSC substream for current GOP
+        if let Some(ref mut dsc_manager) = gop_state.dsc_manager {
+            if let Err(e) = dsc_manager.add_to_substream(0, &data_to_hash) {
+                gst::error!(*CAT, imp = self, "Failed to add data to substream: {}", e);
                 return Err(gst::FlowError::Error);
+            }
+
+            if is_i_frame {
+                gst::trace!(*CAT, imp = self, "Added CURRENT I-frame data to NEW GOP substream, size: {}", data_to_hash.len());
+            } else {
+                gst::trace!(*CAT, imp = self, "Added frame data to current GOP substream, size: {}", data_to_hash.len());
             }
         }
         

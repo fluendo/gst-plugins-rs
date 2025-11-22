@@ -10,9 +10,11 @@
 use gst::glib;
 
 mod common;
+pub mod signaturemeta;
 mod signer;
 mod verifier;
-pub mod signaturemeta;
+mod nal_parser;
+mod dsc_substream;
 
 fn plugin_init(plugin: &gst::Plugin) -> Result<(), glib::BoolError> {
     signaturemeta::register_signature_meta();
