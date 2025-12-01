@@ -7,6 +7,19 @@
 //
 // SPDX-License-Identifier: MPL-2.0
 
+/**
+ * element-dscverifier:
+ * @short-description: Based on Digital Signature Content (DSC), verifies video buffer
+ * signatures using metadata-provided keys.
+ *
+ * ## Example verifiying a signed stream
+ * ```bash
+ * gst-launch-1.0 videotestsrc num-buffers=30 ! videoconvert ! x264enc key-int-max=5 ! 
+ * h264parse ! dscsigner private-key-path=./example_ca.key public-key-uri= ./example_ca.pub ! 
+ * dscverifier key-store-path= `pwd` ! avdec_h264 ! videoconvert ! autovideosink
+ * ```
+ */
+
 use gst::glib;
 use gst::prelude::*;
 use gst_base::BaseTransform;

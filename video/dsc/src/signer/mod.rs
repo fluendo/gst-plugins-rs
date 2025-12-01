@@ -7,6 +7,19 @@
 //
 // SPDX-License-Identifier: MPL-2.0
 
+/**
+ * element-dscsigner:
+ * @short-description: Based on Digital Signature Content (DSC), signs video buffers
+ * using provided private keys. Signatures are added as metadata to the buffers.
+ *
+ * ## Example signing a stream
+ * ```bash
+ * gst-launch-1.0 videotestsrc num-buffers=30 ! videoconvert ! x264enc key-int-max=5 ! 
+ * h264parse ! dscsigner private-key-path=./example_ca.key public-key-uri= ./example_ca.pub ! 
+ * fakesink
+ * ```
+ */
+
 use gst::glib;
 use gst::prelude::*;
 use gst_base::BaseTransform;
