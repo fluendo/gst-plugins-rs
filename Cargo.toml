@@ -23,7 +23,6 @@ members = [
     "generic/inter",
     "generic/streamgrouper",
     "generic/gopbuffer",
-    "generic/dsc",
 
     "mux/flavors",
     "mux/fmp4",
@@ -60,6 +59,7 @@ members = [
     "video/cdg",
     "video/closedcaption",
     "video/dav1d",
+    "video/dsc",
     "video/ffv1",
     "video/gif",
     "video/gtk4",
