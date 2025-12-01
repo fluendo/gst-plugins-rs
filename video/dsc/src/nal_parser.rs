@@ -7,7 +7,7 @@
 //
 // SPDX-License-Identifier: MPL-2.0
 
-use anyhow::{Result, anyhow};
+use anyhow::{Result, bail};
 use std::sync::LazyLock;
 
 static CAT: LazyLock<gst::DebugCategory> = LazyLock::new(|| {
@@ -26,15 +26,20 @@ pub enum VideoCodec {
 }
 
 impl VideoCodec {
-    pub fn from_caps(caps: &gst::CapsRef) -> Result<Self> {
-        let structure = caps.structure(0).ok_or_else(|| anyhow!("No structure in caps"))?;
-        let media_type = structure.name();
-        
-        match media_type.as_str() {
-            "video/x-h264" => Ok(VideoCodec::H264),
-            "video/x-h265" => Ok(VideoCodec::H265), 
-            "video/x-h266" => Ok(VideoCodec::H266),
-            _ => Err(anyhow!("Unsupported codec: {}", media_type)),
+    pub fn from_caps(caps: &gst::Caps) -> Result<Self> {
+        if let Some(structure) = caps.structure(0) {
+            let name = structure.name();
+            if name == "video/x-h264" {
+                Ok(VideoCodec::H264)
+            } else if name == "video/x-h265" {
+                Ok(VideoCodec::H265)
+            } else if name == "video/x-h266" {
+                Ok(VideoCodec::H266)
+            } else {
+                bail!("Unsupported codec in caps")
+            }
+        } else {
+            bail!("No structure in caps")
         }
     }
 }

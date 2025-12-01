@@ -130,7 +130,7 @@ impl DscSubstreamManager {
     fn finalize_substream(&mut self, substream_id: usize) -> Result<Vec<u8>> {
         if let Some(ref mut substream) = self.substreams.get_mut(substream_id).and_then(|s| s.as_mut()) {
             let digest = substream.finalize()?;
-            self.substreams[substream_id] = None; // Mark as finalized
+            self.substreams[substream_id] = None;
             Ok(digest)
         } else {
             Err(anyhow!("Substream {} not found or already finalized", substream_id))

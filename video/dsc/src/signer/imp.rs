@@ -60,7 +60,7 @@ pub struct DscSigner {
     pub private_key: Mutex<Option<PKey<openssl::pkey::Private>>>,
     pub private_key_path: RwLock<Option<String>>,
     pub enable_signing: RwLock<bool>,
-    pub cert_uri: RwLock<Option<String>>,
+    pub public_key_uri: RwLock<Option<String>>,
     pub content_uuid: RwLock<Option<[u8; 16]>>,
     gop_state: Mutex<GopSigningState>,
 }
@@ -136,15 +136,10 @@ impl ObjectImpl for DscSigner {
                     }
                 }
             }
-            "enable-signing" => {
-                let enabled = value.get::<bool>().unwrap();
-                *self.enable_signing.write().unwrap() = enabled;
-                gst::info!(*CAT, "Set enable-signing property to {}", enabled);
-            }
-            "cert-uri" => {
+            "public-key-uri" => {
                 let uri = value.get::<String>().unwrap();
-                *self.cert_uri.write().unwrap() = Some(uri.clone());
-                gst::info!(*CAT, "Set cert-uri property to {}", uri);
+                *self.public_key_uri.write().unwrap() = Some(uri.clone());
+                gst::info!(*CAT, "Set public-key-uri property to {}", uri);
             }
             "content-uuid" => {
                 let uuid_str = value.get::<String>().unwrap();
@@ -168,8 +163,7 @@ impl ObjectImpl for DscSigner {
         match pspec.name() {
             "hash-method" => self.hash_method.read().unwrap().to_string().to_value(),
             "private-key-path" => self.private_key_path.read().unwrap().clone().to_value(),
-            "enable-signing" => self.enable_signing.read().unwrap().to_value(),
-            "cert-uri" => self.cert_uri.read().unwrap().clone().to_value(),
+            "public-key-uri" => self.public_key_uri.read().unwrap().clone().to_value(),
             "content-uuid" => {
                 if let Some(uuid) = *self.content_uuid.read().unwrap() {
                     hex::encode(uuid).to_value()
@@ -194,15 +188,9 @@ impl ObjectImpl for DscSigner {
                 .blurb("Path to PEM-encoded private key")
                 .readwrite()
                 .build(),
-            glib::ParamSpecBoolean::builder("enable-signing")
-                .nick("Enable Signing")
-                .blurb("Enable or disable signing (default: true)")
-                .default_value(true)
-                .readwrite()
-                .build(),
-            ParamSpecString::builder("cert-uri")
-                .nick("Certificate URI")
-                .blurb("URI of the certificate for signature verification")
+            ParamSpecString::builder("public-key-uri")
+                .nick("Public Key URI")
+                .blurb("URI of the public key for signature verification")
                 .readwrite()
                 .build(),
             ParamSpecString::builder("content-uuid")
@@ -222,7 +210,7 @@ impl ElementImpl for DscSigner {
             gst::subclass::ElementMetadata::new(
                 "DSC Signer",
                 "Generic",
-                "Signs video buffers using a private key and hash algorithm",  // description
+                "Signs video buffers using a private key and hash algorithm",
                 "Diego Nieto <dnieto@fluendo.com>",
             )
         });
@@ -290,20 +278,19 @@ impl BaseTransformImpl for DscSigner {
         if is_i_frame {
             gst::debug!(*CAT, imp = self, "Processing I-frame (keyframe)");
             
-            // Finalize previous GOP and prepare signature for this I-frame
+            // Check whether there is a previous GOP to sign
             if gop_state.gop_started {
                 if let Some(ref mut dsc_manager) = gop_state.dsc_manager {
-                    // Create data packet and sign it
+                    // Create data packet to sign it
                     match dsc_manager.create_data_packet(0) {
                         Ok(data_packet) => {
                             gst::debug!(*CAT, imp = self, "Created data packet: {} bytes", data_packet.len());
                             gst::info!(*CAT, imp = self, "SIGNER: Creating signature for COMPLETED GOP data packet: {} bytes", data_packet.len());
                             
-                            // Create signature using the data packet
                             let signature = self.create_signature_from_data_packet(&data_packet)?;
                             let hash_method: u8 = (*self.hash_method.read().unwrap()).into();
-                            let cert_uri = self.cert_uri.read().unwrap().clone();
                             let content_uuid = *self.content_uuid.read().unwrap();
+                            let public_key_uri = self.public_key_uri.read().unwrap().clone();
                             
                             gst::info!(*CAT, imp = self, "🔐 Created signature for COMPLETED GOP, signature length: {}", signature.len());
                             
@@ -312,10 +299,10 @@ impl BaseTransformImpl for DscSigner {
                                 buffer, 
                                 &signature, 
                                 hash_method, 
-                                cert_uri.as_deref(), 
+                                public_key_uri.as_deref(), 
                                 content_uuid.as_ref()
                             );
-                            gst::info!(*CAT, imp = self, "✅ ATTACHED signature meta to I-frame for completed GOP");
+                            gst::info!(*CAT, imp = self, "✅ ATTACHED signature meta to I-frame for completed GOP (public_key_uri: {:?})", public_key_uri);
                         },
                         Err(e) => {
                             gst::error!(*CAT, imp = self, "Failed to create data packet: {}", e);
@@ -347,13 +334,12 @@ impl BaseTransformImpl for DscSigner {
             gst::trace!(*CAT, imp = self, "Processing non-I-frame");
         }
         
-        // Accumulate current frame data for ALL frames (including I-frames)
         let map = buffer.map_readable().map_err(|_| {
             gst::error!(*CAT, imp = self, "Failed to map buffer for reading");
             gst::FlowError::Error
         })?;
         
-        // Extract data to hash using NAL parser
+        // Extract only desired NAL units based on codec
         let data_to_hash = if let Some(ref nal_parser) = gop_state.nal_parser {
             match nal_parser.extract_signable_data(&map) {
                 Ok(nal_data) => {
@@ -426,7 +412,6 @@ impl DscSigner {
 
         gst::debug!(*CAT, imp = self, "SIGNER: Data packet content: {:02x?}", &data_packet[..std::cmp::min(32, data_packet.len())]);
         
-        // Create signature
         let mut signer = Signer::new(hash_method, pkey).map_err(|e| {
             gst::error!(*CAT, imp = self, "Failed to create signer: {}", e);
             gst::FlowError::Error
