@@ -173,12 +173,12 @@ impl DscVerifier {
         }
 
         gst::info!(*CAT, imp = self, "Loading public key from cert_uri: {}", cert_uri);
-        
+
         // In case not cached, load the key by composing the path based on key_store_path and metadata cert_uri
         let final_key_path = if let Some(key_store_path) = &*self.key_store_path.read().unwrap() {
             let key_store_dir = Path::new(key_store_path);
             let cert_path = Path::new(cert_uri);
-            
+
             if cert_path.is_absolute() {
                 cert_uri.to_string()
             } else {
@@ -189,7 +189,7 @@ impl DscVerifier {
         };
 
         gst::debug!(*CAT, imp = self, "Final key path constructed: {}", final_key_path);
-        
+
         match fs::read(&final_key_path) {
             Ok(key_data) => {
                 match PKey::public_key_from_pem(&key_data) {
@@ -239,26 +239,26 @@ impl BaseTransformImpl for DscVerifier {
         buffer: &mut gst::BufferRef,
     ) -> Result<gst::FlowSuccess, gst::FlowError> {
         gst::trace!(*CAT, imp = self, "DscVerifier transform_ip called");
-        
+
         let is_i_frame = !buffer.flags().contains(gst::BufferFlags::DELTA_UNIT);
         let obj = self.obj();
         let mut gop_state = self.gop_state.lock().unwrap();
-        
+
         // Check signature of previous GOP if present
         if is_i_frame {
             let signature_meta = buffer.meta::<SignatureMeta>();
-            
+
             // If we have a signature, verify it against the PREVIOUS GOP's accumulated data
             if let Some(sig_meta) = signature_meta {
-                gst::info!(*CAT, imp = self, "Found signature metadata on I-frame, signature length: {}", 
+                gst::info!(*CAT, imp = self, "Found signature metadata on I-frame, signature length: {}",
                     sig_meta.signature().len());
-                gst::debug!(*CAT, imp = self, "Signature hash method: {}, cert_uri: {:?}, content_uuid: {:?}", 
+                gst::debug!(*CAT, imp = self, "Signature hash method: {}, cert_uri: {:?}, content_uuid: {:?}",
                     sig_meta.hash_method(), sig_meta.cert_uri(), sig_meta.content_uuid());
-                
+
                 if gop_state.gop_started {
                     let hash_method = HashMethod::from(sig_meta.hash_method());
                     let openssl_hash_method = hash_method.to_openssl();
-                    
+
                     let pkey = if let Some(cert_uri) = sig_meta.cert_uri() {
                         match self.load_public_key_from_cert_uri(cert_uri, &mut gop_state) {
                             Ok(key) => key,
@@ -280,15 +280,15 @@ impl BaseTransformImpl for DscVerifier {
                         let _ = obj.post_message(msg);
                         return Err(gst::FlowError::Error);
                     };
-                    
+
                     if let Some(ref mut dsc_manager) = gop_state.dsc_manager {
                         match dsc_manager.create_data_packet(0) {
                             Ok(data_packet) => {
                                 gst::debug!(*CAT, imp = self, "Created data packet for PREVIOUS GOP verification: {} bytes", data_packet.len());
                                 gst::info!(*CAT, imp = self, "VERIFIER: Verifying PREVIOUS GOP data packet: {} bytes with hash method: {:?}", data_packet.len(), hash_method);
-                                
+
                                 let signature = sig_meta.signature();
-                                
+
                                 gst::debug!(*CAT, imp = self, "VERIFIER: Data packet content: {:02x?}", &data_packet[..std::cmp::min(32, data_packet.len())]);
                                 gst::debug!(*CAT, imp = self, "Verifying signature against PREVIOUS GOP data packet");
 
@@ -305,7 +305,7 @@ impl BaseTransformImpl for DscVerifier {
                                         return Err(gst::FlowError::Error);
                                     }
                                 };
-                                
+
                                 if let Err(e) = verifier.update(&data_packet) {
                                     gst::error!(*CAT, imp = self, "Failed to update verifier: {}", e);
                                     let msg = gst::message::Error::new(
@@ -315,7 +315,7 @@ impl BaseTransformImpl for DscVerifier {
                                     let _ = obj.post_message(msg);
                                     return Err(gst::FlowError::Error);
                                 }
-                                
+
                                 match verifier.verify(signature) {
                                     Ok(true) => {
                                         gst::info!(*CAT, imp = self, "✅ PREVIOUS GOP signature verified successfully");
@@ -354,28 +354,28 @@ impl BaseTransformImpl for DscVerifier {
                 } else {
                     gst::debug!(*CAT, imp = self, "First I-frame with signature - no previous GOP to verify");
                 }
-                
+
                 // Start new GOP with DscSubstreamManager using metadata parameters
                 let hash_method = HashMethod::from(sig_meta.hash_method());
                 let openssl_hash_method = hash_method.to_openssl();
-                
+
                 let new_dsc_manager = DscSubstreamManager::new(
                     openssl_hash_method,
                     sig_meta.hash_method(),
                     sig_meta.content_uuid().copied(),
                 );
-                
+
                 gop_state.dsc_manager = Some(new_dsc_manager);
-                
+
                 gst::info!(*CAT, imp = self, "Started new GOP for verification with DSC parameters from metadata");
-                gst::debug!(*CAT, imp = self, "DSC parameters - hash_method: {:?}, cert_uri: {:?}, content_uuid: {:?}", 
+                gst::debug!(*CAT, imp = self, "DSC parameters - hash_method: {:?}, cert_uri: {:?}, content_uuid: {:?}",
                     hash_method, sig_meta.cert_uri(), sig_meta.content_uuid());
             } else {
                 gst::debug!(*CAT, imp = self, "I-frame without signature metadata - starting GOP without DSC verification");
             }
             gop_state.gop_started = true;
         }
-        
+
         // Ensure GOP has started before accumulating data
         if gop_state.dsc_manager.is_some() {
             let map = match buffer.map_readable() {
@@ -390,12 +390,12 @@ impl BaseTransformImpl for DscVerifier {
                     return Err(gst::FlowError::Error);
                 }
             };
-            
+
             // Extract data to hash using NAL parser
             let data_to_hash = if let Some(ref nal_parser) = gop_state.nal_parser {
                 match nal_parser.extract_signable_data(&map) {
                     Ok(nal_data) => {
-                        gst::trace!(*CAT, imp = self, "Using NAL-level verification: {} bytes from {} raw bytes", 
+                        gst::trace!(*CAT, imp = self, "Using NAL-level verification: {} bytes from {} raw bytes",
                             nal_data.len(), map.len());
                         nal_data
                     },
@@ -421,11 +421,11 @@ impl BaseTransformImpl for DscVerifier {
                     return Err(gst::FlowError::Error);
                 }
 
-                gst::trace!(*CAT, imp = self, "Added {} frame data to current GOP substream, size: {}", 
+                gst::trace!(*CAT, imp = self, "Added {} frame data to current GOP substream, size: {}",
                     if is_i_frame { "I" } else { "non-I" }, data_to_hash.len());
             }
         }
-        
+
         Ok(gst::FlowSuccess::Ok)
     }
 }

@@ -271,13 +271,13 @@ impl BaseTransformImpl for DscSigner {
         buffer: &mut gst::BufferRef,
     ) -> Result<gst::FlowSuccess, gst::FlowError> {
         gst::trace!(*CAT, imp = self, "DscSigner transform_ip called");
-        
+
         let is_i_frame = !buffer.flags().contains(gst::BufferFlags::DELTA_UNIT);
         let mut gop_state = self.gop_state.lock().unwrap();
-        
+
         if is_i_frame {
             gst::debug!(*CAT, imp = self, "Processing I-frame (keyframe)");
-            
+
             // Check whether there is a previous GOP to sign
             if gop_state.gop_started {
                 if let Some(ref mut dsc_manager) = gop_state.dsc_manager {
@@ -286,20 +286,20 @@ impl BaseTransformImpl for DscSigner {
                         Ok(data_packet) => {
                             gst::debug!(*CAT, imp = self, "Created data packet: {} bytes", data_packet.len());
                             gst::info!(*CAT, imp = self, "SIGNER: Creating signature for COMPLETED GOP data packet: {} bytes", data_packet.len());
-                            
+
                             let signature = self.create_signature_from_data_packet(&data_packet)?;
                             let hash_method: u8 = (*self.hash_method.read().unwrap()).into();
                             let content_uuid = *self.content_uuid.read().unwrap();
                             let public_key_uri = self.public_key_uri.read().unwrap().clone();
-                            
+
                             gst::info!(*CAT, imp = self, "🔐 Created signature for COMPLETED GOP, signature length: {}", signature.len());
-                            
+
                             // Attach signature to this I-frame (start of next GOP)
                             SignatureMeta::add(
-                                buffer, 
-                                &signature, 
-                                hash_method, 
-                                public_key_uri.as_deref(), 
+                                buffer,
+                                &signature,
+                                hash_method,
+                                public_key_uri.as_deref(),
                                 content_uuid.as_ref()
                             );
                             gst::info!(*CAT, imp = self, "✅ ATTACHED signature meta to I-frame for completed GOP (public_key_uri: {:?})", public_key_uri);
@@ -313,37 +313,37 @@ impl BaseTransformImpl for DscSigner {
             } else {
                 gst::debug!(*CAT, imp = self, "First I-frame - no previous GOP to sign");
             }
-            
+
             // Start new GOP with DscSubstreamManager
             let hash_method = self.hash_method.read().unwrap().to_openssl();
             let hash_method_byte: u8 = (*self.hash_method.read().unwrap()).into();
             let content_uuid = *self.content_uuid.read().unwrap();
-            
+
             let new_dsc_manager = DscSubstreamManager::new(
                 hash_method,
                 hash_method_byte,
                 content_uuid,
             );
-            
+
             gop_state.dsc_manager = Some(new_dsc_manager);
             gop_state.gop_started = true;
             gop_state.frames_in_gop = 0;
-            
+
             gst::debug!(*CAT, imp = self, "Started new GOP with DscSubstreamManager");
         } else {
             gst::trace!(*CAT, imp = self, "Processing non-I-frame");
         }
-        
+
         let map = buffer.map_readable().map_err(|_| {
             gst::error!(*CAT, imp = self, "Failed to map buffer for reading");
             gst::FlowError::Error
         })?;
-        
+
         // Extract only desired NAL units based on codec
         let data_to_hash = if let Some(ref nal_parser) = gop_state.nal_parser {
             match nal_parser.extract_signable_data(&map) {
                 Ok(nal_data) => {
-                    gst::debug!(*CAT, imp = self, "Using NAL-level signing: {} bytes from {} raw bytes", 
+                    gst::debug!(*CAT, imp = self, "Using NAL-level signing: {} bytes from {} raw bytes",
                         nal_data.len(), map.len());
                     nal_data
                 },
@@ -375,19 +375,19 @@ impl BaseTransformImpl for DscSigner {
                 gst::error!(*CAT, imp = self, "Failed to add data to substream: {}", e);
                 return Err(gst::FlowError::Error);
             }
-            
+
             if is_i_frame {
                 gst::trace!(*CAT, imp = self, "Added current I-frame data to NEW GOP substream, size: {}", data_to_hash.len());
             } else {
                 gst::trace!(*CAT, imp = self, "Added frame data to current GOP substream, size: {}", data_to_hash.len());
             }
-            
+
             gop_state.frames_in_gop += 1;
             gst::trace!(*CAT, imp = self, "GOP now has {} frames", gop_state.frames_in_gop);
         } else {
             gst::warning!(*CAT, imp = self, "No DSC manager available to accumulate frame data!");
         }
-        
+
         Ok(gst::FlowSuccess::Ok)
     }
 }
@@ -411,7 +411,7 @@ impl DscSigner {
         let hash_method = self.hash_method.read().unwrap().to_openssl();
 
         gst::debug!(*CAT, imp = self, "SIGNER: Data packet content: {:02x?}", &data_packet[..std::cmp::min(32, data_packet.len())]);
-        
+
         let mut signer = Signer::new(hash_method, pkey).map_err(|e| {
             gst::error!(*CAT, imp = self, "Failed to create signer: {}", e);
             gst::FlowError::Error
