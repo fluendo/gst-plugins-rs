@@ -218,7 +218,7 @@ fn test() {
     gst::init().unwrap();
     let mut b = gst::Buffer::with_size(10).unwrap();
     let signature = vec![0x01, 0x02, 0x03, 0x04, 0x05];
-    let m = SignatureMeta::add(b.make_mut(), &signature);
+    let m = SignatureMeta::add(b.make_mut(), &signature, 2, Some("test_cert.pem"), None);
     assert_eq!(m.signature(), &signature[..]);
 
     let b2: gst::Buffer = b.copy_deep().unwrap();
