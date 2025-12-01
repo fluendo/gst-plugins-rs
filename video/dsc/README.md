@@ -1,6 +1,6 @@
 # GStreamer DSC Plugin
 
-A GStreamer plugin for Digital Content Signing (DSC) that provides cryptographic signing and verification for generic data based on OpenSSL signing and verification.
+A GStreamer plugin for Digital Signed Content (DSC) that provides cryptographic signing and verification for generic data based on OpenSSL signing and verification.
 
 ## Features
 
