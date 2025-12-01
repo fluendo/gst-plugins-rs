@@ -77,7 +77,7 @@ impl fmt::Debug for SignatureMeta {
 }
 
 pub fn add_signature_meta(
-    buffer: &mut gst::BufferRef, 
+    buffer: &mut gst::BufferRef,
     signature: &[u8],
     hash_method: u8,
     cert_uri: Option<&str>,
@@ -141,11 +141,11 @@ mod imp {
         let meta = &mut *(meta as *mut SignatureMeta);
         let params = ptr::read(params as *const SignatureMetaParams);
 
-        let SignatureMetaParams { 
-            signature, 
-            hash_method, 
-            cert_uri, 
-            content_uuid 
+        let SignatureMetaParams {
+            signature,
+            hash_method,
+            cert_uri,
+            content_uuid
         } = params;
 
         ptr::write(&mut meta.signature, signature);
@@ -178,10 +178,10 @@ mod imp {
         if dest.meta::<super::SignatureMeta>().is_some() {
             return true.into_glib();
         }
-        
+
         super::SignatureMeta::add(
-            dest, 
-            &meta.signature, 
+            dest,
+            &meta.signature,
             meta.hash_method,
             meta.cert_uri.as_deref(),
             meta.content_uuid.as_ref()
@@ -220,14 +220,14 @@ fn test() {
     let signature = vec![0x01, 0x02, 0x03, 0x04, 0x05];
     let m = SignatureMeta::add(b.make_mut(), &signature);
     assert_eq!(m.signature(), &signature[..]);
-    
+
     let b2: gst::Buffer = b.copy_deep().unwrap();
     let m = b.meta::<SignatureMeta>().unwrap();
     assert_eq!(m.signature(), &signature[..]);
-    
+
     let m = b2.meta::<SignatureMeta>().unwrap();
     assert_eq!(m.signature(), &signature[..]);
-    
+
     let b3: gst::Buffer = b2.copy_deep().unwrap();
     drop(b2);
     let m = b3.meta::<SignatureMeta>().unwrap();
