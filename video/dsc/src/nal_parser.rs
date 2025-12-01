@@ -338,8 +338,18 @@ impl NalParser {
 mod tests {
     use super::*;
 
+    fn init() {
+        use std::sync::Once;
+        static INIT: Once = Once::new();
+        INIT.call_once(|| {
+            gst::init().unwrap();
+        });
+    }
+
     #[test]
     fn test_h264_nal_parsing() {
+        init();
+        
         // Simple H.264 NAL unit with start code
         let data = vec![
             0x00, 0x00, 0x00, 0x01, // Start code
@@ -357,6 +367,8 @@ mod tests {
 
     #[test]
     fn test_h266_support() {
+        init();
+        
         let caps = gst::Caps::builder("video/x-h266").build();
         let codec = VideoCodec::from_caps(&caps).unwrap();
         assert_eq!(codec, VideoCodec::H266);
