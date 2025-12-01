@@ -12,7 +12,7 @@ use std::sync::LazyLock;
 
 static CAT: LazyLock<gst::DebugCategory> = LazyLock::new(|| {
     gst::DebugCategory::new(
-        "nal-parser", 
+        "nal-parser",
         gst::DebugColorFlags::empty(),
         Some("NAL Unit Parser")
     )
@@ -21,7 +21,7 @@ static CAT: LazyLock<gst::DebugCategory> = LazyLock::new(|| {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum VideoCodec {
     H264,
-    H265, 
+    H265,
     H266,
 }
 
@@ -71,13 +71,13 @@ impl NalParser {
             if self.should_include_in_signature(nal_unit) {
                 signable_data.extend_from_slice(&nal_unit.complete_data);
                 included_count += 1;
-                
-                gst::trace!(*CAT, "Including {} NAL unit type {} ({} bytes) in signature data", 
+
+                gst::trace!(*CAT, "Including {} NAL unit type {} ({} bytes) in signature data",
                     self.codec_name(), nal_unit.nal_type, nal_unit.complete_data.len());
             }
         }
 
-        gst::debug!(*CAT, "Extracted {} bytes of signable NAL unit data from {} NAL units ({} included)", 
+        gst::debug!(*CAT, "Extracted {} bytes of signable NAL unit data from {} NAL units ({} included)",
             signable_data.len(), nal_units.len(), included_count);
 
         Ok(signable_data)
@@ -112,11 +112,11 @@ impl NalParser {
         match nal_unit_type {
             // VCL NAL units (actual video content)
             1..=5 => true,    // Coded slice units
-            
+
             // Essential Non-VCL NAL units
             7 => true,        // SPS
             8 => true,        // PPS
-            
+
             // Excluded Non-VCL units (VTM doesn't sign these)
             6 => false,       // SEI
             9 => false,       // AUD
@@ -130,11 +130,11 @@ impl NalParser {
         match nal_unit_type {
             // VCL NAL units
             0..=31 => true,   // Coded slice units (VCL)
-            
+
             // Essential Non-VCL parameter sets
             33 => true,       // SPS
             34 => true,       // PPS
-            
+
             // Excluded Non-VCL units
             32 => false,      // VPS
             35 => false,      // AUD
@@ -150,13 +150,13 @@ impl NalParser {
         match nal_unit_type {
             // VCL NAL units
             0..=12 => true,   // Coded slice units (VCL)
-            
+
             // Essential Non-VCL parameter sets
             17 => true,       // SPS
             18 => true,       // PPS
             19 => true,       // APS
             // Picture Header handled separately
-            
+
             // Excluded Non-VCL units (same as VTM)
             13 => false,      // DCI
             14 => false,      // OPI
@@ -175,13 +175,13 @@ impl NalParser {
 
         while pos < data.len() {
             // Look for start code (0x000001 or 0x00000001)
-            let start_code_len = if pos + 4 <= data.len() && 
-                data[pos] == 0x00 && data[pos + 1] == 0x00 && 
+            let start_code_len = if pos + 4 <= data.len() &&
+                data[pos] == 0x00 && data[pos + 1] == 0x00 &&
                 data[pos + 2] == 0x00 && data[pos + 3] == 0x01 {
                 4
-            } else if pos + 3 <= data.len() && 
+            } else if pos + 3 <= data.len() &&
                 data[pos] == 0x00 && data[pos + 1] == 0x00 && data[pos + 2] == 0x01 {
-                3  
+                3
             } else {
                 pos += 1;
                 continue;
@@ -201,7 +201,7 @@ impl NalParser {
             // Extract NAL type from header byte
             let nal_header = data[nal_start];
             let nal_type = nal_header & 0x1F;
-            
+
             // Store complete NAL unit (start code + header + payload)
             // This matches what VTM's writeNaluWithHeader() produces
             let complete_data = data[pos..nal_end].to_vec();
@@ -246,7 +246,7 @@ impl NalParser {
 
             let nal_header_bytes = &data[nal_start..nal_start + 2];
             let nal_type = (nal_header_bytes[0] >> 1) & 0x3F;
-            
+
             // Store complete NAL unit - this is what VTM signs
             let complete_data = data[pos..nal_end].to_vec();
 
@@ -290,7 +290,7 @@ impl NalParser {
 
             let nal_header_bytes = &data[nal_start..nal_start + 2];
             let nal_type = (nal_header_bytes[0] >> 3) & 0x1F;
-            
+
             // Store complete NAL unit
             let complete_data = data[pos..nal_end].to_vec();
 
@@ -307,13 +307,13 @@ impl NalParser {
     }
 
     fn find_start_code(&self, data: &[u8], pos: usize) -> usize {
-        if pos + 4 <= data.len() && 
-            data[pos] == 0x00 && data[pos + 1] == 0x00 && 
+        if pos + 4 <= data.len() &&
+            data[pos] == 0x00 && data[pos + 1] == 0x00 &&
             data[pos + 2] == 0x00 && data[pos + 3] == 0x01 {
             4
-        } else if pos + 3 <= data.len() && 
+        } else if pos + 3 <= data.len() &&
             data[pos] == 0x00 && data[pos + 1] == 0x00 && data[pos + 2] == 0x01 {
-            3  
+            3
         } else {
             0
         }
@@ -349,7 +349,7 @@ mod tests {
 
         let parser = NalParser::new(VideoCodec::H264);
         let nal_units = parser.parse_h264_nal_units(&data).unwrap();
-        
+
         assert_eq!(nal_units.len(), 1);
         assert_eq!(nal_units[0].nal_type, 7); // SPS
         assert_eq!(nal_units[0].complete_data, vec![0x00, 0x00, 0x00, 0x01, 0x67, 0x42, 0x80, 0x1e]);
@@ -360,7 +360,7 @@ mod tests {
         let caps = gst::Caps::builder("video/x-h266").build();
         let codec = VideoCodec::from_caps(&caps).unwrap();
         assert_eq!(codec, VideoCodec::H266);
-        
+
         let parser = NalParser::new(VideoCodec::H266);
         assert_eq!(parser.codec_name(), "H.266");
     }
