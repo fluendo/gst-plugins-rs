@@ -54,15 +54,15 @@ pub struct DscSubstreamManager {
     hash_method: openssl::hash::MessageDigest,
     hash_method_byte: u8,
     content_uuid: Option<[u8; 16]>,
-    
+
     substreams: Vec<Option<DscSubstream>>,
-    
+
     last_digest: Option<Vec<u8>>,
 }
 
 impl DscSubstreamManager {
     pub fn new(
-        hash_method: openssl::hash::MessageDigest, 
+        hash_method: openssl::hash::MessageDigest,
         hash_method_byte: u8,
         content_uuid: Option<[u8; 16]>,
     ) -> Self {
@@ -95,7 +95,7 @@ impl DscSubstreamManager {
     // Creates the data packet that will be signed: [ref_digest][current_digest][hash_method][uuid?]
     pub fn create_data_packet(&mut self, substream_id: usize) -> Result<Vec<u8>> {
         let current_digest = self.finalize_substream(substream_id)?;
-        
+
         let mut data_packet = Vec::new();
 
         // Add reference digest (last GOP's digest or zeros for first GOP)
@@ -121,7 +121,7 @@ impl DscSubstreamManager {
         }
 
         gst::info!(*CAT, "Created data packet: {} bytes total", data_packet.len());
-        
+
         self.last_digest = Some(current_digest);
 
         Ok(data_packet)
@@ -143,9 +143,9 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_substream_basic_flow() {
+    fn test_dsc_substream_manager_basic() {
         let hash_method = openssl::hash::MessageDigest::sha256();
-        let mut manager = DscSubstreamManager::new(hash_method, 2, None, None);
+        let mut manager = DscSubstreamManager::new(hash_method, 2, None);
 
         // Add some test NAL unit data
         let nal_data1 = vec![0x00, 0x00, 0x00, 0x01, 0x67, 0x42, 0x80]; // SPS-like
@@ -156,7 +156,7 @@ mod tests {
 
         // Create data packet (this finalizes the substream)
         let data_packet = manager.create_data_packet(0).unwrap();
-        
+
         // Should contain: zero_digest + current_digest + hash_method_byte
         // For SHA256: 32 + 32 + 1 = 65 bytes
         assert_eq!(data_packet.len(), 65);
@@ -164,19 +164,19 @@ mod tests {
     }
 
     #[test]
-    fn test_substream_with_uuid() {
+    fn test_dsc_substream_manager_with_content_uuid() {
         let hash_method = openssl::hash::MessageDigest::sha256();
-        let content_uuid = Some([0x12; 16]);
-        let mut manager = DscSubstreamManager::new(hash_method, 2, content_uuid, None);
+        let content_uuid = Some([0u8; 16]);
+        let mut manager = DscSubstreamManager::new(hash_method, 2, content_uuid);
 
         let nal_data = vec![0x00, 0x00, 0x00, 0x01, 0x67];
         manager.add_to_substream(0, &nal_data).unwrap();
 
         let data_packet = manager.create_data_packet(0).unwrap();
-        
+
         // Should contain: zero_digest + current_digest + hash_method_byte + uuid
         // For SHA256: 32 + 32 + 1 + 16 = 81 bytes
         assert_eq!(data_packet.len(), 81);
-        assert_eq!(&data_packet[65..81], &[0x12; 16]); // UUID at the end
+        assert_eq!(&data_packet[65..81], &[0u8; 16]); // UUID at the end
     }
 }
