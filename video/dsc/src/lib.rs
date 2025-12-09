@@ -15,11 +15,13 @@ mod signer;
 mod verifier;
 mod nal_parser;
 mod dsc_substream;
+mod seiinserter;
 
 fn plugin_init(plugin: &gst::Plugin) -> Result<(), glib::BoolError> {
     signaturemeta::register_signature_meta();
     signer::register(plugin)?;
     verifier::register(plugin)?;
+    seiinserter::register(plugin)?;
     Ok(())
 }
 
