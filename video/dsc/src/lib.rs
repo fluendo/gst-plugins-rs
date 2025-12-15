@@ -10,7 +10,8 @@
 use gst::glib;
 
 mod common;
-pub mod signaturemeta;
+pub mod signaturemeta; // TODO remove it
+pub mod ffidscmeta;
 mod signer;
 mod verifier;
 mod nal_parser;

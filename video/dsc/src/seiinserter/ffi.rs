@@ -117,8 +117,8 @@ extern "C" {
     ) -> *mut GstBuffer;
 
     // H.265 parser functions
-    pub fn gst_h265_nal_parser_new() -> *mut GstH265NalParser;
-    pub fn gst_h265_nal_parser_free(parser: *mut GstH265NalParser);
+    pub fn gst_h265_parser_new() -> *mut GstH265NalParser;
+    pub fn gst_h265_parser_free(parser: *mut GstH265NalParser);
 
     // H.265 functions
     pub fn gst_h265_create_sei_memory(

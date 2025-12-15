@@ -6,7 +6,8 @@ use std::ffi::CString;
 use std::sync::{LazyLock, Mutex};
 use std::mem::ManuallyDrop;
 
-use crate::seiinserter::{ffi, dsc_meta};
+use crate::seiinserter::ffi;
+use crate::ffidscmeta as dsc_meta;
 
 static CAT: LazyLock<gst::DebugCategory> = LazyLock::new(|| {
     gst::DebugCategory::new(
@@ -127,7 +128,7 @@ impl BaseTransformImpl for DscSeiInserter {
             },
             "video/x-h265" => {
                 // Initialize H.265 parser if needed
-                let parser = unsafe { ffi::gst_h265_nal_parser_new() };
+                let parser = unsafe { ffi::gst_h265_parser_new() };
                 if parser.is_null() {
                     return Err(gst::loggable_error!(
                         CAT,
@@ -326,7 +327,7 @@ impl BaseTransformImpl for DscSeiInserter {
 
             let h265_parser = self.h265_parser.lock().unwrap();
             if let Some(parser_ptr) = h265_parser.as_ref() {
-                ffi::gst_h265_nal_parser_free(parser_ptr.0 as *mut ffi::GstH265NalParser);
+                ffi::gst_h265_parser_free(parser_ptr.0 as *mut ffi::GstH265NalParser);
             }
         }
 

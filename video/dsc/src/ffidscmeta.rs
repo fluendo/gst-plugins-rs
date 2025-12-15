@@ -32,4 +32,28 @@ extern "C" {
     pub fn gst_video_digital_signed_content_initialization_meta_api_get_type() -> GType;
     pub fn gst_video_digital_signed_content_selection_meta_api_get_type() -> GType;
     pub fn gst_video_digital_signed_content_verification_meta_api_get_type() -> GType;
+
+    pub fn gst_buffer_add_video_digital_signed_content_initialization_meta(
+        buffer: *mut GstBuffer,
+        hash_method_type: u8,
+        key_source_uri: *const std::os::raw::c_char,
+        num_verification_substreams: u32,
+        key_retrieval_mode_idc: u32,
+        use_key_register_idx_flag: gboolean,
+        key_register_idx: u32,
+        content_uuid_present_flag: gboolean,
+        content_uuid: *const u8,
+    ) -> *mut GstVideoDigitalSignedContentInitializationMeta;
+
+    pub fn gst_buffer_add_video_digital_signed_content_selection_meta(
+        buffer: *mut GstBuffer,
+        verification_substream_id: u32,
+    ) -> *mut GstVideoDigitalSignedContentSelectionMeta;
+
+    pub fn gst_buffer_add_video_digital_signed_content_verification_meta(
+        buffer: *mut GstBuffer,
+        verification_substream_id: u32,
+        signature: *const u8,
+        signature_length: u32,
+    ) -> *mut GstVideoDigitalSignedContentVerificationMeta;
 }

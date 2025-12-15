@@ -1,7 +1,6 @@
 use gst::glib;
 use gst::prelude::*;
 
-mod dsc_meta;
 mod ffi;
 mod imp;
 
