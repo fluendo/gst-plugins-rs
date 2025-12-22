@@ -99,7 +99,7 @@ impl VideoEncoderStats {
 
 impl fmt::Display for VideoEncoderStats {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        if self.framerate.unwrap().denom() != 1 {
+        if self.framerate.unwrap().denom() != 1  && self.framerate.unwrap().denom() != 1001 {
             unimplemented!();
         }
 
@@ -130,7 +130,7 @@ impl fmt::Display for VideoEncoderStats {
         )?;
 
         let framerate = self.framerate.unwrap();
-        let total_time_secs = self.num_buffers as f64 / framerate.numer() as f64;
+        let total_time_secs = self.num_buffers as f64 * framerate.denom() as f64 / framerate.numer() as f64;
         let bitrate = if total_time_secs > 0.0 {
             (self.num_bytes as f64 * 8.0) / total_time_secs
         } else {
