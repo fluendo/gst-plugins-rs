@@ -60,27 +60,104 @@ impl NalParser {
         Self { codec }
     }
 
-    /// Extract NAL units suitable for signing/verification
-    pub fn extract_signable_data(&self, buffer: &gst::BufferMap<gst::buffer::Readable>) -> Result<Vec<u8>> {
-        let data = buffer.as_slice();
-        let nal_units = self.parse_nal_units(data)?;
-        let mut signable_data = Vec::new();
+    pub fn extract_signable_data(&self, data: &[u8]) -> Result<Vec<Vec<u8>>> {
+        let mut nal_units = Vec::new();
+        let mut start = 0;
 
-        let mut included_count = 0;
-        for nal_unit in &nal_units {
-            if self.should_include_in_signature(nal_unit) {
-                signable_data.extend_from_slice(&nal_unit.complete_data);
-                included_count += 1;
+        while start < data.len() {
+            // Find next start code
+            let start_code_len = if data[start..].starts_with(&[0, 0, 0, 1]) {
+                4
+            } else if data[start..].starts_with(&[0, 0, 1]) {
+                3
+            } else {
+                bail!("Invalid NAL unit - no start code at position {}", start);
+            };
 
-                gst::trace!(*CAT, "Including {} NAL unit type {} ({} bytes) in signature data",
-                    self.codec_name(), nal_unit.nal_type, nal_unit.complete_data.len());
+            // Find end of this NAL (next start code or end of data)
+            let mut end = start + start_code_len;
+            while end < data.len() {
+                if (end + 4 <= data.len() && &data[end..end + 4] == &[0, 0, 0, 1]) ||
+                   (end + 3 <= data.len() && &data[end..end + 3] == &[0, 0, 1]) {
+                    break;
+                }
+                end += 1;
             }
+
+            // ✅ CRITICAL FIX: Skip the start code - VTM doesn't hash it!
+            let nal_start = start + start_code_len;
+            let nal_data = &data[nal_start..end];  // Exclude start code
+            
+            // Extract NAL type
+            let nal_type = self.extract_nal_type_from_header(nal_data)?;
+
+            // Only include NALs that should be signed
+            if self.should_include_nal(nal_type) {
+                gst::info!(*CAT, "NAL_TRACE: Including NAL type {} ({} bytes) - first 32: {:02x?}",
+                    nal_type, nal_data.len(),
+                    &nal_data[..std::cmp::min(32, nal_data.len())]);
+                
+                nal_units.push(nal_data.to_vec());
+            }
+
+            start = end;
         }
 
-        gst::debug!(*CAT, "Extracted {} bytes of signable NAL unit data from {} NAL units ({} included)",
-            signable_data.len(), nal_units.len(), included_count);
+        gst::info!(*CAT, "NAL_TRACE: Total signable data: {} NAL units extracted", nal_units.len());
+        Ok(nal_units)
+    }
 
-        Ok(signable_data)
+    // New helper that works on NAL data WITHOUT start code
+    fn extract_nal_type_from_header(&self, nal_data: &[u8]) -> Result<u8> {
+        if nal_data.is_empty() {
+            bail!("Empty NAL data");
+        }
+
+        let nal_type = match self.codec {
+            VideoCodec::H264 => {
+                nal_data[0] & 0x1F
+            },
+            VideoCodec::H265 => {
+                if nal_data.len() < 2 {
+                    bail!("H.265 NAL header too short");
+                }
+                (nal_data[0] >> 1) & 0x3F
+            },
+            VideoCodec::H266 => {
+                if nal_data.len() < 2 {
+                    bail!("H.266 NAL header too short");
+                }
+                (nal_data[1] >> 3) & 0x1F
+            },
+        };
+
+        Ok(nal_type)
+    }
+
+    // Add these helper methods:
+    fn extract_nal_type(&self, nal_data: &[u8]) -> Result<u8> {
+        // Skip start code to get to NAL header
+        let header_start = if nal_data.starts_with(&[0, 0, 0, 1]) {
+            4
+        } else if nal_data.starts_with(&[0, 0, 1]) {
+            3
+        } else {
+            0
+        };
+
+        if header_start >= nal_data.len() {
+            bail!("NAL data too short");
+        }
+
+        self.extract_nal_type_from_header(&nal_data[header_start..])
+    }
+
+    fn should_include_nal(&self, nal_type: u8) -> bool {
+        match self.codec {
+            VideoCodec::H264 => self.should_include_h264_nal(nal_type),
+            VideoCodec::H265 => self.should_include_h265_nal(nal_type),
+            VideoCodec::H266 => self.should_include_h266_nal(nal_type),
+        }
     }
 
     fn codec_name(&self) -> &'static str {
@@ -146,26 +223,31 @@ impl NalParser {
     }
 
     fn should_include_h266_nal(&self, nal_type: u8) -> bool {
-        let nal_unit_type = (nal_type >> 3) & 0x1F;
-        match nal_unit_type {
-            // VCL NAL units
-            0..=12 => true,   // Coded slice units (VCL)
+        match nal_type {
+            // VCL NAL units (0-12)
+            0..=12 => true,
 
-            // Essential Non-VCL parameter sets
-            17 => true,       // SPS
-            18 => true,       // PPS
-            19 => true,       // APS
-            // Picture Header handled separately
-
-            // Excluded Non-VCL units (same as VTM)
-            13 => false,      // DCI
-            14 => false,      // OPI
-            15 => false,      // VPS
-            20 => false,      // AUD
-            23 => false,      // PREFIX_SEI
-            24 => false,      // SUFFIX_SEI
-            25 => false,      // Filler
-            _ => false,
+            // Non-VCL parameter sets (INCLUDE)
+            15 => true,  // VPS ✅ VTM includes this!
+            16 => true,  // SPS  
+            17 => true,  // PPS
+            19 => true,  // APS (Prefix)
+            
+            // Non-VCL units to EXCLUDE
+            13 => false,  // DCI
+            14 => false,  // OPI  
+            18 => false,  // Picture Header
+            20 => false,  // AUD
+            21 => false,  // EOS
+            22 => false,  // EOB
+            23 => false,  // PREFIX_SEI
+            24 => false,  // SUFFIX_SEI
+            25 => false,  // FD (Filler Data)
+            
+            _ => {
+                gst::warning!(*CAT, "Unknown H.266 NAL type: {}", nal_type);
+                false
+            }
         }
     }
 
@@ -204,7 +286,7 @@ impl NalParser {
 
             // Store complete NAL unit (start code + header + payload)
             // This matches what VTM's writeNaluWithHeader() produces
-            let complete_data = data[pos..nal_end].to_vec();
+            let complete_data = data[nal_start..nal_end].to_vec();
 
             nal_units.push(NalUnit {
                 nal_type,
@@ -247,8 +329,7 @@ impl NalParser {
             let nal_header_bytes = &data[nal_start..nal_start + 2];
             let nal_type = (nal_header_bytes[0] >> 1) & 0x3F;
 
-            // Store complete NAL unit - this is what VTM signs
-            let complete_data = data[pos..nal_end].to_vec();
+            let complete_data = data[nal_start..nal_end].to_vec();
 
             nal_units.push(NalUnit {
                 nal_type,
@@ -273,6 +354,7 @@ impl NalParser {
                 continue;
             }
 
+            // nal_start points to the byte AFTER the start code
             let nal_start = pos + start_code_len;
             if nal_start + 1 >= data.len() {
                 break;
@@ -289,10 +371,11 @@ impl NalParser {
             }
 
             let nal_header_bytes = &data[nal_start..nal_start + 2];
-            let nal_type = (nal_header_bytes[0] >> 3) & 0x1F;
+            let nal_type = (nal_header_bytes[1] >> 3) & 0x1F;  // Second byte, bits 3-7
 
-            // Store complete NAL unit
-            let complete_data = data[pos..nal_end].to_vec();
+            // Store NAL unit WITHOUT start code (just header + payload)
+            // VTM hashes NAL units without the Annex B start codes
+            let complete_data = data[nal_start..nal_end].to_vec();
 
             nal_units.push(NalUnit {
                 nal_type,

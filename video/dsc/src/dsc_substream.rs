@@ -33,9 +33,21 @@ impl DscSubstream {
     }
 
     pub fn add_to_substream(&mut self, data: &[u8]) -> Result<()> {
+        if self.hasher.is_none() {
+            return Err(anyhow!("Substream hasher not initialized"));
+        }
+
         if let Some(ref mut hasher) = self.hasher {
+            gst::trace!(*CAT, "DscSubstream::add_to_substream - adding {} bytes", data.len());
+            gst::trace!(*CAT, "  First 32 bytes: {:02x?}", &data[..std::cmp::min(32, data.len())]);
+            gst::trace!(*CAT, "  Last 32 bytes: {:02x?}", &data[data.len().saturating_sub(32)..]);
+            
+            // 🔍 DEBUG: Show what we're about to hash
+            gst::debug!(*CAT, "  → Hashing {} bytes: {:02x?}...", data.len(), &data[..std::cmp::min(16, data.len())]);
+            
             hasher.update(data)?;
         }
+
         Ok(())
     }
 
@@ -43,6 +55,7 @@ impl DscSubstream {
         if let Some(mut hasher) = self.hasher.take() {
             let digest = hasher.finish()?;
             gst::debug!(*CAT, "Finalized substream digest: {} bytes", digest.len());
+            gst::debug!(*CAT, "  Full digest: {:02x?}", digest.as_ref());
             Ok(digest.to_vec())
         } else {
             Err(anyhow!("Substream already finalized"))
@@ -65,25 +78,30 @@ impl DscSubstreamManager {
         hash_method: openssl::hash::MessageDigest,
         hash_method_byte: u8,
         content_uuid: Option<[u8; 16]>,
-    ) -> Self {
-        Self {
+    ) -> Result<Self> {
+        // Initialize the first substream
+        let substream = DscSubstream::new(hash_method)?;
+        
+        Ok(Self {
             hash_method,
             hash_method_byte,
             content_uuid,
-            substreams: vec![None],
+            substreams: vec![Some(substream)],
             last_digest: None,
-        }
+        })
     }
 
     pub fn add_to_substream(&mut self, substream_id: usize, data: &[u8]) -> Result<()> {
         if substream_id >= self.substreams.len() {
-            self.substreams.resize(substream_id + 1, None);
+            return Err(anyhow!("Invalid substream ID: {}", substream_id));
         }
 
         if self.substreams[substream_id].is_none() {
-            self.substreams[substream_id] = Some(DscSubstream::new(self.hash_method)?);
-            gst::debug!(*CAT, "Created new substream {}", substream_id);
+            return Err(anyhow!("Substream {} not initialized", substream_id));
         }
+
+        gst::trace!(*CAT, "DscSubstreamManager::add_to_substream - substream {}, {} bytes total", 
+            substream_id, data.len());
 
         if let Some(ref mut substream) = self.substreams[substream_id] {
             substream.add_to_substream(data)?;
@@ -95,38 +113,49 @@ impl DscSubstreamManager {
     // Creates the data packet that will be signed: [ref_digest][current_digest][hash_method][uuid?]
     pub fn create_data_packet(&mut self, substream_id: usize) -> Result<Vec<u8>> {
         let current_digest = self.finalize_substream(substream_id)?;
+        
+        gst::debug!(*CAT, "Creating data packet for substream {}", substream_id);
+        gst::debug!(*CAT, "Current digest ({} bytes): {:02x?}", current_digest.len(), current_digest);
 
         let mut data_packet = Vec::new();
 
-        // Add reference digest (last GOP's digest or zeros for first GOP)
-        if let Some(ref last_digest) = self.last_digest {
-            data_packet.extend_from_slice(last_digest);
-            gst::debug!(*CAT, "Added reference digest: {} bytes", last_digest.len());
+        // Reference digest (all 0xFF for first GOP, or last digest from previous GOP)
+        let ref_digest = if let Some(ref last) = self.last_digest {
+            gst::debug!(*CAT, "Using previous digest as reference ({} bytes)", last.len());
+            last.clone()
         } else {
-            // First GOP: use zero digest of same length as current digest
-            let zero_digest = vec![0u8; current_digest.len()];
-            data_packet.extend_from_slice(&zero_digest);
-            gst::debug!(*CAT, "Added zero reference digest: {} bytes", zero_digest.len());
-        }
+            // First GOP - use all 0xFF (matching VTM behavior)
+            gst::debug!(*CAT, "First GOP - using all 0xFF as reference digest");
+            vec![0xFF; current_digest.len()]  // ✅ Changed from 0x00 to 0xFF
+        };
+        
+        gst::debug!(*CAT, "Reference digest ({} bytes): {:02x?}", ref_digest.len(), &ref_digest[..std::cmp::min(32, ref_digest.len())]);
+        data_packet.extend_from_slice(&ref_digest);
 
+        // Current digest
         data_packet.extend_from_slice(&current_digest);
-        gst::debug!(*CAT, "Added current digest: {} bytes", current_digest.len());
 
+        // Hash method type byte
         data_packet.push(self.hash_method_byte);
-        gst::debug!(*CAT, "Added hash method byte: {}", self.hash_method_byte);
+        gst::debug!(*CAT, "Hash method byte: {}", self.hash_method_byte);
 
+        // Content UUID (if present)
         if let Some(ref uuid) = self.content_uuid {
             data_packet.extend_from_slice(uuid);
-            gst::debug!(*CAT, "Added content UUID: 16 bytes");
+            gst::debug!(*CAT, "Added content UUID: {:02x?}", uuid);
         }
 
-        gst::info!(*CAT, "Created data packet: {} bytes total", data_packet.len());
+        gst::debug!(*CAT, "Final data packet ({} bytes): first 32: {:02x?}, last 32: {:02x?}", 
+            data_packet.len(), 
+            &data_packet[..std::cmp::min(32, data_packet.len())],
+            &data_packet[data_packet.len().saturating_sub(32)..]);
 
+        // Store current digest for next GOP
         self.last_digest = Some(current_digest);
 
         Ok(data_packet)
     }
-
+    
     fn finalize_substream(&mut self, substream_id: usize) -> Result<Vec<u8>> {
         if let Some(ref mut substream) = self.substreams.get_mut(substream_id).and_then(|s| s.as_mut()) {
             let digest = substream.finalize()?;

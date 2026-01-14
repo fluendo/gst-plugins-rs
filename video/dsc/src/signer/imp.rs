@@ -7,6 +7,10 @@
 //
 // SPDX-License-Identifier: MPL-2.0
 
+
+// GST_DEBUG=dscverifier:4,dscsigner:4 gst-launch-1.0 videotestsrc num-buffers=30 ! videoconvert ! x264enc key-int-max=5 ! h264parse ! dscsigner private-key-path=./example_ca.key enable-signing=true public-key-uri= ./example_ca.pub ! dscverifier key-store-path= `pwd` ! avdec_h264 ! videoconvert ! autovideosink
+
+
 use glib::{ParamSpec, ParamSpecString, Value};
 
 use gst::glib;
@@ -319,11 +323,24 @@ impl BaseTransformImpl for DscSigner {
             let hash_method_byte: u8 = (*self.hash_method.read().unwrap()).into();
             let content_uuid = *self.content_uuid.read().unwrap();
 
-            let new_dsc_manager = DscSubstreamManager::new(
+            // Create new DSC manager for this substream
+            let new_dsc_manager = match DscSubstreamManager::new(
                 hash_method,
                 hash_method_byte,
                 content_uuid,
-            );
+            ) {
+                Ok(manager) => manager,
+                Err(e) => {
+                    gst::error!(*CAT, imp = self, "Failed to create DscSubstreamManager: {}", e);
+                    let obj = self.obj();
+                    let msg = gst::message::Error::new(
+                        gst::CoreError::Failed,
+                        &format!("Failed to create DscSubstreamManager: {}", e),
+                    );
+                    let _ = obj.post_message(msg);
+                    return Err(gst::FlowError::Error);
+                }
+            };
 
             gop_state.dsc_manager = Some(new_dsc_manager);
             gop_state.gop_started = true;
@@ -339,13 +356,13 @@ impl BaseTransformImpl for DscSigner {
             gst::FlowError::Error
         })?;
 
-        // Extract only desired NAL units based on codec
-        let data_to_hash = if let Some(ref nal_parser) = gop_state.nal_parser {
+        // Extract NAL units to hash using NAL parser
+        let nal_units_to_hash = if let Some(ref nal_parser) = gop_state.nal_parser {
             match nal_parser.extract_signable_data(&map) {
-                Ok(nal_data) => {
-                    gst::debug!(*CAT, imp = self, "Using NAL-level signing: {} bytes from {} raw bytes",
-                        nal_data.len(), map.len());
-                    nal_data
+                Ok(nal_units) => {
+                    gst::debug!(*CAT, imp = self, "Using NAL-level signing: {} NAL units from {} raw bytes",
+                        nal_units.len(), map.len());
+                    nal_units
                 },
                 Err(e) => {
                     gst::error!(*CAT, imp = self, "NAL parsing failed: {}", e);
@@ -369,17 +386,21 @@ impl BaseTransformImpl for DscSigner {
             return Err(gst::FlowError::Error);
         };
 
-        // Add data to DSC substream for current GOP
+        // Add each NAL unit to DSC substream for current GOP (matching VTM behavior)
         if let Some(ref mut dsc_manager) = gop_state.dsc_manager {
-            if let Err(e) = dsc_manager.add_to_substream(0, &data_to_hash) {
-                gst::error!(*CAT, imp = self, "Failed to add data to substream: {}", e);
-                return Err(gst::FlowError::Error);
+            for nal_data in &nal_units_to_hash {
+                if let Err(e) = dsc_manager.add_to_substream(0, nal_data) {
+                    gst::error!(*CAT, imp = self, "Failed to add NAL to substream: {}", e);
+                    return Err(gst::FlowError::Error);
+                }
+
+                gst::trace!(*CAT, imp = self, "Added NAL to substream, size: {}", nal_data.len());
             }
 
             if is_i_frame {
-                gst::trace!(*CAT, imp = self, "Added current I-frame data to NEW GOP substream, size: {}", data_to_hash.len());
+                gst::trace!(*CAT, imp = self, "Added {} NAL units from I-frame to NEW GOP substream", nal_units_to_hash.len());
             } else {
-                gst::trace!(*CAT, imp = self, "Added frame data to current GOP substream, size: {}", data_to_hash.len());
+                gst::trace!(*CAT, imp = self, "Added {} NAL units to current GOP substream", nal_units_to_hash.len());
             }
 
             gop_state.frames_in_gop += 1;
