@@ -178,30 +178,23 @@ impl DscVerifier {
 
         gst::info!(*CAT, imp = self, "Loading public key from cert_uri: {}", cert_uri);
 
-        // Extract the filename from the URI (similar to VTM's xLocateCertificate)
-        // For "file://somepath/jvet_example_provider.crt", we want just "jvet_example_provider.crt"
         let final_key_path = if let Some(key_store_path) = &*self.key_store_path.read().unwrap() {
             let key_store_dir = Path::new(key_store_path);
             
-            // Check if cert_uri starts with "file://" (case-insensitive)
             let uri_lower = cert_uri.to_lowercase();
             let uri_to_process = if uri_lower.starts_with("file://") {
-                // We currently only support file:// URIs
                 cert_uri
             } else {
                 gst::warning!(*CAT, imp = self, "URI does not start with file://, treating as filename: {}", cert_uri);
                 cert_uri
             };
             
-            // Find the last "/" to extract just the filename
             let mut uri = uri_to_process.to_string();
             
-            // Remove trailing "/" if present
             if uri.ends_with('/') {
                 uri.pop();
             }
             
-            // Find the last "/" and extract the filename after it
             if let Some(last_slash_pos) = uri.rfind('/') {
                 let filename = &uri[(last_slash_pos + 1)..];
                 let final_path = key_store_dir.join(filename);
@@ -210,11 +203,9 @@ impl DscVerifier {
                 
                 final_path.to_string_lossy().to_string()
             } else {
-                // No "/" found, use the whole URI as filename
                 key_store_dir.join(uri).to_string_lossy().to_string()
             }
         } else {
-            // No key_store_path set, try to use cert_uri as-is (absolute path)
             cert_uri.to_string()
         };
 
@@ -226,7 +217,6 @@ impl DscVerifier {
                 // Parse the X.509 certificate
                 match X509::from_pem(&cert_data) {
                     Ok(cert) => {
-                        // Extract the public key from the certificate
                         match cert.public_key() {
                             Ok(pkey) => {
                                 gop_state.public_key_cache.insert(cert_uri.to_string(), pkey.clone());
@@ -284,16 +274,12 @@ impl BaseTransformImpl for DscVerifier {
         let obj = self.obj();
         let mut gop_state = self.gop_state.lock().unwrap();
 
-        // Check for DSC initialization metadata (starts a new substream)
         let initialization_meta = buffer.meta::<gst_video::video_meta::VideoDSCInitializationMeta>();
         
-        // Check for DSC verification metadata (triggers verification and ends substream)
         let verification_meta = buffer.meta::<gst_video::video_meta::VideoDSCVerificationMeta>();
         
-        // Check for DSC selection metadata (accumulates data in current substream)
         let selection_meta = buffer.meta::<gst_video::video_meta::VideoDSCSelectionMeta>();
 
-        // Handle DSC Initialization metadata - starts a new substream
         if let Some(init_meta) = initialization_meta {
             let dsc_init = init_meta.dsc_initialization();
             
@@ -301,18 +287,15 @@ impl BaseTransformImpl for DscVerifier {
             gst::debug!(*CAT, imp = self, "DSC initialization - id: {}, hash_method: {}, key_retrieval_mode: {}",
                 dsc_init.id, dsc_init.hash_method_type, dsc_init.key_retrieval_mode_idc);
 
-            // Convert H.274 hash method type to our HashMethod enum
             let hash_method = HashMethod::from(dsc_init.hash_method_type);
             let openssl_hash_method = hash_method.to_openssl();
 
-            // Extract content UUID if present
             let content_uuid = if dsc_init.content_uuid_present_flag != 0 {
                 Some(dsc_init.content_uuid)
             } else {
                 None
             };
 
-            // Extract and store certificate URI for later verification
             let cert_uri = if !dsc_init.key_source_uri.is_null() {
                 unsafe {
                     std::ffi::CStr::from_ptr(dsc_init.key_source_uri as *const i8)
@@ -324,7 +307,6 @@ impl BaseTransformImpl for DscVerifier {
                 None
             };
 
-            // Store initialization data for verification
             gop_state.current_hash_method = Some(hash_method);
             gop_state.current_cert_uri = cert_uri.clone();
 
@@ -347,18 +329,16 @@ impl BaseTransformImpl for DscVerifier {
             };
 
             gop_state.dsc_manager = Some(new_dsc_manager);
-            gop_state.gop_started = true; // Mark that we have started a substream
+            gop_state.gop_started = true;
 
             gst::info!(*CAT, imp = self, "Started new substream with DSC parameters from H.274 metadata");
             gst::debug!(*CAT, imp = self, "DSC parameters - hash_method: {:?}, content_uuid_present: {}, num_verification_substreams: {}, cert_uri: {:?}",
                 hash_method, dsc_init.content_uuid_present_flag, dsc_init.num_verification_substreams, cert_uri);
         }
 
-        // Handle DSC Verification metadata - verify the accumulated substream data
         if let Some(verif_meta) = verification_meta {
             let dsc_verification = verif_meta.dsc_verification();
             
-            // Extract signature length from GArray
             let signature_len = unsafe {
                 if dsc_verification.signature.is_null() {
                     0
@@ -375,8 +355,6 @@ impl BaseTransformImpl for DscVerifier {
                 return Ok(gst::FlowSuccess::Ok);
             }
 
-            // FIRST: Add this buffer's data to the substream before verification
-            // The verification buffer also contains data that needs to be included
             let map = match buffer.map_readable() {
                 Ok(m) => m,
                 Err(_) => {
@@ -413,17 +391,15 @@ impl BaseTransformImpl for DscVerifier {
                 return Err(gst::FlowError::Error);
             };
 
-            // Determine substream ID from selection metadata (verification buffer may also have it)
             let substream_id = if let Some(sel_meta) = selection_meta {
                 let substream = sel_meta.dsc_selection().verification_substream_id as usize;
                 gst::trace!(*CAT, imp = self, "Verification buffer - Found DSC selection metadata, using substream: {}", substream);
                 substream
             } else {
-                // Use substream ID from verification metadata
                 dsc_verification.verification_substream_id as usize
             };
 
-            // Add verification buffer NAL units to substream BEFORE creating the data packet
+            // Add verification buffer NAL units to substream before creating the data packet
             if let Some(ref mut dsc_manager) = gop_state.dsc_manager {
                 for nal_data in &nal_units_to_hash {
                     if let Err(e) = dsc_manager.add_to_substream(substream_id, nal_data) {
@@ -452,7 +428,6 @@ impl BaseTransformImpl for DscVerifier {
 
             let openssl_hash_method = hash_method.to_openssl();
 
-            // Clone the cert_uri to avoid borrow checker issues
             let cert_uri = gop_state.current_cert_uri.clone();
             
             let pkey = if let Some(uri) = cert_uri {
@@ -478,14 +453,12 @@ impl BaseTransformImpl for DscVerifier {
             };
 
             if let Some(ref mut dsc_manager) = gop_state.dsc_manager {
-                // NOW create the data packet after all data has been added
                 gst::debug!(*CAT, imp = self, "About to create data packet from accumulated substream data");
                 match dsc_manager.create_data_packet(substream_id) {
                     Ok(data_packet) => {
                         gst::debug!(*CAT, imp = self, "Created data packet for substream verification: {} bytes", data_packet.len());
                         gst::info!(*CAT, imp = self, "VERIFIER: Verifying substream data packet: {} bytes with hash method: {:?}", data_packet.len(), hash_method);
 
-                        // Extract signature from GArray
                         let signature = unsafe {
                             if dsc_verification.signature.is_null() {
                                 &[]
@@ -503,7 +476,6 @@ impl BaseTransformImpl for DscVerifier {
                         gst::debug!(*CAT, imp = self, "VERIFIER: Signature content (dec): {:?}", &signature[..std::cmp::min(32, signature.len())]);
                         gst::debug!(*CAT, imp = self, "Verifying signature ({} bytes) against substream data packet", signature.len());
 
-                        // Verify the signature against the data packet using metadata-provided hash method
                         let mut verifier = match Verifier::new(openssl_hash_method, &pkey) {
                             Ok(v) => v,
                             Err(e) => {
@@ -562,7 +534,6 @@ impl BaseTransformImpl for DscVerifier {
                     }
                 }
 
-                // Reset the substream manager and stored initialization data after verification
                 gop_state.dsc_manager = None;
                 gop_state.gop_started = false;
                 gop_state.current_hash_method = None;
@@ -574,7 +545,6 @@ impl BaseTransformImpl for DscVerifier {
             return Ok(gst::FlowSuccess::Ok);
         }
 
-        // Handle DSC Selection metadata or accumulate data if substream is active
         if gop_state.gop_started && gop_state.dsc_manager.is_some() {
             let map = match buffer.map_readable() {
                 Ok(m) => m,
@@ -589,7 +559,6 @@ impl BaseTransformImpl for DscVerifier {
                 }
             };
 
-            // Extract NAL units to hash using NAL parser
             let nal_units_to_hash = if let Some(ref nal_parser) = gop_state.nal_parser {
                 match nal_parser.extract_signable_data(&map) {
                     Ok(nal_units) => {
@@ -612,17 +581,14 @@ impl BaseTransformImpl for DscVerifier {
                 return Err(gst::FlowError::Error);
             };
 
-            // Determine which substream to use from selection metadata
             let substream_id = if let Some(sel_meta) = selection_meta {
                 let substream = sel_meta.dsc_selection().verification_substream_id as usize;
                 gst::trace!(*CAT, imp = self, "Found DSC selection metadata, using substream: {}", substream);
                 substream
             } else {
-                // Default to substream 0 if no selection metadata present
                 0
             };
 
-            // Add current frame's NAL units to DSC substream (each NAL separately)
             if let Some(ref mut dsc_manager) = gop_state.dsc_manager {
                 for nal_data in &nal_units_to_hash {
                     if let Err(e) = dsc_manager.add_to_substream(substream_id, nal_data) {

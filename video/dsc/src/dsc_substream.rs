@@ -42,7 +42,6 @@ impl DscSubstream {
             gst::trace!(*CAT, "  First 32 bytes: {:02x?}", &data[..std::cmp::min(32, data.len())]);
             gst::trace!(*CAT, "  Last 32 bytes: {:02x?}", &data[data.len().saturating_sub(32)..]);
             
-            // 🔍 DEBUG: Show what we're about to hash
             gst::debug!(*CAT, "  → Hashing {} bytes: {:02x?}...", data.len(), &data[..std::cmp::min(16, data.len())]);
             
             hasher.update(data)?;
@@ -64,7 +63,6 @@ impl DscSubstream {
 }
 
 pub struct DscSubstreamManager {
-    hash_method: openssl::hash::MessageDigest,
     hash_method_byte: u8,
     content_uuid: Option<[u8; 16]>,
 
@@ -83,7 +81,6 @@ impl DscSubstreamManager {
         let substream = DscSubstream::new(hash_method)?;
         
         Ok(Self {
-            hash_method,
             hash_method_byte,
             content_uuid,
             substreams: vec![Some(substream)],
@@ -124,9 +121,8 @@ impl DscSubstreamManager {
             gst::debug!(*CAT, "Using previous digest as reference ({} bytes)", last.len());
             last.clone()
         } else {
-            // First GOP - use all 0xFF (matching VTM behavior)
             gst::debug!(*CAT, "First GOP - using all 0xFF as reference digest");
-            vec![0xFF; current_digest.len()]  // ✅ Changed from 0x00 to 0xFF
+            vec![0xFF; current_digest.len()]
         };
         
         gst::debug!(*CAT, "Reference digest ({} bytes): {:02x?}", ref_digest.len(), &ref_digest[..std::cmp::min(32, ref_digest.len())]);
