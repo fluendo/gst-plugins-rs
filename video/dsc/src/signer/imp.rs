@@ -7,11 +7,7 @@
 //
 // SPDX-License-Identifier: MPL-2.0
 
-
-// GST_DEBUG=dscverifier:4,dscsigner:4 gst-launch-1.0 videotestsrc num-buffers=30 ! videoconvert ! x264enc key-int-max=5 ! h264parse ! dscsigner private-key-path=./example_ca.key enable-signing=true public-key-uri= ./example_ca.pub ! dscverifier key-store-path= `pwd` ! avdec_h264 ! videoconvert ! autovideosink
-
-
-use glib::{ParamSpec, ParamSpecString, Value};
+use glib::{ParamSpec, ParamSpecString, ParamSpecUInt, Value};
 
 use gst::glib;
 use gst::prelude::*;
@@ -19,15 +15,16 @@ use gst::subclass::prelude::*;
 use gst_base::subclass::prelude::*;
 
 use openssl::pkey::PKey;
+use openssl::sign::Signer;
 
 use std::fs;
 use std::sync::Mutex;
 use std::sync::RwLock;
 use std::sync::LazyLock;
+use std::ffi::CString;
 
 use anyhow::Result;
 
-use crate::signaturemeta::SignatureMeta;
 use crate::common::HashMethod;
 use crate::nal_parser::{NalParser, VideoCodec};
 use crate::dsc_substream::DscSubstreamManager;
@@ -43,7 +40,7 @@ static CAT: LazyLock<gst::DebugCategory> = LazyLock::new(|| {
 struct GopSigningState {
     dsc_manager: Option<DscSubstreamManager>,
     gop_started: bool,
-    frames_in_gop: u32,
+    buffers_in_substream: u32,
     nal_parser: Option<NalParser>,
 }
 
@@ -52,7 +49,7 @@ impl Default for GopSigningState {
         Self {
             dsc_manager: None,
             gop_started: false,
-            frames_in_gop: 0,
+            buffers_in_substream: 0,
             nal_parser: None,
         }
     }
@@ -63,9 +60,9 @@ pub struct DscSigner {
     pub hash_method: RwLock<HashMethod>,
     pub private_key: Mutex<Option<PKey<openssl::pkey::Private>>>,
     pub private_key_path: RwLock<Option<String>>,
-    pub enable_signing: RwLock<bool>,
     pub public_key_uri: RwLock<Option<String>>,
     pub content_uuid: RwLock<Option<[u8; 16]>>,
+    pub substream_length: RwLock<u32>,
     gop_state: Mutex<GopSigningState>,
 }
 
@@ -83,9 +80,8 @@ impl ObjectImpl for DscSigner {
     }
 
     fn set_property(&self, _id: usize, value: &Value, pspec: &ParamSpec) {
-    let obj = self.obj();
-    // All property access is under lock for thread safety
-    match pspec.name() {
+        let obj = self.obj();
+        match pspec.name() {
             "hash-method" => {
                 let s = value.get::<String>().unwrap();
                 let method = match s.as_str() {
@@ -94,7 +90,7 @@ impl ObjectImpl for DscSigner {
                     "sha256" => HashMethod::Sha256,
                     "sha384" => HashMethod::Sha384,
                     "sha512" => HashMethod::Sha512,
-                    _ => HashMethod::Sha256,
+                    _ => HashMethod::Sha512,
                 };
                 *self.hash_method.write().unwrap() = method;
                 gst::info!(*CAT, "Set hash-method property to {}", s);
@@ -106,7 +102,6 @@ impl ObjectImpl for DscSigner {
                     Ok(key_data) => {
                         match PKey::private_key_from_pem(&key_data) {
                             Ok(pkey) => {
-                                // Validate key type (must be RSA or EC for most signature schemes)
                                 let key_type = pkey.id();
                                 if key_type != openssl::pkey::Id::RSA && key_type != openssl::pkey::Id::EC {
                                     gst::error!(*CAT, "Unsupported private key type: {:?}", key_type);
@@ -159,6 +154,11 @@ impl ObjectImpl for DscSigner {
                     gst::error!(*CAT, "Content UUID must be 32 hex characters, got: {}", uuid_str.len());
                 }
             }
+            "substream-length" => {
+                let length = value.get::<u32>().unwrap();
+                *self.substream_length.write().unwrap() = length;
+                gst::info!(*CAT, "Set substream-length property to {}", length);
+            }
             _ => {}
         }
     }
@@ -175,6 +175,7 @@ impl ObjectImpl for DscSigner {
                     String::new().to_value()
                 }
             }
+            "substream-length" => self.substream_length.read().unwrap().to_value(),
             _ => Value::from_type(pspec.value_type()),
         }
     }
@@ -184,7 +185,7 @@ impl ObjectImpl for DscSigner {
             ParamSpecString::builder("hash-method")
                 .nick("Hash Method")
                 .blurb("Hash algorithm to use (sha1, sha224, sha256, sha384, sha512)")
-                .default_value(Some("sha256"))
+                .default_value(Some("sha512"))
                 .readwrite()
                 .build(),
             ParamSpecString::builder("private-key-path")
@@ -202,6 +203,13 @@ impl ObjectImpl for DscSigner {
                 .blurb("Content UUID as hex string (32 characters)")
                 .readwrite()
                 .build(),
+            ParamSpecUInt::builder("substream-length")
+                .nick("Substream Length")
+                .blurb("Number of buffers per substream (GOP length)")
+                .default_value(5)
+                .minimum(1)
+                .readwrite()
+                .build(),
         ]);
         PROPERTIES.as_ref()
     }
@@ -214,7 +222,7 @@ impl ElementImpl for DscSigner {
             gst::subclass::ElementMetadata::new(
                 "DSC Signer",
                 "Generic",
-                "Signs video buffers using a private key and hash algorithm",
+                "Signs video buffers using H.274 DSC SEI metadata",
                 "Diego Nieto <dnieto@fluendo.com>",
             )
         });
@@ -258,13 +266,12 @@ impl BaseTransformImpl for DscSigner {
         gst::debug!(*CAT, imp = self, "Input caps: {}", incaps);
         gst::debug!(*CAT, imp = self, "Output caps: {}", outcaps);
 
-        // Initialize NAL parser based on codec
         if let Ok(codec) = VideoCodec::from_caps(incaps) {
             let mut gop_state = self.gop_state.lock().unwrap();
             gop_state.nal_parser = Some(NalParser::new(codec));
             gst::info!(*CAT, imp = self, "Initialized NAL parser for codec: {:?}", codec);
         } else {
-            gst::warning!(*CAT, imp = self, "Could not determine codec from caps, falling back to raw frame signing");
+            gst::warning!(*CAT, imp = self, "Could not determine codec from caps");
         }
 
         Ok(())
@@ -276,54 +283,22 @@ impl BaseTransformImpl for DscSigner {
     ) -> Result<gst::FlowSuccess, gst::FlowError> {
         gst::trace!(*CAT, imp = self, "DscSigner transform_ip called");
 
-        let is_i_frame = !buffer.flags().contains(gst::BufferFlags::DELTA_UNIT);
+        let obj = self.obj();
         let mut gop_state = self.gop_state.lock().unwrap();
+        let substream_length = *self.substream_length.read().unwrap();
 
-        if is_i_frame {
-            gst::debug!(*CAT, imp = self, "Processing I-frame (keyframe)");
+        let is_first_buffer_in_substream = gop_state.buffers_in_substream == 0;
+        
+        if is_first_buffer_in_substream {
+            gst::info!(*CAT, imp = self, "📝 Starting NEW substream (buffer 1/{})", substream_length);
 
-            // Check whether there is a previous GOP to sign
-            if gop_state.gop_started {
-                if let Some(ref mut dsc_manager) = gop_state.dsc_manager {
-                    // Create data packet to sign it
-                    match dsc_manager.create_data_packet(0) {
-                        Ok(data_packet) => {
-                            gst::debug!(*CAT, imp = self, "Created data packet: {} bytes", data_packet.len());
-                            gst::info!(*CAT, imp = self, "SIGNER: Creating signature for COMPLETED GOP data packet: {} bytes", data_packet.len());
-
-                            let signature = self.create_signature_from_data_packet(&data_packet)?;
-                            let hash_method: u8 = (*self.hash_method.read().unwrap()).into();
-                            let content_uuid = *self.content_uuid.read().unwrap();
-                            let public_key_uri = self.public_key_uri.read().unwrap().clone();
-
-                            gst::info!(*CAT, imp = self, "🔐 Created signature for COMPLETED GOP, signature length: {}", signature.len());
-
-                            // Attach signature to this I-frame (start of next GOP)
-                            SignatureMeta::add(
-                                buffer,
-                                &signature,
-                                hash_method,
-                                public_key_uri.as_deref(),
-                                content_uuid.as_ref()
-                            );
-                            gst::info!(*CAT, imp = self, "✅ ATTACHED signature meta to I-frame for completed GOP (public_key_uri: {:?})", public_key_uri);
-                        },
-                        Err(e) => {
-                            gst::error!(*CAT, imp = self, "Failed to create data packet: {}", e);
-                            return Err(gst::FlowError::Error);
-                        }
-                    }
-                }
-            } else {
-                gst::debug!(*CAT, imp = self, "First I-frame - no previous GOP to sign");
-            }
-
-            // Start new GOP with DscSubstreamManager
-            let hash_method = self.hash_method.read().unwrap().to_openssl();
             let hash_method_byte: u8 = (*self.hash_method.read().unwrap()).into();
             let content_uuid = *self.content_uuid.read().unwrap();
+            let public_key_uri = self.public_key_uri.read().unwrap().clone();
 
-            // Create new DSC manager for this substream
+            self.add_initialization_meta(buffer, hash_method_byte, &content_uuid, public_key_uri.as_deref())?;
+
+            let hash_method = self.hash_method.read().unwrap().to_openssl();
             let new_dsc_manager = match DscSubstreamManager::new(
                 hash_method,
                 hash_method_byte,
@@ -332,7 +307,6 @@ impl BaseTransformImpl for DscSigner {
                 Ok(manager) => manager,
                 Err(e) => {
                     gst::error!(*CAT, imp = self, "Failed to create DscSubstreamManager: {}", e);
-                    let obj = self.obj();
                     let msg = gst::message::Error::new(
                         gst::CoreError::Failed,
                         &format!("Failed to create DscSubstreamManager: {}", e),
@@ -344,29 +318,24 @@ impl BaseTransformImpl for DscSigner {
 
             gop_state.dsc_manager = Some(new_dsc_manager);
             gop_state.gop_started = true;
-            gop_state.frames_in_gop = 0;
-
-            gst::debug!(*CAT, imp = self, "Started new GOP with DscSubstreamManager");
-        } else {
-            gst::trace!(*CAT, imp = self, "Processing non-I-frame");
         }
+
+        self.add_selection_meta(buffer, 0)?;
 
         let map = buffer.map_readable().map_err(|_| {
             gst::error!(*CAT, imp = self, "Failed to map buffer for reading");
             gst::FlowError::Error
         })?;
 
-        // Extract NAL units to hash using NAL parser
         let nal_units_to_hash = if let Some(ref nal_parser) = gop_state.nal_parser {
             match nal_parser.extract_signable_data(&map) {
                 Ok(nal_units) => {
-                    gst::debug!(*CAT, imp = self, "Using NAL-level signing: {} NAL units from {} raw bytes",
+                    gst::debug!(*CAT, imp = self, "Extracted {} NAL units from {} raw bytes",
                         nal_units.len(), map.len());
                     nal_units
                 },
                 Err(e) => {
                     gst::error!(*CAT, imp = self, "NAL parsing failed: {}", e);
-                    let obj = self.obj();
                     let msg = gst::message::Error::new(
                         gst::CoreError::Failed,
                         &format!("NAL parsing failed: {}", e),
@@ -376,17 +345,12 @@ impl BaseTransformImpl for DscSigner {
                 }
             }
         } else {
-            gst::error!(*CAT, imp = self, "No NAL parser available - codec not supported");
-            let obj = self.obj();
-            let msg = gst::message::Error::new(
-                gst::CoreError::Failed,
-                "No NAL parser available - codec not supported",
-            );
-            let _ = obj.post_message(msg);
+            gst::error!(*CAT, imp = self, "No NAL parser available");
             return Err(gst::FlowError::Error);
         };
 
-        // Add each NAL unit to DSC substream for current GOP (matching VTM behavior)
+        drop(map);
+
         if let Some(ref mut dsc_manager) = gop_state.dsc_manager {
             for nal_data in &nal_units_to_hash {
                 if let Err(e) = dsc_manager.add_to_substream(0, nal_data) {
@@ -396,17 +360,39 @@ impl BaseTransformImpl for DscSigner {
 
                 gst::trace!(*CAT, imp = self, "Added NAL to substream, size: {}", nal_data.len());
             }
+        }
 
-            if is_i_frame {
-                gst::trace!(*CAT, imp = self, "Added {} NAL units from I-frame to NEW GOP substream", nal_units_to_hash.len());
-            } else {
-                gst::trace!(*CAT, imp = self, "Added {} NAL units to current GOP substream", nal_units_to_hash.len());
+        gop_state.buffers_in_substream += 1;
+        gst::debug!(*CAT, imp = self, "Buffer {}/{} in current substream", 
+            gop_state.buffers_in_substream, substream_length);
+
+        let is_last_buffer_in_substream = gop_state.buffers_in_substream >= substream_length;
+
+        if is_last_buffer_in_substream {
+            gst::info!(*CAT, imp = self, "🔐 LAST buffer in substream - creating signature");
+
+            if let Some(ref mut dsc_manager) = gop_state.dsc_manager {
+                match dsc_manager.create_data_packet(0) {
+                    Ok(data_packet) => {
+                        gst::debug!(*CAT, imp = self, "Created data packet: {} bytes", data_packet.len());
+
+                        let signature = self.create_signature_from_data_packet(&data_packet)?;
+                        gst::info!(*CAT, imp = self, "✅ Created signature ({} bytes) for substream", signature.len());
+
+                        self.add_verification_meta(buffer, &signature, 0)?;
+
+                        gst::info!(*CAT, imp = self, "✅ Attached verification metadata to last buffer");
+                    },
+                    Err(e) => {
+                        gst::error!(*CAT, imp = self, "Failed to create data packet: {}", e);
+                        return Err(gst::FlowError::Error);
+                    }
+                }
             }
 
-            gop_state.frames_in_gop += 1;
-            gst::trace!(*CAT, imp = self, "GOP now has {} frames", gop_state.frames_in_gop);
-        } else {
-            gst::warning!(*CAT, imp = self, "No DSC manager available to accumulate frame data!");
+            gop_state.dsc_manager = None;
+            gop_state.gop_started = false;
+            gop_state.buffers_in_substream = 0;
         }
 
         Ok(gst::FlowSuccess::Ok)
@@ -414,12 +400,101 @@ impl BaseTransformImpl for DscSigner {
 }
 
 impl DscSigner {
+    fn add_initialization_meta(
+        &self,
+        buffer: &mut gst::BufferRef,
+        hash_method_type: u8,
+        content_uuid: &Option<[u8; 16]>,
+        key_source_uri: Option<&str>,
+    ) -> Result<(), gst::FlowError> {
+        use gst_video::video_meta::VideoDSCInitializationMeta;
+
+        let key_source_uri_cstring = key_source_uri.map(|uri| CString::new(uri).unwrap());
+
+        let dsc_init = gst_video::ffi::GstH274DigitallySignedContentInitialization {
+            id: 0,
+            hash_method_type,
+            key_retrieval_mode_idc: 0, // URI-based
+            use_key_register_idx_flag: 0,
+            key_register_idx: 0,
+            content_uuid_present_flag: if content_uuid.is_some() { 1 } else { 0 },
+            content_uuid: content_uuid.unwrap_or([0u8; 16]),
+            num_verification_substreams: 1,
+            ref_substream_flag: std::ptr::null_mut(),
+            vss_implicit_association_mode_flag: 0,
+            signed_content_start_flag: 1,
+            sei_signing_flag: 0,
+            key_source_uri: key_source_uri_cstring
+                .as_ref()
+                .map(|s| s.as_ptr() as *mut u8)
+                .unwrap_or(std::ptr::null_mut()),
+        };
+
+        VideoDSCInitializationMeta::add(buffer, &dsc_init);
+        
+        gst::info!(*CAT, imp = self, "📝 Added DSC initialization metadata (hash_method: {}, uuid_present: {}, uri: {:?})",
+            hash_method_type, dsc_init.content_uuid_present_flag, key_source_uri);
+
+        Ok(())
+    }
+
+    fn add_selection_meta(
+        &self,
+        buffer: &mut gst::BufferRef,
+        substream_id: u8,
+    ) -> Result<(), gst::FlowError> {
+        use gst_video::video_meta::VideoDSCSelectionMeta;
+
+        let dsc_selection = gst_video::ffi::GstH274DigitallySignedContentSelection {
+            id: 0,
+            verification_substream_id: substream_id,
+        };
+
+        VideoDSCSelectionMeta::add(buffer, &dsc_selection);
+        
+        gst::trace!(*CAT, imp = self, "Added DSC selection metadata (substream: {})", substream_id);
+
+        Ok(())
+    }
+
+    fn add_verification_meta(
+        &self,
+        buffer: &mut gst::BufferRef,
+        signature: &[u8],
+        substream_id: u8,
+    ) -> Result<(), gst::FlowError> {
+        use gst_video::video_meta::VideoDSCVerificationMeta;
+
+        // Create GArray for signature
+        let signature_array = unsafe {
+            let array = glib::ffi::g_array_new(0, 0, std::mem::size_of::<u8>() as u32);
+            glib::ffi::g_array_append_vals(
+                array,
+                signature.as_ptr() as *const _,
+                signature.len() as u32,
+            );
+            array
+        };
+
+        let dsc_verification = gst_video::ffi::GstH274DigitallySignedContentVerification {
+            id: 0,
+            verification_substream_id: substream_id,
+            signature_length_in_octets_minus1: (signature.len() - 1) as u32,
+            signature: signature_array,
+            signed_content_end_flag: 1,
+        };
+
+        VideoDSCVerificationMeta::add(buffer, &dsc_verification);
+
+        gst::info!(*CAT, imp = self, "🔐 Added DSC verification metadata (signature: {} bytes)", signature.len());
+
+        Ok(())
+    }
+
     fn create_signature_from_data_packet(
         &self,
         data_packet: &[u8],
     ) -> Result<Vec<u8>, gst::FlowError> {
-        use openssl::sign::Signer;
-
         let pkey_guard = self.private_key.lock().unwrap();
         let pkey = match pkey_guard.as_ref() {
             Some(k) => k,
@@ -431,7 +506,10 @@ impl DscSigner {
 
         let hash_method = self.hash_method.read().unwrap().to_openssl();
 
-        gst::debug!(*CAT, imp = self, "SIGNER: Data packet content: {:02x?}", &data_packet[..std::cmp::min(32, data_packet.len())]);
+        gst::debug!(*CAT, imp = self, "SIGNER: Data packet first 32: {:02x?}", 
+            &data_packet[..std::cmp::min(32, data_packet.len())]);
+        gst::debug!(*CAT, imp = self, "SIGNER: Data packet last 32: {:02x?}", 
+            &data_packet[data_packet.len().saturating_sub(32)..]);
 
         let mut signer = Signer::new(hash_method, pkey).map_err(|e| {
             gst::error!(*CAT, imp = self, "Failed to create signer: {}", e);
