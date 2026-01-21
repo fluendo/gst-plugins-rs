@@ -12,14 +12,14 @@ use gst::prelude::*;
 use gst::subclass::prelude::*;
 use gst_video::NavigationEvent;
 
-use crate::videoencoderstatsmeta::VideoEncoderStatsMeta;
 use crate::comparemixer::compositor::Compositor;
-use crate::comparemixer::compositor::Position;
 use crate::comparemixer::compositor::Mode;
+use crate::comparemixer::compositor::Position;
+use crate::videoencoderstatsmeta::VideoEncoderStatsMeta;
 
-use std::sync::{LazyLock, Mutex, Arc};
-use std::vec::Vec;
 use std::fmt;
+use std::sync::{Arc, LazyLock, Mutex};
+use std::vec::Vec;
 
 static CAT: LazyLock<gst::DebugCategory> = LazyLock::new(|| {
     gst::DebugCategory::new(
@@ -108,38 +108,88 @@ impl fmt::Display for QueueStats {
         let total_width: usize = 60;
         let encoder0_full = format!("Encoder: {}", encoder0);
         let encoder1_full = format!("Encoder: {}", encoder1);
-        let encoder_spacing = total_width.saturating_sub(encoder0_full.len()+encoder1_full.len());
-        writeln!(f, "{}{:>width$}{}", encoder0_full, "", encoder1_full, width = encoder_spacing)?;
+        let encoder_spacing = total_width.saturating_sub(encoder0_full.len() + encoder1_full.len());
+        writeln!(
+            f,
+            "{}{:>width$}{}",
+            encoder0_full,
+            "",
+            encoder1_full,
+            width = encoder_spacing
+        )?;
 
         let size0_full = format!("Output size: {}", size0);
         let size1_full = format!("Output size: {}", size1);
-        let size_spacing = total_width.saturating_sub(size0_full.len()+size1_full.len());
-        writeln!(f, "{}{:>width$}{}", size0_full, "", size1_full, width = size_spacing)?;
+        let size_spacing = total_width.saturating_sub(size0_full.len() + size1_full.len());
+        writeln!(
+            f,
+            "{}{:>width$}{}",
+            size0_full,
+            "",
+            size1_full,
+            width = size_spacing
+        )?;
 
         let bitrate0_full = format!("Bitrate: {}", bitrate0);
         let bitrate1_full = format!("Bitrate: {}", bitrate1);
-        let bitrate_spacing = total_width.saturating_sub(bitrate0_full.len()+bitrate1_full.len());
-        writeln!(f, "{}{:>width$}{}", bitrate0_full, "", bitrate1_full, width = bitrate_spacing)?;
+        let bitrate_spacing = total_width.saturating_sub(bitrate0_full.len() + bitrate1_full.len());
+        writeln!(
+            f,
+            "{}{:>width$}{}",
+            bitrate0_full,
+            "",
+            bitrate1_full,
+            width = bitrate_spacing
+        )?;
 
         let proc_time0_full = format!("Processing time: {}", proc_time0);
         let proc_time1_full = format!("Processing time: {}", proc_time1);
-        let proc_time_spacing = total_width.saturating_sub(proc_time0_full.len()+proc_time1_full.len());
-        writeln!(f, "{}{:>width$}{}", proc_time0_full, "", proc_time1_full, width = proc_time_spacing)?;
+        let proc_time_spacing =
+            total_width.saturating_sub(proc_time0_full.len() + proc_time1_full.len());
+        writeln!(
+            f,
+            "{}{:>width$}{}",
+            proc_time0_full,
+            "",
+            proc_time1_full,
+            width = proc_time_spacing
+        )?;
 
         let cpu0_full = format!("CPU: {}", cpu0);
         let cpu1_full = format!("CPU: {}", cpu1);
-        let cpu_spacing = total_width.saturating_sub(cpu0_full.len()+cpu1_full.len());
-        writeln!(f, "{}{:>width$}{}", cpu0_full, "", cpu1_full, width = cpu_spacing)?;
+        let cpu_spacing = total_width.saturating_sub(cpu0_full.len() + cpu1_full.len());
+        writeln!(
+            f,
+            "{}{:>width$}{}",
+            cpu0_full,
+            "",
+            cpu1_full,
+            width = cpu_spacing
+        )?;
 
         let vmaf0_full = format!("VMAF: {}", vmaf0);
         let vmaf1_full = format!("VMAF: {}", vmaf1);
-        let vmaf_spacing = total_width.saturating_sub(vmaf0_full.len()+vmaf1_full.len());
-        writeln!(f, "{}{:>width$}{}", vmaf0_full, "", vmaf1_full, width = vmaf_spacing)?;
+        let vmaf_spacing = total_width.saturating_sub(vmaf0_full.len() + vmaf1_full.len());
+        writeln!(
+            f,
+            "{}{:>width$}{}",
+            vmaf0_full,
+            "",
+            vmaf1_full,
+            width = vmaf_spacing
+        )?;
 
         let latency0_full = format!("Encoding latency: {}", latency0);
         let latency1_full = format!("Encoding latency: {}", latency1);
-        let latency_spacing = total_width.saturating_sub(latency0_full.len()+latency1_full.len());
-        writeln!(f, "{}{:>width$}{}", latency0_full, "", latency1_full, width = latency_spacing)
+        let latency_spacing = total_width.saturating_sub(latency0_full.len() + latency1_full.len());
+        writeln!(
+            f,
+            "{}{:>width$}{}",
+            latency0_full,
+            "",
+            latency1_full,
+            width = latency_spacing
+        )
     }
 }
 
@@ -185,9 +235,7 @@ impl VideoCompareMixer {
         }
     }
 
-    pub fn add_navigation_events_probe(
-        &self,
-    ) {
+    pub fn add_navigation_events_probe(&self) {
         let compositor_supports_crop: bool = self.settings.lock().unwrap().backend == Backend::GL;
 
         let mixer = self.obj().by_name("compositor").unwrap();
@@ -223,7 +271,7 @@ impl VideoCompareMixer {
                 return gst::PadProbeReturn::Ok;
             };
 
-            let compositor = &mut  (*compositor_helper_clone.lock().unwrap()).unwrap();
+            let compositor = &mut (*compositor_helper_clone.lock().unwrap()).unwrap();
             let original_compositor = *compositor;
             let nav_event_clone = nav_event.clone();
 
@@ -279,7 +327,7 @@ impl VideoCompareMixer {
                     }
                     _ => {
                         gst::info!(CAT, "Unhandled key: {}", key);
-                    },
+                    }
                 },
                 NavigationEvent::MouseMove { x, y, .. } => {
                     let state = mouse_state.lock().unwrap();
@@ -384,8 +432,24 @@ impl VideoCompareMixer {
         Self::fix_pos(&mut pos0, compositor_helper.width, compositor_supports_crop);
         Self::fix_pos(&mut pos1, compositor_helper.width, compositor_supports_crop);
 
-        gst::log!(CAT, "Position 0: {}x{}+{}+{}, crop_right: {}", pos0.width, pos0.height, pos0.xpos, pos0.ypos, pos0.crop_right);
-        gst::log!(CAT, "Position 1: {}x{}+{}+{}, crop_left: {}", pos1.width, pos1.height, pos1.xpos, pos1.ypos, pos1.crop_left);
+        gst::log!(
+            CAT,
+            "Position 0: {}x{}+{}+{}, crop_right: {}",
+            pos0.width,
+            pos0.height,
+            pos0.xpos,
+            pos0.ypos,
+            pos0.crop_right
+        );
+        gst::log!(
+            CAT,
+            "Position 1: {}x{}+{}+{}, crop_left: {}",
+            pos1.width,
+            pos1.height,
+            pos1.xpos,
+            pos1.ypos,
+            pos1.crop_left
+        );
 
         //TODO refactor avoid copy and paste
         if compositor_supports_crop {
@@ -419,7 +483,12 @@ impl VideoCompareMixer {
                 ("ypos", &pos1.ypos),
             ]);
 
-            gst::log!(CAT, "right crop: {}, left crop: {}", pos0.crop_right, pos1.crop_left);
+            gst::log!(
+                CAT,
+                "right crop: {}, left crop: {}",
+                pos0.crop_right,
+                pos1.crop_left
+            );
             crop0.set_property("right", pos0.crop_right);
             crop1.set_property("left", pos1.crop_left);
         }
@@ -458,7 +527,9 @@ impl VideoCompareMixer {
                 VideoCompareMixer::catch_panic_pad_function(
                     parent,
                     || false,
-                    |video_compare_mixer| video_compare_mixer.sink_event(&pad.clone().upcast::<gst::Pad>(), event),
+                    |video_compare_mixer| {
+                        video_compare_mixer.sink_event(&pad.clone().upcast::<gst::Pad>(), event)
+                    },
                 );
                 Ok(gst::FlowSuccess::Ok)
             });
@@ -470,37 +541,40 @@ impl VideoCompareMixer {
     fn add_queue_probe(&self, queue: &gst::Element, queue_index: u8) {
         let queue_src_pad = queue.static_pad("src").unwrap();
         let queue_stats = self.queue_stats.clone();
-        queue_src_pad.add_probe(gst::PadProbeType::BUFFER, move |_: &gst::Pad, probe_info| {
-            let Some(buffer) = probe_info.buffer_mut() else {
-                return gst::PadProbeReturn::Ok;
-            };
+        queue_src_pad.add_probe(
+            gst::PadProbeType::BUFFER,
+            move |_: &gst::Pad, probe_info| {
+                let Some(buffer) = probe_info.buffer_mut() else {
+                    return gst::PadProbeReturn::Ok;
+                };
 
-            let mut stats = queue_stats.lock().unwrap();
+                let mut stats = queue_stats.lock().unwrap();
 
-            // Only update at framerate intervals, similar to encoderstats
-            let fps_n: i32;
-            if let Some(fps) = stats.framerate {
-                fps_n = fps.numer();
-            } else {
-                return gst::PadProbeReturn::Ok;
-            }
+                // Only update at framerate intervals, similar to encoderstats
+                let fps_n: i32;
+                if let Some(fps) = stats.framerate {
+                    fps_n = fps.numer();
+                } else {
+                    return gst::PadProbeReturn::Ok;
+                }
 
-            if let Some(statsmeta) = buffer.meta::<VideoEncoderStatsMeta>() {
-                let num_buffers = statsmeta.stats().num_buffers;
+                if let Some(statsmeta) = buffer.meta::<VideoEncoderStatsMeta>() {
+                    let num_buffers = statsmeta.stats().num_buffers;
 
-                // Only update once per second based on framerate
-                if num_buffers % (fps_n as u64) == 0 {
-                    let stats_string = format!("{}", statsmeta.stats());
-                    match queue_index {
-                        0 => stats.stats0 = Some(stats_string),
-                        1 => stats.stats1 = Some(stats_string),
-                        _ => {}
+                    // Only update once per second based on framerate
+                    if num_buffers % (fps_n as u64) == 0 {
+                        let stats_string = format!("{}", statsmeta.stats());
+                        match queue_index {
+                            0 => stats.stats0 = Some(stats_string),
+                            1 => stats.stats1 = Some(stats_string),
+                            _ => {}
+                        }
                     }
                 }
-            }
 
-            gst::PadProbeReturn::Ok
-        });
+                gst::PadProbeReturn::Ok
+            },
+        );
     }
 
     fn add_compositor_src_probe(&self, compositor: &gst::Element) {
@@ -509,22 +583,25 @@ impl VideoCompareMixer {
         let queue_stats = self.queue_stats.clone();
         let imp_weak = self.downgrade();
 
-        compositor_src_pad.add_probe(gst::PadProbeType::BUFFER, move |_: &gst::Pad, probe_info| {
-            let Some(_) = probe_info.buffer() else {
-                return gst::PadProbeReturn::Ok;
-            };
+        compositor_src_pad.add_probe(
+            gst::PadProbeType::BUFFER,
+            move |_: &gst::Pad, probe_info| {
+                let Some(_) = probe_info.buffer() else {
+                    return gst::PadProbeReturn::Ok;
+                };
 
-            let Some(imp) = imp_weak.upgrade() else {
-                return gst::PadProbeReturn::Ok;
-            };
+                let Some(imp) = imp_weak.upgrade() else {
+                    return gst::PadProbeReturn::Ok;
+                };
 
-            if imp.settings.lock().unwrap().overlay_stats {
-                let stats = queue_stats.lock().unwrap();
-                let stats_text = format!("{}", *stats);
-                overlay.set_property("text", stats_text);
-            };
-            gst::PadProbeReturn::Ok
-        });
+                if imp.settings.lock().unwrap().overlay_stats {
+                    let stats = queue_stats.lock().unwrap();
+                    let stats_text = format!("{}", *stats);
+                    overlay.set_property("text", stats_text);
+                };
+                gst::PadProbeReturn::Ok
+            },
+        );
     }
 
     fn link_elements(
@@ -567,8 +644,12 @@ impl VideoCompareMixer {
             .set_target(Some(&self.queue1.static_pad("sink").unwrap()))
             .expect("Failed to link sinkpad1 to queue1");
 
-        compositor.link(&self.overlay).expect("Failed to link compositor to overlay");
-        self.overlay.link(&caps_filter).expect("Failed to link overlay to capsfilter");
+        compositor
+            .link(&self.overlay)
+            .expect("Failed to link compositor to overlay");
+        self.overlay
+            .link(&caps_filter)
+            .expect("Failed to link overlay to capsfilter");
 
         self.srcpad
             .set_target(Some(&caps_filter.static_pad("src").unwrap()))
@@ -618,7 +699,11 @@ impl VideoCompareMixer {
         self.queue0.sync_state_with_parent().unwrap();
         self.queue1.sync_state_with_parent().unwrap();
         self.overlay.sync_state_with_parent().unwrap();
-        self.obj().by_name("compositor").unwrap().sync_state_with_parent().unwrap();
+        self.obj()
+            .by_name("compositor")
+            .unwrap()
+            .sync_state_with_parent()
+            .unwrap();
         Ok(())
     }
 
@@ -647,7 +732,10 @@ impl VideoCompareMixer {
                 drop(settings);
 
                 let caps = format!("video/x-raw,width={},height={}", width, height);
-                self.obj().by_name("capsfilter0").unwrap().set_property_from_str("caps", &caps.as_str());
+                self.obj()
+                    .by_name("capsfilter0")
+                    .unwrap()
+                    .set_property_from_str("caps", &caps.as_str());
 
                 let compositor_mode = if split_screen {
                     Mode::Split
@@ -655,11 +743,7 @@ impl VideoCompareMixer {
                     Mode::SideBySide
                 };
 
-                let compositor_helper = Compositor::new(
-                    compositor_mode,
-                    width,
-                    height,
-                );
+                let compositor_helper = Compositor::new(compositor_mode, width, height);
                 *self.compositor_helper.lock().unwrap() = Some(compositor_helper);
 
                 if navigation_events {
@@ -760,12 +844,7 @@ impl ObjectImpl for VideoCompareMixer {
             "backend" => {
                 settings.backend = value.get().expect("type checked upstream");
 
-                gst::info!(
-                    CAT,
-                    imp = self,
-                    "Set backend to {:?}",
-                    settings.backend
-                );
+                gst::info!(CAT, imp = self, "Set backend to {:?}", settings.backend);
             }
             "split-screen" => {
                 settings.split_screen = value.get().expect("type checked upstream");
@@ -896,5 +975,4 @@ impl ElementImpl for VideoCompareMixer {
     }
 }
 
-impl BinImpl for VideoCompareMixer {
-}
+impl BinImpl for VideoCompareMixer {}

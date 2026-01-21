@@ -25,8 +25,7 @@ impl VideoEncoderStatsMeta {
         stats: VideoEncoderStats,
     ) -> gst::MetaRefMut<'_, Self, gst::meta::Standalone> {
         unsafe {
-            let mut params =
-                mem::ManuallyDrop::new(imp::VideoEncoderStatsMetaParams { stats });
+            let mut params = mem::ManuallyDrop::new(imp::VideoEncoderStatsMetaParams { stats });
 
             let meta = gst::ffi::gst_buffer_add_meta(
                 buffer.as_mut_ptr(),
@@ -57,8 +56,7 @@ unsafe impl MetaAPI for VideoEncoderStatsMeta {
 
 impl fmt::Debug for VideoEncoderStatsMeta {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("VideoEncoderStatsMeta")
-            .finish()
+        f.debug_struct("VideoEncoderStatsMeta").finish()
     }
 }
 
@@ -130,10 +128,7 @@ mod imp {
         if dest.meta::<super::VideoEncoderStatsMeta>().is_some() {
             return true.into_glib();
         }
-        super::VideoEncoderStatsMeta::add(
-            dest,
-            meta.stats.clone(),
-        );
+        super::VideoEncoderStatsMeta::add(dest, meta.stats.clone());
 
         true.into_glib()
     }

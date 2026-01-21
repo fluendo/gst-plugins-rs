@@ -9,10 +9,10 @@
 
 use gst::glib;
 
-mod videoencoderstats;
-pub mod videoencoderstatsmeta;
 mod comparemixer;
 mod encoderstats;
+mod videoencoderstats;
+pub mod videoencoderstatsmeta;
 
 fn plugin_init(plugin: &gst::Plugin) -> Result<(), glib::BoolError> {
     comparemixer::register(plugin)?;

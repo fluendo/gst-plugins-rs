@@ -8,10 +8,10 @@
 // SPDX-License-Identifier: MPL-2.0
 
 use std::collections::VecDeque;
-use std::time::Instant;
-use std::time::Duration;
 use std::fmt;
 use std::sync::LazyLock;
+use std::time::Duration;
+use std::time::Instant;
 
 use gst::ffi::GstClockTime;
 
@@ -75,7 +75,11 @@ impl VideoEncoderStats {
             self.max_buffers_inside = self.time_last_buffers.len();
         }
         self.current_buffers_inside_seen = self.time_last_buffers.len();
-        gst::log!(CAT, "Current buffers length {}", self.current_buffers_inside_seen);
+        gst::log!(
+            CAT,
+            "Current buffers length {}",
+            self.current_buffers_inside_seen
+        );
     }
 
     pub fn buffer_out(&mut self) {
@@ -104,66 +108,44 @@ impl VideoEncoderStats {
 
 impl fmt::Display for VideoEncoderStats {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        if self.framerate.unwrap().denom() != 1  && self.framerate.unwrap().denom() != 1001 {
+        if self.framerate.unwrap().denom() != 1 && self.framerate.unwrap().denom() != 1001 {
             unimplemented!();
         }
 
-        writeln!(
-            f,
-            "Encoder: {}",
-            &self.name
-        )?;
+        writeln!(f, "Encoder: {}", &self.name)?;
         writeln!(
             f,
             "Output size: {} KB",
             self.num_bytes / 1000, // Convert to KB
         )?;
-        writeln!(
-            f,
-            "Max. Buffers inside: {}",
-            self.max_buffers_inside
-        )?;
+        writeln!(f, "Max. Buffers inside: {}", self.max_buffers_inside)?;
         writeln!(
             f,
             "Current buffers inside: {}",
             self.current_buffers_inside_seen
         )?;
         if let Some(num_buffers_first_output) = self.num_buffers_first_output {
-            writeln!(
-                f,
-                "Num. Buffers first output: {}",
-                num_buffers_first_output
-            )?;
+            writeln!(f, "Num. Buffers first output: {}", num_buffers_first_output)?;
         } else {
-            writeln!(
-                f,
-                "Num. Buffers first output: No first output yet"
-            )?;
+            writeln!(f, "Num. Buffers first output: No first output yet")?;
         }
 
         let framerate = self.framerate.unwrap();
-        let total_time_secs = self.num_buffers as f64 * framerate.denom() as f64 / framerate.numer() as f64;
+        let total_time_secs =
+            self.num_buffers as f64 * framerate.denom() as f64 / framerate.numer() as f64;
         let bitrate = if total_time_secs > 0.0 {
             (self.num_bytes as f64 * 8.0) / total_time_secs
         } else {
             0.0
         };
-        let bitrate_str = bitrate/1000.0; // Convert to kbps
+        let bitrate_str = bitrate / 1000.0; // Convert to kbps
 
         writeln!(f, "Bitrate: {:.3} kbps", bitrate_str)?;
 
         let avg_processing_time = self.avg_processing_time().as_millis();
-        writeln!(
-            f,
-            "Processing time: {:.2} ms",
-            avg_processing_time
-        )?;
+        writeln!(f, "Processing time: {:.2} ms", avg_processing_time)?;
         let max_processing_time = self.max_processing_time.as_millis();
-        writeln!(
-            f,
-            "Max processing time: {:.2} ms",
-            max_processing_time
-        )?;
+        writeln!(f, "Max processing time: {:.2} ms", max_processing_time)?;
 
         let cpu_time = self.threads_utime + self.threads_stime;
         #[cfg(target_os = "linux")]
@@ -171,11 +153,7 @@ impl fmt::Display for VideoEncoderStats {
             let ticks_per_second = procfs::ticks_per_second() as u64;
             cpu_time as f64 / ticks_per_second as f64
         };
-        writeln!(
-            f,
-            "CPU: {} s",
-            cpu_time_seconds
-        )?;
+        writeln!(f, "CPU: {} s", cpu_time_seconds)?;
 
         let vmaf_score_str = match self.vmaf_score {
             Some(score) => format!("{:.3}", score),
@@ -186,11 +164,7 @@ impl fmt::Display for VideoEncoderStats {
         let pre_encode_time = &self.pre_encode_time;
         let post_encode_time = &self.post_encode_time;
         let encode_latency = (*post_encode_time as f64 - *pre_encode_time as f64) / 1_000_000.0;
-        writeln!(
-            f,
-            "Encode latency: {:.3} ms",
-            encode_latency
-        )
+        writeln!(f, "Encode latency: {:.3} ms", encode_latency)
     }
 }
 
@@ -205,7 +179,14 @@ pub fn get_cpu_usage(name: String) -> (u64, u64) {
     for thread in process.tasks().unwrap().flatten() {
         let stat = thread.stat().unwrap();
         if stat.comm.contains(&name) {
-            gst::log!(CAT, "Thread: {}, Comm: {}, Utime: {}, Stime: {}", thread.tid, stat.comm, stat.utime, stat.stime);
+            gst::log!(
+                CAT,
+                "Thread: {}, Comm: {}, Utime: {}, Stime: {}",
+                thread.tid,
+                stat.comm,
+                stat.utime,
+                stat.stime
+            );
             total_utime += stat.utime;
             total_stime += stat.stime;
         }

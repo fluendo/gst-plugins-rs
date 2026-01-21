@@ -14,9 +14,9 @@ use gst::subclass::prelude::*;
 use crate::videoencoderstats::*;
 use crate::videoencoderstatsmeta::VideoEncoderStatsMeta;
 
+use std::sync::Arc;
 use std::sync::{LazyLock, Mutex};
 use std::vec::Vec;
-use std::sync::Arc;
 
 static CAT: LazyLock<gst::DebugCategory> = LazyLock::new(|| {
     gst::DebugCategory::new(
@@ -41,9 +41,7 @@ pub struct EncoderStats {
 }
 
 impl EncoderStats {
-    fn add_identity_probe(
-        &self,
-    ) {
+    fn add_identity_probe(&self) {
         let identity = self.obj().by_name("identity").expect("expected identity");
         let identity_src_pad = identity.static_pad("src").unwrap();
         let encoder = self.obj().by_name("enc").expect("expected encoder");
@@ -81,8 +79,13 @@ impl EncoderStats {
                 let stats_clone = new_stats.clone();
                 meta.replace(new_stats);
 
-                gst::log!(CAT, "Updated meta stats: encoder={}, buffers={}, bytes={}",
-                    encoder_name, num_buffers, num_bytes);
+                gst::log!(
+                    CAT,
+                    "Updated meta stats: encoder={}, buffers={}, bytes={}",
+                    encoder_name,
+                    num_buffers,
+                    num_bytes
+                );
 
                 if !*silent_arc_buffer {
                     if let Some(element) = element_weak.upgrade() {
@@ -102,49 +105,51 @@ impl EncoderStats {
                         element.notify("last-message");
                     }
                 }
-
             } else {
                 gst::warning!(CAT, "No VideoEncoderStatsMeta found on buffer");
             }
             gst::PadProbeReturn::Ok
         });
 
-        identity_src_pad.add_probe(gst::PadProbeType::EVENT_DOWNSTREAM, move |_pad, probe_info| {
-            if let Some(event) = probe_info.event() {
-                if event.type_() == gst::EventType::Eos {
-                    gst::info!(CAT, "EOS received, posting final stats");
+        identity_src_pad.add_probe(
+            gst::PadProbeType::EVENT_DOWNSTREAM,
+            move |_pad, probe_info| {
+                if let Some(event) = probe_info.event() {
+                    if event.type_() == gst::EventType::Eos {
+                        gst::info!(CAT, "EOS received, posting final stats");
 
-                    // Update global stats with final values from identity
-                    let identity_stats = identity_clone.property::<gst::Structure>("stats");
-                    let num_bytes = identity_stats.get::<u64>("num-bytes").unwrap_or(0);
-                    let num_buffers = identity_stats.get::<u64>("num-buffers").unwrap_or(0);
+                        // Update global stats with final values from identity
+                        let identity_stats = identity_clone.property::<gst::Structure>("stats");
+                        let num_bytes = identity_stats.get::<u64>("num-bytes").unwrap_or(0);
+                        let num_buffers = identity_stats.get::<u64>("num-buffers").unwrap_or(0);
 
-                    {
-                        let mut stats = stats_clone_eos.lock().unwrap();
-                        stats.num_bytes = num_bytes;
-                        stats.num_buffers = num_buffers;
-                        stats.name = encoder_name_eos.to_string();
-                    }
-
-                    if let Some(element) = element_weak_eos.upgrade() {
-                        let stats_message = format!("{}", stats_clone_eos.lock().unwrap());
-
-                        let structure = gst::Structure::builder("encoder-stats")
-                            .field("message", &stats_message)
-                            .build();
-
-                        let message = gst::message::Application::new(structure);
-                        let _ = element.post_message(message);
                         {
-                            let mut last_message_guard = last_message_arc.lock().unwrap();
-                            *last_message_guard = Some(stats_message);
+                            let mut stats = stats_clone_eos.lock().unwrap();
+                            stats.num_bytes = num_bytes;
+                            stats.num_buffers = num_buffers;
+                            stats.name = encoder_name_eos.to_string();
                         }
-                        element.notify("last-message");
+
+                        if let Some(element) = element_weak_eos.upgrade() {
+                            let stats_message = format!("{}", stats_clone_eos.lock().unwrap());
+
+                            let structure = gst::Structure::builder("encoder-stats")
+                                .field("message", &stats_message)
+                                .build();
+
+                            let message = gst::message::Application::new(structure);
+                            let _ = element.post_message(message);
+                            {
+                                let mut last_message_guard = last_message_arc.lock().unwrap();
+                                *last_message_guard = Some(stats_message);
+                            }
+                            element.notify("last-message");
+                        }
                     }
                 }
-            }
-            gst::PadProbeReturn::Ok
-        });
+                gst::PadProbeReturn::Ok
+            },
+        );
     }
 
     fn add_encoder_probes(&self) {
@@ -161,7 +166,10 @@ impl EncoderStats {
             gst::log!(CAT, "Buffer in encoder sink pad");
 
             let current_time = *gst::ClockTime::from_nseconds(
-                gst::SystemClock::obtain().upcast::<gst::Clock>().time().nseconds()
+                gst::SystemClock::obtain()
+                    .upcast::<gst::Clock>()
+                    .time()
+                    .nseconds(),
             );
 
             let buffer = buffer.make_mut();
@@ -171,9 +179,16 @@ impl EncoderStats {
 
                 meta.replace(new_stats);
 
-                gst::log!(CAT, "Buffer in encoder sink pad, pre_encode_time: {}", current_time);
+                gst::log!(
+                    CAT,
+                    "Buffer in encoder sink pad, pre_encode_time: {}",
+                    current_time
+                );
             } else {
-                gst::warning!(CAT, "No VideoEncoderStatsMeta found on buffer in encoder sink probe");
+                gst::warning!(
+                    CAT,
+                    "No VideoEncoderStatsMeta found on buffer in encoder sink probe"
+                );
             }
 
             gst::PadProbeReturn::Ok
@@ -188,7 +203,10 @@ impl EncoderStats {
             gst::log!(CAT, "Buffer out encoder src pad");
 
             let current_time = *gst::ClockTime::from_nseconds(
-                gst::SystemClock::obtain().upcast::<gst::Clock>().time().nseconds()
+                gst::SystemClock::obtain()
+                    .upcast::<gst::Clock>()
+                    .time()
+                    .nseconds(),
             );
 
             let buffer = buffer.make_mut();
@@ -198,9 +216,16 @@ impl EncoderStats {
 
                 meta.replace(new_stats);
 
-                gst::log!(CAT, "Buffer out encoder src pad, post_encode_time: {}", current_time);
+                gst::log!(
+                    CAT,
+                    "Buffer out encoder src pad, post_encode_time: {}",
+                    current_time
+                );
             } else {
-                gst::warning!(CAT, "No VideoEncoderStatsMeta found on buffer in encoder src probe");
+                gst::warning!(
+                    CAT,
+                    "No VideoEncoderStatsMeta found on buffer in encoder src probe"
+                );
             }
 
             gst::PadProbeReturn::Ok
@@ -261,7 +286,9 @@ impl EncoderStats {
         let originalbuffersave = gst::ElementFactory::make("originalbuffersave")
             .build()
             .expect("Failed to create originalbuffersave element");
-        self.obj().add(&originalbuffersave).expect("Failed to add originalbuffersave element");
+        self.obj()
+            .add(&originalbuffersave)
+            .expect("Failed to add originalbuffersave element");
 
         // Add internal queue after originalbuffersave
         let obj_name = self.obj().name().to_string();
@@ -275,7 +302,9 @@ impl EncoderStats {
             .name(queue_name)
             .build()
             .expect("Failed to create input queue");
-        self.obj().add(&input_queue).expect("Failed to add input queue");
+        self.obj()
+            .add(&input_queue)
+            .expect("Failed to add input queue");
 
         // Add probe to input queue src pad to log buffer flow
         let input_queue_src_pad = input_queue.static_pad("src").unwrap();
@@ -285,13 +314,22 @@ impl EncoderStats {
             let Some(buffer) = probe_info.buffer_mut() else {
                 return gst::PadProbeReturn::Ok;
             };
-            gst::info!(CAT, "Buffer received in {} src pad, PTS: {:?}, DTS: {:?}, size: {}",
-                queue_name_clone, buffer.pts(), buffer.dts(), buffer.size());
+            gst::info!(
+                CAT,
+                "Buffer received in {} src pad, PTS: {:?}, DTS: {:?}, size: {}",
+                queue_name_clone,
+                buffer.pts(),
+                buffer.dts(),
+                buffer.size()
+            );
 
             let mut stats = stats_clone.lock().unwrap();
 
             stats.input_time = *gst::ClockTime::from_nseconds(
-                gst::SystemClock::obtain().upcast::<gst::Clock>().time().nseconds()
+                gst::SystemClock::obtain()
+                    .upcast::<gst::Clock>()
+                    .time()
+                    .nseconds(),
             );
 
             // Only update CPU stats at framerate intervals as it takes time
@@ -305,17 +343,28 @@ impl EncoderStats {
             let num_buffers = stats.num_buffers;
 
             if num_buffers % (fps_n as u64) == 0 {
-                let queue_name = if obj_name.contains("0") { "encq0:src" } else { "encq1:src" };
+                let queue_name = if obj_name.contains("0") {
+                    "encq0:src"
+                } else {
+                    "encq1:src"
+                };
                 let thread_patterns = match stats.name.as_str() {
                     "flulcevch264enc" => vec![queue_name, "lcevc", "pool."],
                     "lcevch264enc" => vec![queue_name, "pool."],
                     _ => vec![queue_name],
                 };
 
-                let (total_utime, total_stime) = thread_patterns.iter()
+                let (total_utime, total_stime) = thread_patterns
+                    .iter()
                     .map(|pattern| {
                         let (utime, stime) = get_cpu_usage(pattern.to_string());
-                        gst::log!(CAT, "Thread pattern '{}' - utime: {}, stime: {}", pattern, utime, stime);
+                        gst::log!(
+                            CAT,
+                            "Thread pattern '{}' - utime: {}, stime: {}",
+                            pattern,
+                            utime,
+                            stime
+                        );
                         (utime, stime)
                     })
                     .fold((0u64, 0u64), |(acc_utime, acc_stime), (utime, stime)| {
@@ -328,10 +377,7 @@ impl EncoderStats {
 
             let buffer = buffer.make_mut();
 
-            VideoEncoderStatsMeta::add(
-                buffer,
-                stats.clone(),
-            );
+            VideoEncoderStatsMeta::add(buffer, stats.clone());
 
             gst::PadProbeReturn::Ok
         });
@@ -343,7 +389,9 @@ impl EncoderStats {
             .name("encoder_output_queue")
             .build()
             .expect("Failed to create encoder output queue");
-        self.obj().add(&encoder_output_queue).expect("Failed to add encoder output queue");
+        self.obj()
+            .add(&encoder_output_queue)
+            .expect("Failed to add encoder output queue");
 
         let tee0 = gst::ElementFactory::make("tee")
             .name("tee0")
@@ -351,24 +399,40 @@ impl EncoderStats {
             .expect("Failed to create tee0 element");
         self.obj().add(&tee0).unwrap();
 
-        self.obj().add(&encoder).expect("Failed to add encoder element");
+        self.obj()
+            .add(&encoder)
+            .expect("Failed to add encoder element");
 
         // Link: originalbuffersave -> input_queue -> encoder -> encoder_output_queue -> identity -> tee0
-        originalbuffersave.link(&input_queue).expect("Failed to link originalbuffersave to input queue");
-        input_queue.link(&encoder).expect("Failed to link input queue to encoder");
-        encoder.link(&encoder_output_queue).expect("Failed to link encoder to encoder output queue");
-        encoder_output_queue.link(&self.identity).expect("Failed to link encoder output queue to identity");
-        self.identity.link(&tee0).expect("Failed to link identity to tee0");
+        originalbuffersave
+            .link(&input_queue)
+            .expect("Failed to link originalbuffersave to input queue");
+        input_queue
+            .link(&encoder)
+            .expect("Failed to link input queue to encoder");
+        encoder
+            .link(&encoder_output_queue)
+            .expect("Failed to link encoder to encoder output queue");
+        encoder_output_queue
+            .link(&self.identity)
+            .expect("Failed to link encoder output queue to identity");
+        self.identity
+            .link(&tee0)
+            .expect("Failed to link identity to tee0");
 
         let tee0_src_0 = tee0.request_pad_simple("src_%u").expect("tee0 src pad");
         let queue0 = gst::ElementFactory::make("queue")
-        .name("encintq0")
-        .build()
-        .expect("Failed to create queue encintq0");
-        self.obj().add(&queue0).expect("Failed to add queue encintq0");
+            .name("encintq0")
+            .build()
+            .expect("Failed to create queue encintq0");
+        self.obj()
+            .add(&queue0)
+            .expect("Failed to add queue encintq0");
         let queue0_sink_pad = queue0.static_pad("sink").unwrap();
         let queue0_src_pad = queue0.static_pad("src").unwrap();
-        tee0_src_0.link(&queue0_sink_pad).expect("tee0.src_0 -> encintq0.sink");
+        tee0_src_0
+            .link(&queue0_sink_pad)
+            .expect("tee0.src_0 -> encintq0.sink");
         self.srcpad.set_target(Some(&queue0_src_pad)).unwrap();
 
         // Connect sink ghostpad to originalbuffersave
@@ -392,20 +456,30 @@ impl EncoderStats {
             // Use custom decoder if provided, otherwise use decodebin3
             let final_decoder = if let Some(custom_decoder) = decoder.clone() {
                 custom_decoder.set_property("name", "dec");
-                self.obj().add(&custom_decoder).expect("Failed to add custom decoder element");
+                self.obj()
+                    .add(&custom_decoder)
+                    .expect("Failed to add custom decoder element");
                 custom_decoder
             } else {
                 let decodebin3 = gst::ElementFactory::make("decodebin3")
                     .name("dec")
                     .build()
                     .expect("Failed to create decodebin3");
-                self.obj().add(&decodebin3).expect("Failed to add decodebin3");
+                self.obj()
+                    .add(&decodebin3)
+                    .expect("Failed to add decodebin3");
                 decodebin3
             };
 
             self.obj().add(&queue1).expect("Failed to add queue1");
-            tee0_src_1.link(&queue1.static_pad("sink").unwrap()).expect("tee0.src_1 -> queue1");
-            queue1.static_pad("src").unwrap().link(&final_decoder.static_pad("sink").unwrap()).expect("queue1.src -> decoder.sink");
+            tee0_src_1
+                .link(&queue1.static_pad("sink").unwrap())
+                .expect("tee0.src_1 -> queue1");
+            queue1
+                .static_pad("src")
+                .unwrap()
+                .link(&final_decoder.static_pad("sink").unwrap())
+                .expect("queue1.src -> decoder.sink");
 
             // Conditionally add tee after decoder if request pad exists
             if has_request_pad {
@@ -413,17 +487,27 @@ impl EncoderStats {
                     .name("decoder_tee")
                     .build()
                     .expect("Failed to create decoder_tee");
-                self.obj().add(&decoder_tee).expect("Failed to add decoder_tee");
+                self.obj()
+                    .add(&decoder_tee)
+                    .expect("Failed to add decoder_tee");
 
                 // Set up decoder -> decoder_tee connection
-                self.setup_decoder_to_tee_connection(final_decoder.clone(), decoder_tee.clone(), decoder.is_some());
+                self.setup_decoder_to_tee_connection(
+                    final_decoder.clone(),
+                    decoder_tee.clone(),
+                    decoder.is_some(),
+                );
 
                 // Connect decoder_tee src_0 to VMAF pipeline
-                let decoder_tee_src_0 = decoder_tee.request_pad_simple("src_%u").expect("decoder_tee src_0");
+                let decoder_tee_src_0 = decoder_tee
+                    .request_pad_simple("src_%u")
+                    .expect("decoder_tee src_0");
                 self.setup_vmaf_pipeline(decoder_tee_src_0);
 
                 // Connect decoder_tee src_1 to request pad
-                let decoder_tee_src_1 = decoder_tee.request_pad_simple("src_%u").expect("decoder_tee src_1");
+                let decoder_tee_src_1 = decoder_tee
+                    .request_pad_simple("src_%u")
+                    .expect("decoder_tee src_1");
                 let request_pad_guard = self.request_pad.lock().unwrap();
                 if let Some(ref request_pad) = *request_pad_guard {
                     request_pad.set_target(Some(&decoder_tee_src_1)).unwrap();
@@ -434,13 +518,14 @@ impl EncoderStats {
             }
         }
 
-        unsafe
-        {
+        unsafe {
             self.sinkpad.set_event_full_function(|pad, parent, event| {
                 EncoderStats::catch_panic_pad_function(
                     parent,
                     || false,
-                    |video_encoder_stats| video_encoder_stats.sink_event(&pad.clone().upcast::<gst::Pad>(), event),
+                    |video_encoder_stats| {
+                        video_encoder_stats.sink_event(&pad.clone().upcast::<gst::Pad>(), event)
+                    },
                 );
                 Ok(gst::FlowSuccess::Ok)
             });
@@ -452,21 +537,41 @@ impl EncoderStats {
         Ok(())
     }
 
-    fn setup_decoder_to_tee_connection(&self, final_decoder: gst::Element, decoder_tee: gst::Element, is_manual_decoder: bool) {
+    fn setup_decoder_to_tee_connection(
+        &self,
+        final_decoder: gst::Element,
+        decoder_tee: gst::Element,
+        is_manual_decoder: bool,
+    ) {
         if is_manual_decoder {
             // Manual decoder case: direct link
-            final_decoder.link(&decoder_tee).expect("decoder -> decoder_tee");
+            final_decoder
+                .link(&decoder_tee)
+                .expect("decoder -> decoder_tee");
         } else {
             // decodebin3 case: use connect_pad_added
             let decoder_tee_clone = decoder_tee.clone();
             final_decoder.connect_pad_added(move |_dbin, src_pad| {
                 let decoder_tee_sink = decoder_tee_clone.static_pad("sink").unwrap();
-                src_pad.link(&decoder_tee_sink).expect("decodebin3.src -> decoder_tee.sink");
+                src_pad
+                    .link(&decoder_tee_sink)
+                    .expect("decodebin3.src -> decoder_tee.sink");
             });
         }
     }
 
-    fn create_vmaf_pipeline_elements(&self) -> (gst::Element, gst::Element, gst::Element, gst::Element, gst::Element, gst::Element, gst::Element, gst::Element) {
+    fn create_vmaf_pipeline_elements(
+        &self,
+    ) -> (
+        gst::Element,
+        gst::Element,
+        gst::Element,
+        gst::Element,
+        gst::Element,
+        gst::Element,
+        gst::Element,
+        gst::Element,
+    ) {
         let videoconvert = gst::ElementFactory::make("videoconvert")
             .build()
             .expect("Failed to create videoconvert");
@@ -502,73 +607,146 @@ impl EncoderStats {
             vmaf.connect_closure(
                 "score",
                 false,
-                glib::closure!(
-                    move |_vmaf: &gst::Element, score: f64| {
-                        let mut stats = stats.lock().unwrap();
-                        stats.vmaf_score = Some(score);
-                }
-                ),
+                glib::closure!(move |_vmaf: &gst::Element, score: f64| {
+                    let mut stats = stats.lock().unwrap();
+                    stats.vmaf_score = Some(score);
+                }),
             );
         }
         let fakesink = gst::ElementFactory::make("fakesink")
             .build()
             .expect("Failed to create fakesink");
 
-        (videoconvert, capsfilter, tee1, originalbufferstore, queue_vmaf_0, queue_vmaf_1, vmaf, fakesink)
+        (
+            videoconvert,
+            capsfilter,
+            tee1,
+            originalbufferstore,
+            queue_vmaf_0,
+            queue_vmaf_1,
+            vmaf,
+            fakesink,
+        )
     }
 
     fn setup_vmaf_pipeline(&self, input_pad: gst::Pad) {
-        let (videoconvert, capsfilter, tee1, originalbufferstore, queue_vmaf_0, queue_vmaf_1, vmaf, fakesink) =
-            self.create_vmaf_pipeline_elements();
+        let (
+            videoconvert,
+            capsfilter,
+            tee1,
+            originalbufferstore,
+            queue_vmaf_0,
+            queue_vmaf_1,
+            vmaf,
+            fakesink,
+        ) = self.create_vmaf_pipeline_elements();
 
-        self.obj().add_many([
-            &videoconvert, &capsfilter, &tee1,
-            &originalbufferstore, &queue_vmaf_0, &vmaf, &queue_vmaf_1, &fakesink,
-        ].as_ref()).expect("Failed to add vmaf branch elements");
+        self.obj()
+            .add_many(
+                [
+                    &videoconvert,
+                    &capsfilter,
+                    &tee1,
+                    &originalbufferstore,
+                    &queue_vmaf_0,
+                    &vmaf,
+                    &queue_vmaf_1,
+                    &fakesink,
+                ]
+                .as_ref(),
+            )
+            .expect("Failed to add vmaf branch elements");
 
         // Link input_pad -> videoconvert -> capsfilter -> tee1
         let videoconvert_sink = videoconvert.static_pad("sink").unwrap();
-        input_pad.link(&videoconvert_sink).expect("input -> videoconvert");
-        videoconvert.link(&capsfilter).expect("videoconvert -> capsfilter");
+        input_pad
+            .link(&videoconvert_sink)
+            .expect("input -> videoconvert");
+        videoconvert
+            .link(&capsfilter)
+            .expect("videoconvert -> capsfilter");
         capsfilter.link(&tee1).expect("capsfilter -> tee1");
 
         let tee1_src_0 = tee1.request_pad_simple("src_%u").expect("tee1 src_0");
-        tee1_src_0.link(&originalbufferstore.static_pad("sink").unwrap()).expect("tee1.src_0 -> originalbufferstore");
-        originalbufferstore.link(&queue_vmaf_0).expect("originalbufferrestore -> queue_vmaf_0");
+        tee1_src_0
+            .link(&originalbufferstore.static_pad("sink").unwrap())
+            .expect("tee1.src_0 -> originalbufferstore");
+        originalbufferstore
+            .link(&queue_vmaf_0)
+            .expect("originalbufferrestore -> queue_vmaf_0");
         queue_vmaf_0.link(&vmaf).expect("queue_vmaf_0 -> vmaf");
         vmaf.link(&fakesink).expect("vmaf -> fakesink");
 
         let tee1_src_1 = tee1.request_pad_simple("src_%u").expect("tee1 src_1");
         let vmaf_sink_1 = vmaf.request_pad_simple("sink_1").expect("vmaf sink_1");
-        tee1_src_1.link(&queue_vmaf_1.static_pad("sink").unwrap()).expect("tee1.src_1 -> queue_vmaf_1");
-        queue_vmaf_1.static_pad("src").unwrap().link(&vmaf_sink_1).expect("queue_vmaf_1.src -> vmaf.sink_1");
+        tee1_src_1
+            .link(&queue_vmaf_1.static_pad("sink").unwrap())
+            .expect("tee1.src_1 -> queue_vmaf_1");
+        queue_vmaf_1
+            .static_pad("src")
+            .unwrap()
+            .link(&vmaf_sink_1)
+            .expect("queue_vmaf_1.src -> vmaf.sink_1");
     }
 
     fn setup_decoder_to_vmaf_direct(&self, final_decoder: gst::Element, is_manual_decoder: bool) {
-        let (videoconvert, capsfilter, tee1, originalbufferstore, queue_vmaf_0, queue_vmaf_1, vmaf, fakesink) =
-            self.create_vmaf_pipeline_elements();
+        let (
+            videoconvert,
+            capsfilter,
+            tee1,
+            originalbufferstore,
+            queue_vmaf_0,
+            queue_vmaf_1,
+            vmaf,
+            fakesink,
+        ) = self.create_vmaf_pipeline_elements();
 
-        self.obj().add_many([
-            &videoconvert, &capsfilter, &tee1,
-            &originalbufferstore, &queue_vmaf_0, &vmaf, &queue_vmaf_1, &fakesink,
-        ].as_ref()).expect("Failed to add vmaf branch elements");
+        self.obj()
+            .add_many(
+                [
+                    &videoconvert,
+                    &capsfilter,
+                    &tee1,
+                    &originalbufferstore,
+                    &queue_vmaf_0,
+                    &vmaf,
+                    &queue_vmaf_1,
+                    &fakesink,
+                ]
+                .as_ref(),
+            )
+            .expect("Failed to add vmaf branch elements");
 
         if is_manual_decoder {
             // Manual decoder case: link decoder directly to videoconvert
-            final_decoder.link(&videoconvert).expect("decoder -> videoconvert");
-            videoconvert.link(&capsfilter).expect("videoconvert -> capsfilter");
+            final_decoder
+                .link(&videoconvert)
+                .expect("decoder -> videoconvert");
+            videoconvert
+                .link(&capsfilter)
+                .expect("videoconvert -> capsfilter");
             capsfilter.link(&tee1).expect("capsfilter -> tee1");
 
             let tee1_src_0 = tee1.request_pad_simple("src_%u").expect("tee1 src_0");
-            tee1_src_0.link(&originalbufferstore.static_pad("sink").unwrap()).expect("tee1.src_0 -> originalbufferstore");
-            originalbufferstore.link(&queue_vmaf_0).expect("originalbufferrestore -> queue_vmaf_0");
+            tee1_src_0
+                .link(&originalbufferstore.static_pad("sink").unwrap())
+                .expect("tee1.src_0 -> originalbufferstore");
+            originalbufferstore
+                .link(&queue_vmaf_0)
+                .expect("originalbufferrestore -> queue_vmaf_0");
             queue_vmaf_0.link(&vmaf).expect("queue_vmaf_0 -> vmaf");
             vmaf.link(&fakesink).expect("vmaf -> fakesink");
 
             let tee1_src_1 = tee1.request_pad_simple("src_%u").expect("tee1 src_1");
             let vmaf_sink_1 = vmaf.request_pad_simple("sink_1").expect("vmaf sink_1");
-            tee1_src_1.link(&queue_vmaf_1.static_pad("sink").unwrap()).expect("tee1.src_1 -> queue_vmaf_1");
-            queue_vmaf_1.static_pad("src").unwrap().link(&vmaf_sink_1).expect("queue_vmaf_1.src -> vmaf.sink_1");
+            tee1_src_1
+                .link(&queue_vmaf_1.static_pad("sink").unwrap())
+                .expect("tee1.src_1 -> queue_vmaf_1");
+            queue_vmaf_1
+                .static_pad("src")
+                .unwrap()
+                .link(&vmaf_sink_1)
+                .expect("queue_vmaf_1.src -> vmaf.sink_1");
         } else {
             // decodebin3 case: use connect_pad_added for dynamic linking
             let tee1_clone = tee1.clone();
@@ -589,16 +767,32 @@ impl EncoderStats {
                         let capsfilter_src = capsfilter_clone.static_pad("src").unwrap();
                         let tee1_sink = tee1_clone.static_pad("sink").unwrap();
                         if capsfilter_src.link(&tee1_sink).is_ok() {
-                            let tee1_src_0 = tee1_clone.request_pad_simple("src_%u").expect("tee1 src_0");
-                            tee1_src_0.link(&originalbufferstore_clone.static_pad("sink").unwrap()).expect("tee1.src_0 -> originalbufferstore");
-                            originalbufferstore_clone.link(&queue_vmaf_0_clone).expect("originalbufferrestore -> queue_vmaf_0");
-                            queue_vmaf_0_clone.link(&vmaf_clone).expect("queue_vmaf_0 -> vmaf");
+                            let tee1_src_0 =
+                                tee1_clone.request_pad_simple("src_%u").expect("tee1 src_0");
+                            tee1_src_0
+                                .link(&originalbufferstore_clone.static_pad("sink").unwrap())
+                                .expect("tee1.src_0 -> originalbufferstore");
+                            originalbufferstore_clone
+                                .link(&queue_vmaf_0_clone)
+                                .expect("originalbufferrestore -> queue_vmaf_0");
+                            queue_vmaf_0_clone
+                                .link(&vmaf_clone)
+                                .expect("queue_vmaf_0 -> vmaf");
                             vmaf_clone.link(&fakesink_clone).expect("vmaf -> fakesink");
 
-                            let tee1_src_1 = tee1_clone.request_pad_simple("src_%u").expect("tee1 src_1");
-                            let vmaf_sink_1 = vmaf_clone.request_pad_simple("sink_1").expect("vmaf sink_1");
-                            tee1_src_1.link(&queue_vmaf_1_clone.static_pad("sink").unwrap()).expect("tee1.src_1 -> queue_vmaf_1");
-                            queue_vmaf_1_clone.static_pad("src").unwrap().link(&vmaf_sink_1).expect("queue_vmaf_1.src -> vmaf.sink_1");
+                            let tee1_src_1 =
+                                tee1_clone.request_pad_simple("src_%u").expect("tee1 src_1");
+                            let vmaf_sink_1 = vmaf_clone
+                                .request_pad_simple("sink_1")
+                                .expect("vmaf sink_1");
+                            tee1_src_1
+                                .link(&queue_vmaf_1_clone.static_pad("sink").unwrap())
+                                .expect("tee1.src_1 -> queue_vmaf_1");
+                            queue_vmaf_1_clone
+                                .static_pad("src")
+                                .unwrap()
+                                .link(&vmaf_sink_1)
+                                .expect("queue_vmaf_1.src -> vmaf.sink_1");
                         }
                     }
                 }
@@ -712,12 +906,9 @@ impl ObjectImpl for EncoderStats {
         match pspec.name() {
             "encoder" => {
                 if let Ok(Some(enc_obj)) = value.get::<Option<gst::Element>>() {
-                    let factory = enc_obj
-                        .factory()
-                        .expect("Element should have a factory");
+                    let factory = enc_obj.factory().expect("Element should have a factory");
 
-                    if !factory.has_type(gst::ElementFactoryType::VIDEO_ENCODER)
-                    {
+                    if !factory.has_type(gst::ElementFactoryType::VIDEO_ENCODER) {
                         gst::error!(CAT, "The element is not a video encoder");
                         panic!("The element is not a video encoder");
                     }
@@ -735,7 +926,11 @@ impl ObjectImpl for EncoderStats {
             "vmaf-stats" => {
                 if let Ok(vmaf_stats) = value.get::<bool>() {
                     if vmaf_stats && !self.vmaf_available {
-                        gst::warning!(CAT, imp = self, "Cannot enable VMAF stats: vmaf element not available");
+                        gst::warning!(
+                            CAT,
+                            imp = self,
+                            "Cannot enable VMAF stats: vmaf element not available"
+                        );
                         return;
                     }
                     let mut vmaf_stats_guard = self.vmaf_stats.lock().unwrap();
@@ -779,8 +974,7 @@ impl ElementImpl for EncoderStats {
 
     fn pad_templates() -> &'static [gst::PadTemplate] {
         static PAD_TEMPLATES: LazyLock<Vec<gst::PadTemplate>> = LazyLock::new(|| {
-            let sink_caps = gst_video::VideoCapsBuilder::new()
-                    .build();
+            let sink_caps = gst_video::VideoCapsBuilder::new().build();
             let src_caps = gst::Caps::new_any();
             let video_src_pad_template = gst::PadTemplate::new(
                 "src",
@@ -804,7 +998,11 @@ impl ElementImpl for EncoderStats {
             )
             .unwrap();
 
-            vec![video_src_pad_template, video_sink_pad_template, request_src_pad_template]
+            vec![
+                video_src_pad_template,
+                video_sink_pad_template,
+                request_src_pad_template,
+            ]
         });
 
         PAD_TEMPLATES.as_ref()
@@ -818,7 +1016,11 @@ impl ElementImpl for EncoderStats {
     ) -> Option<gst::Pad> {
         // Only allow request pads before ReadyToPaused transition
         if self.obj().current_state() >= gst::State::Paused {
-            gst::warning!(CAT, imp = self, "Cannot request pad after ReadyToPaused transition");
+            gst::warning!(
+                CAT,
+                imp = self,
+                "Cannot request pad after ReadyToPaused transition"
+            );
             return None;
         }
 
@@ -829,7 +1031,11 @@ impl ElementImpl for EncoderStats {
         };
 
         if !vmaf_enabled {
-            gst::warning!(CAT, imp = self, "Cannot request decoder pad when VMAF stats are disabled");
+            gst::warning!(
+                CAT,
+                imp = self,
+                "Cannot request decoder pad when VMAF stats are disabled"
+            );
             return None;
         }
 
