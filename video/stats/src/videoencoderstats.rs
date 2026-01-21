@@ -33,7 +33,7 @@ pub struct VideoEncoderStats {
     pub time_last_buffers: VecDeque<Instant>,
     pub max_buffers_inside: usize,
     pub current_buffers_inside_seen: usize,
-    pub num_buffers_first_output: i32,
+    pub num_buffers_first_output: Option<usize>,
     pub total_processing_time: Duration,
     pub threads_utime: u64,
     pub threads_stime: u64,
@@ -54,7 +54,7 @@ impl Default for VideoEncoderStats {
             time_last_buffers: VecDeque::<Instant>::new(),
             max_buffers_inside: 0,
             current_buffers_inside_seen: 0,
-            num_buffers_first_output: -1,
+            num_buffers_first_output: None,
             total_processing_time: Duration::ZERO,
             threads_utime: 0,
             threads_stime: 0,
@@ -77,8 +77,8 @@ impl VideoEncoderStats {
     }
 
     pub fn buffer_out(&mut self) {
-        if self.num_buffers_first_output == -1 {
-            self.num_buffers_first_output = self.time_last_buffers.len() as i32;
+        if self.num_buffers_first_output == None {
+            self.num_buffers_first_output = Some(self.time_last_buffers.len());
         }
         if let Some(arrive) = self.time_last_buffers.pop_front() {
             let diff = arrive.elapsed();
@@ -123,11 +123,18 @@ impl fmt::Display for VideoEncoderStats {
             "Current buffers inside: {}",
             self.current_buffers_inside_seen
         )?;
-        writeln!(
-            f,
-            "Num. Buffers first output: {}",
-            self.num_buffers_first_output
-        )?;
+        if let Some(num_buffers_first_output) = self.num_buffers_first_output {
+            writeln!(
+                f,
+                "Num. Buffers first output: {}",
+                num_buffers_first_output
+            )?;
+        } else {
+            writeln!(
+                f,
+                "Num. Buffers first output: No first output yet"
+            )?;
+        }
 
         let framerate = self.framerate.unwrap();
         let total_time_secs = self.num_buffers as f64 * framerate.denom() as f64 / framerate.numer() as f64;
