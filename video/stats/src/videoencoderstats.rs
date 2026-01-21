@@ -35,6 +35,7 @@ pub struct VideoEncoderStats {
     pub current_buffers_inside_seen: usize,
     pub num_buffers_first_output: Option<usize>,
     pub total_processing_time: Duration,
+    pub max_processing_time: Duration,
     pub threads_utime: u64,
     pub threads_stime: u64,
     pub framerate: Option<gst::Fraction>,
@@ -56,6 +57,7 @@ impl Default for VideoEncoderStats {
             current_buffers_inside_seen: 0,
             num_buffers_first_output: None,
             total_processing_time: Duration::ZERO,
+            max_processing_time: Duration::ZERO,
             threads_utime: 0,
             threads_stime: 0,
             vmaf_score: None,
@@ -83,6 +85,9 @@ impl VideoEncoderStats {
         if let Some(arrive) = self.time_last_buffers.pop_front() {
             let diff = arrive.elapsed();
             self.total_processing_time += diff;
+            if diff > self.max_processing_time {
+                self.max_processing_time = diff;
+            }
         } else {
             panic!("output buffer w/o input");
         }
@@ -152,6 +157,12 @@ impl fmt::Display for VideoEncoderStats {
             f,
             "Processing time: {:.2} ms",
             avg_processing_time
+        )?;
+        let max_processing_time = self.max_processing_time.as_millis();
+        writeln!(
+            f,
+            "Max processing time: {:.2} ms",
+            max_processing_time
         )?;
 
         let cpu_time = self.threads_utime + self.threads_stime;
