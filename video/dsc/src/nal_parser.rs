@@ -82,7 +82,7 @@ impl NalParser {
             let nal_type = self.extract_nal_type_from_header(nal_data)?;
 
             if self.should_include_nal(nal_type) {
-                gst::info!(*CAT, "NAL_TRACE: Including NAL type {} ({} bytes) - first 32: {:02x?}",
+                gst::info!(*CAT, "Including NAL type {} ({} bytes) - first 32: {:02x?}",
                     nal_type, nal_data.len(),
                     &nal_data[..std::cmp::min(32, nal_data.len())]);
                 
@@ -92,7 +92,7 @@ impl NalParser {
             start = end;
         }
 
-        gst::info!(*CAT, "NAL_TRACE: Total signable data: {} NAL units extracted", nal_units.len());
+        gst::info!(*CAT, "Total signable data: {} NAL units extracted", nal_units.len());
         Ok(nal_units)
     }
 
