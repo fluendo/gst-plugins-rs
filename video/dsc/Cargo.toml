@@ -16,7 +16,6 @@ gst-base = { workspace = true, features = ["v1_20"] }
 gst-video = { workspace = true, features = ["v1_30"] }
 human_bytes = { version = "0.4", default-features = false }
 atomic_refcell = "0.1"
-gst-plugin-originalbuffer = { git = "https://gitlab.freedesktop.org/gstreamer/gst-plugins-rs", tag = "0.13.0" }
 
 openssl = "0.10"
 rsa = "0.9"
