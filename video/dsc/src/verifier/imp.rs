@@ -269,8 +269,6 @@ impl BaseTransformImpl for DscVerifier {
         &self,
         buffer: &mut gst::BufferRef,
     ) -> Result<gst::FlowSuccess, gst::FlowError> {
-        gst::trace!(*CAT, imp = self, "DscVerifier transform_ip called");
-
         let obj = self.obj();
         let mut gop_state = self.gop_state.lock().unwrap();
 
@@ -283,7 +281,6 @@ impl BaseTransformImpl for DscVerifier {
         if let Some(init_meta) = initialization_meta {
             let dsc_init = init_meta.dsc_initialization();
             
-            gst::info!(*CAT, imp = self, "Found DSC initialization metadata - starting new substream");
             gst::debug!(*CAT, imp = self, "DSC initialization - id: {}, hash_method: {}, key_retrieval_mode: {}",
                 dsc_init.id, dsc_init.hash_method_type, dsc_init.key_retrieval_mode_idc);
 
@@ -331,7 +328,6 @@ impl BaseTransformImpl for DscVerifier {
             gop_state.dsc_manager = Some(new_dsc_manager);
             gop_state.gop_started = true;
 
-            gst::info!(*CAT, imp = self, "Started new substream with DSC parameters from H.274 metadata");
             gst::debug!(*CAT, imp = self, "DSC parameters - hash_method: {:?}, content_uuid_present: {}, num_verification_substreams: {}, cert_uri: {:?}",
                 hash_method, dsc_init.content_uuid_present_flag, dsc_init.num_verification_substreams, cert_uri);
         }
@@ -347,7 +343,7 @@ impl BaseTransformImpl for DscVerifier {
                 }
             };
             
-            gst::info!(*CAT, imp = self, "Found DSC verification metadata - verifying substream, signature length: {}",
+            gst::debug!(*CAT, imp = self, "Found DSC verification metadata - verifying substream, signature length: {}",
                 signature_len);
 
             if !gop_state.gop_started {
@@ -456,8 +452,7 @@ impl BaseTransformImpl for DscVerifier {
                 gst::debug!(*CAT, imp = self, "About to create data packet from accumulated substream data");
                 match dsc_manager.create_data_packet(substream_id) {
                     Ok(data_packet) => {
-                        gst::debug!(*CAT, imp = self, "Created data packet for substream verification: {} bytes", data_packet.len());
-                        gst::info!(*CAT, imp = self, "VERIFIER: Verifying substream data packet: {} bytes with hash method: {:?}", data_packet.len(), hash_method);
+                        gst::debug!(*CAT, imp = self, "Verifying substream data packet: {} bytes with hash method: {:?}", data_packet.len(), hash_method);
 
                         let signature = unsafe {
                             if dsc_verification.signature.is_null() {
@@ -470,11 +465,11 @@ impl BaseTransformImpl for DscVerifier {
                             }
                         };
 
-                        gst::debug!(*CAT, imp = self, "VERIFIER: Data packet content (first 32 bytes): {:02x?}", &data_packet[..std::cmp::min(32, data_packet.len())]);
-                        gst::debug!(*CAT, imp = self, "VERIFIER: Data packet content (last 32 bytes): {:02x?}", &data_packet[data_packet.len().saturating_sub(32)..]);
-                        gst::debug!(*CAT, imp = self, "VERIFIER: Signature content (hex): {:02x?}", &signature[..std::cmp::min(32, signature.len())]);
-                        gst::debug!(*CAT, imp = self, "VERIFIER: Signature content (dec): {:?}", &signature[..std::cmp::min(32, signature.len())]);
-                        gst::debug!(*CAT, imp = self, "Verifying signature ({} bytes) against substream data packet", signature.len());
+                        gst::log!(*CAT, imp = self, "Data packet content (first 32 bytes): {:02x?}", &data_packet[..std::cmp::min(32, data_packet.len())]);
+                        gst::log!(*CAT, imp = self, "Data packet content (last 32 bytes): {:02x?}", &data_packet[data_packet.len().saturating_sub(32)..]);
+                        gst::log!(*CAT, imp = self, "Signature content (hex): {:02x?}", &signature[..std::cmp::min(32, signature.len())]);
+                        gst::log!(*CAT, imp = self, "Signature content (dec): {:?}", &signature[..std::cmp::min(32, signature.len())]);
+                        gst::log!(*CAT, imp = self, "Verifying signature ({} bytes) against substream data packet", signature.len());
 
                         let mut verifier = match Verifier::new(openssl_hash_method, &pkey) {
                             Ok(v) => v,
@@ -583,7 +578,7 @@ impl BaseTransformImpl for DscVerifier {
 
             let substream_id = if let Some(sel_meta) = selection_meta {
                 let substream = sel_meta.dsc_selection().verification_substream_id as usize;
-                gst::trace!(*CAT, imp = self, "Found DSC selection metadata, using substream: {}", substream);
+                gst::log!(*CAT, imp = self, "Found DSC selection metadata, using substream: {}", substream);
                 substream
             } else {
                 0
@@ -596,7 +591,7 @@ impl BaseTransformImpl for DscVerifier {
                         return Err(gst::FlowError::Error);
                     }
 
-                    gst::info!(*CAT, imp = self, "VERIFIER_TRACE: Added NAL to substream {}, size: {}, first 32: {:02x?}, last 32: {:02x?}",
+                    gst::trace!(*CAT, imp = self, "Added NAL to substream {}, size: {}, first 32: {:02x?}, last 32: {:02x?}",
                         substream_id, nal_data.len(), 
                         &nal_data[..std::cmp::min(32, nal_data.len())],
                         &nal_data[nal_data.len().saturating_sub(32)..]);
