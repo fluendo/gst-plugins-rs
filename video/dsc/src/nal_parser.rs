@@ -12,7 +12,7 @@ use std::sync::LazyLock;
 
 static CAT: LazyLock<gst::DebugCategory> = LazyLock::new(|| {
     gst::DebugCategory::new(
-        "nal-parser",
+        "dsc-nal-parser",
         gst::DebugColorFlags::empty(),
         Some("NAL Unit Parser")
     )
