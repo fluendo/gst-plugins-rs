@@ -64,6 +64,7 @@ impl Default for GopVerificationState {
 pub struct DscVerifier {
     key_store_path: RwLock<Option<String>>,
     gop_state: Mutex<GopVerificationState>,
+    fail_on_verification_error: RwLock<bool>,
 }
 
 #[glib::object_subclass]
@@ -86,6 +87,11 @@ impl ObjectImpl for DscVerifier {
                 *self.key_store_path.write().unwrap() = Some(path.clone());
                 gst::info!(*CAT, "Set key-store-path property to {}", path);
             }
+            "fail-on-verification-error" => {
+                let fail = value.get::<bool>().unwrap();
+                *self.fail_on_verification_error.write().unwrap() = fail;
+                gst::info!(*CAT, "Set fail-on-verification-error property to {}", fail);
+            }
             _ => {}
         }
     }
@@ -93,6 +99,7 @@ impl ObjectImpl for DscVerifier {
     fn property(&self, _id: usize, pspec: &ParamSpec) -> Value {
         match pspec.name() {
             "key-store-path" => self.key_store_path.read().unwrap().clone().to_value(),
+            "fail-on-verification-error" => self.fail_on_verification_error.read().unwrap().to_value(),
             _ => Value::from_type(pspec.value_type()),
         }
     }
@@ -102,6 +109,12 @@ impl ObjectImpl for DscVerifier {
             ParamSpecString::builder("key-store-path")
                 .nick("Key Store Path")
                 .blurb("Directory path where public key files are stored (keyStoreDir)")
+                .readwrite()
+                .build(),
+            glib::ParamSpecBoolean::builder("fail-on-verification-error")
+                .nick("Fail on Verification Error")
+                .blurb("Whether to fail the pipeline when signature verification fails (default: false)")
+                .default_value(false)
                 .readwrite()
                 .build(),
         ]);
@@ -559,28 +572,69 @@ impl DscVerifier {
             return Err(gst::FlowError::Error);
         }
 
+        let fail_on_error = *self.fail_on_verification_error.read().unwrap();
+
         match verifier.verify(signature) {
             Ok(true) => {
                 gst::info!(*CAT, imp = self, "✅ Substream signature verified successfully");
+
+                let s = gst::Structure::builder("dsc-verification-result")
+                    .field("verified", true)
+                    .field("data-packet-size", data_packet.len() as u64)
+                    .field("signature-size", signature.len() as u64)
+                    .build();
+                let msg = gst::message::Element::new(s);
+                let _ = obj.post_message(msg);
+
                 Ok(())
             },
             Ok(false) => {
                 gst::error!(*CAT, imp = self, "❌ Substream signature verification FAILED");
-                let msg = gst::message::Error::new(
-                    gst::CoreError::Failed,
-                    "Substream signature verification failed",
-                );
+
+                let s = gst::Structure::builder("dsc-verification-result")
+                    .field("verified", false)
+                    .field("data-packet-size", data_packet.len() as u64)
+                    .field("signature-size", signature.len() as u64)
+                    .field("error", "Signature verification failed")
+                    .build();
+                let msg = gst::message::Element::new(s);
                 let _ = obj.post_message(msg);
-                Err(gst::FlowError::Error)
+
+                if fail_on_error {
+                    let msg = gst::message::Error::new(
+                        gst::CoreError::Failed,
+                        "Substream signature verification failed",
+                    );
+                    let _ = obj.post_message(msg);
+                    Err(gst::FlowError::Error)
+                } else {
+                    gst::warning!(*CAT, imp = self, "Continuing despite verification failure (fail-on-verification-error=false)");
+                    Ok(())
+                }
             },
             Err(e) => {
                 gst::error!(*CAT, imp = self, "Error during signature verification: {}", e);
-                let msg = gst::message::Error::new(
-                    gst::CoreError::Failed,
-                    &format!("Error during signature verification: {}", e),
-                );
+
+                let s = gst::Structure::builder("dsc-verification-result")
+                    .field("verified", false)
+                    .field("data-packet-size", data_packet.len() as u64)
+                    .field("signature-size", signature.len() as u64)
+                    .field("error", format!("Verification error: {}", e))
+                    .build();
+                let msg = gst::message::Element::new(s);
                 let _ = obj.post_message(msg);
-                Err(gst::FlowError::Error)
+
+                if fail_on_error {
+                    let msg = gst::message::Error::new(
+                        gst::CoreError::Failed,
+                        &format!("Error during signature verification: {}", e),
+                    );
+                    let _ = obj.post_message(msg);
+                    Err(gst::FlowError::Error)
+                } else {
+                    gst::warning!(*CAT, imp = self, "Continuing despite verification error (fail-on-verification-error=false)");
+                    Ok(())
+                }
             }
         }
     }
