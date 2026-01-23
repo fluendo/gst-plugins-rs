@@ -170,7 +170,7 @@ mod tests {
     #[test]
     fn test_dsc_substream_manager_basic() {
         let hash_method = openssl::hash::MessageDigest::sha256();
-        let mut manager = DscSubstreamManager::new(hash_method, 2, None);
+        let mut manager = DscSubstreamManager::new(hash_method, 2, None).unwrap();
 
         // Add some test NAL unit data
         let nal_data1 = vec![0x00, 0x00, 0x00, 0x01, 0x67, 0x42, 0x80]; // SPS-like
@@ -192,7 +192,7 @@ mod tests {
     fn test_dsc_substream_manager_with_content_uuid() {
         let hash_method = openssl::hash::MessageDigest::sha256();
         let content_uuid = Some([0u8; 16]);
-        let mut manager = DscSubstreamManager::new(hash_method, 2, content_uuid);
+        let mut manager = DscSubstreamManager::new(hash_method, 2, content_uuid).unwrap();
 
         let nal_data = vec![0x00, 0x00, 0x00, 0x01, 0x67];
         manager.add_to_substream(0, &nal_data).unwrap();

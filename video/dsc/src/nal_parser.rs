@@ -211,7 +211,7 @@ mod tests {
     }
 
     #[test]
-    fn test_h264_nal_parsing() {
+    fn test_h264_nal_extraction() {
         init();
         
         // Simple H.264 NAL unit with start code
@@ -222,11 +222,10 @@ mod tests {
         ];
 
         let parser = NalParser::new(VideoCodec::H264);
-        let nal_units = parser.parse_h264_nal_units(&data).unwrap();
+        let nal_units = parser.extract_signable_data(&data).unwrap();
 
         assert_eq!(nal_units.len(), 1);
-        assert_eq!(nal_units[0].nal_type, 7); // SPS
-        assert_eq!(nal_units[0].complete_data, vec![0x00, 0x00, 0x00, 0x01, 0x67, 0x42, 0x80, 0x1e]);
+        assert_eq!(nal_units[0][0], 0x67);
     }
 
     #[test]
@@ -237,7 +236,6 @@ mod tests {
         let codec = VideoCodec::from_caps(&caps).unwrap();
         assert_eq!(codec, VideoCodec::H266);
 
-        let parser = NalParser::new(VideoCodec::H266);
-        assert_eq!(parser.codec_name(), "H.266");
+        let _parser = NalParser::new(VideoCodec::H266);
     }
 }

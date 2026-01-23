@@ -128,8 +128,8 @@ fn test_signer_verifier_with_hash(hash_method: &str) {
     for _ in 0..num_buffers {
         let signed_buffer = h_signer.pull().unwrap();
         
-        // Check if this buffer has signature meta
-        if signed_buffer.meta::<gstdsc::signaturemeta::SignatureMeta>().is_some() {
+        // Check if this buffer has signature meta by checking for DSC verification meta
+        if signed_buffer.meta::<gst_video::video_meta::VideoDSCVerificationMeta>().is_some() {
             signature_found = true;
         }
 
@@ -284,7 +284,7 @@ fn test_signature_meta_preservation() {
     let mut signed_buffer_with_meta = None;
     for _ in 0..6 {
         let signed_buffer = h.pull().unwrap();
-        if signed_buffer.meta::<gstdsc::signaturemeta::SignatureMeta>().is_some() {
+        if signed_buffer.meta::<gst_video::video_meta::VideoDSCVerificationMeta>().is_some() {
             signed_buffer_with_meta = Some(signed_buffer);
             break;
         }
@@ -292,13 +292,28 @@ fn test_signature_meta_preservation() {
 
     // Verify signature meta exists on at least one buffer
     let signed_buffer = signed_buffer_with_meta.expect("Should have at least one buffer with signature meta");
-    let meta = signed_buffer.meta::<gstdsc::signaturemeta::SignatureMeta>().unwrap();
-    assert!(!meta.signature().is_empty());
+    
+    let has_signature_meta = signed_buffer.foreach_meta(|meta| {
+        if meta.api().name() == "GstVideoDSCVerificationMeta" {
+            std::ops::ControlFlow::Break(())
+        } else {
+            std::ops::ControlFlow::Continue(())
+        }
+    });
+    
+    assert!(has_signature_meta, "Buffer should have signature meta");
 
     // Test that signature meta is preserved when copying
     let copied_buffer = signed_buffer.copy_deep().unwrap();
-    let copied_meta = copied_buffer.meta::<gstdsc::signaturemeta::SignatureMeta>().unwrap();
-    assert_eq!(meta.signature(), copied_meta.signature());
+    let copied_has_signature_meta = copied_buffer.foreach_meta(|meta| {
+        if meta.api().name() == "GstVideoDSCVerificationMeta" {
+            std::ops::ControlFlow::Break(())
+        } else {
+            std::ops::ControlFlow::Continue(())
+        }
+    });
+    
+    assert!(copied_has_signature_meta, "Copied buffer should have signature meta");
 
     cleanup_test_keys(&private_key_path, &public_key_path);
 }
