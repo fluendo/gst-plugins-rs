@@ -302,86 +302,96 @@ impl DscVerifier {
         Ok(())
     }
 
-    fn handle_verification_meta(
+    fn extract_nal_units(
         &self,
         buffer: &gst::BufferRef,
-        verif_meta: &gst_video::video_meta::VideoDSCVerificationMeta,
-        selection_meta: Option<&gst_video::video_meta::VideoDSCSelectionMeta>,
-        gop_state: &mut GopVerificationState,
-    ) -> Result<gst::FlowSuccess, gst::FlowError> {
+        gop_state: &GopVerificationState,
+    ) -> Result<Vec<Vec<u8>>, gst::FlowError> {
         let obj = self.obj();
-        let dsc_verification = verif_meta.dsc_verification();
-
-        let signature_len = unsafe {
-            if dsc_verification.signature.is_null() {
-                0
-            } else {
-                (*dsc_verification.signature).len as usize
-            }
-        };
-
-        gst::debug!(*CAT, imp = self, "Found DSC verification metadata - verifying substream, signature length: {}",
-            signature_len);
-
-        if !gop_state.gop_started {
-            gst::warning!(*CAT, imp = self, "Received verification metadata but no initialization metadata was received");
-            return Ok(gst::FlowSuccess::Ok);
-        }
 
         let map = match buffer.map_readable() {
             Ok(m) => m,
             Err(_) => {
-                gst::error!(*CAT, imp = self, "Failed to map verification buffer for reading");
+                gst::error!(*CAT, imp = self, "Failed to map buffer for reading");
                 let msg = gst::message::Error::new(
                     gst::CoreError::Failed,
-                    "Failed to map verification buffer for reading",
+                    "Failed to map buffer for reading",
                 );
                 let _ = obj.post_message(msg);
                 return Err(gst::FlowError::Error);
             }
         };
 
-        let nal_units_to_hash = if let Some(ref nal_parser) = gop_state.nal_parser {
+        if let Some(ref nal_parser) = gop_state.nal_parser {
             match nal_parser.extract_signable_data(&map) {
                 Ok(nal_units) => {
-                    gst::trace!(*CAT, imp = self, "Verification buffer - Extracted {} NAL units from {} raw bytes",
+                    gst::trace!(*CAT, imp = self, "Extracted {} NAL units from {} raw bytes",
                         nal_units.len(), map.len());
-                    nal_units
+                    Ok(nal_units)
                 },
                 Err(e) => {
-                    gst::error!(*CAT, imp = self, "NAL parsing failed on verification buffer: {}", e);
+                    gst::error!(*CAT, imp = self, "NAL parsing failed: {}", e);
                     let msg = gst::message::Error::new(
                         gst::CoreError::Failed,
-                        &format!("NAL parsing failed on verification buffer: {}", e),
+                        &format!("NAL parsing failed: {}", e),
                     );
                     let _ = obj.post_message(msg);
-                    return Err(gst::FlowError::Error);
+                    Err(gst::FlowError::Error)
                 }
             }
         } else {
             gst::error!(*CAT, imp = self, "No NAL parser available");
-            return Err(gst::FlowError::Error);
-        };
+            Err(gst::FlowError::Error)
+        }
+    }
 
-        let substream_id = if let Some(sel_meta) = selection_meta {
-            let substream = sel_meta.dsc_selection().verification_substream_id as usize;
-            gst::trace!(*CAT, imp = self, "Verification buffer - Found DSC selection metadata, using substream: {}", substream);
-            substream
-        } else {
-            dsc_verification.verification_substream_id as usize
-        };
-
+    fn add_nal_units_to_substream(
+        &self,
+        nal_units: &[Vec<u8>],
+        substream_id: usize,
+        gop_state: &mut GopVerificationState,
+        is_verification_buffer: bool,
+    ) -> Result<(), gst::FlowError> {
         if let Some(ref mut dsc_manager) = gop_state.dsc_manager {
-            for nal_data in &nal_units_to_hash {
+            for nal_data in nal_units {
                 if let Err(e) = dsc_manager.add_to_substream(substream_id, nal_data) {
                     gst::error!(*CAT, imp = self, "Failed to add NAL to substream: {}", e);
                     return Err(gst::FlowError::Error);
                 }
 
-                gst::debug!(*CAT, imp = self, "Added verification NAL to substream {}, size: {}, first 32: {:02x?}",
-                    substream_id, nal_data.len(), &nal_data[..std::cmp::min(32, nal_data.len())]);
+                if is_verification_buffer {
+                    gst::debug!(*CAT, imp = self, "Added verification NAL to substream {}, size: {}, first 32: {:02x?}",
+                        substream_id, nal_data.len(), &nal_data[..std::cmp::min(32, nal_data.len())]);
+                } else {
+                    gst::trace!(*CAT, imp = self, "Added NAL to substream {}, size: {}, first 32: {:02x?}, last 32: {:02x?}",
+                        substream_id, nal_data.len(),
+                        &nal_data[..std::cmp::min(32, nal_data.len())],
+                        &nal_data[nal_data.len().saturating_sub(32)..]);
+                }
             }
         }
+        Ok(())
+    }
+
+    fn get_substream_id(
+        &self,
+        selection_meta: Option<&gst_video::video_meta::VideoDSCSelectionMeta>,
+        default_id: usize,
+    ) -> usize {
+        if let Some(sel_meta) = selection_meta {
+            let substream = sel_meta.dsc_selection().verification_substream_id as usize;
+            gst::trace!(*CAT, imp = self, "Found DSC selection metadata, using substream: {}", substream);
+            substream
+        } else {
+            default_id
+        }
+    }
+
+    fn get_verification_params(
+        &self,
+        gop_state: &mut GopVerificationState,
+    ) -> Result<(HashMethod, openssl::hash::MessageDigest, PKey<openssl::pkey::Public>), gst::FlowError> {
+        let obj = self.obj();
 
         let hash_method = match gop_state.current_hash_method {
             Some(method) => method,
@@ -422,11 +432,24 @@ impl DscVerifier {
             return Err(gst::FlowError::Error);
         };
 
+        Ok((hash_method, openssl_hash_method, pkey))
+    }
+
+    fn finalize_and_verify(
+        &self,
+        dsc_verification: &gst_video::ffi::GstH274DigitallySignedContentVerification,
+        substream_id: usize,
+        gop_state: &mut GopVerificationState,
+    ) -> Result<(), gst::FlowError> {
+        let obj = self.obj();
+
+        let (hash_method, openssl_hash_method, pkey) = self.get_verification_params(gop_state)?;
+
         if let Some(ref mut dsc_manager) = gop_state.dsc_manager {
             gst::debug!(*CAT, imp = self, "About to create data packet from accumulated substream data");
             match dsc_manager.create_data_packet(substream_id) {
                 Ok(data_packet) => {
-                    self.verify_signature(&dsc_verification, &data_packet, hash_method, openssl_hash_method, &pkey)?;
+                    self.verify_signature(dsc_verification, &data_packet, hash_method, openssl_hash_method, &pkey)?;
                 },
                 Err(e) => {
                     gst::error!(*CAT, imp = self, "Failed to create data packet for verification: {}", e);
@@ -446,6 +469,40 @@ impl DscVerifier {
         } else {
             gst::warning!(*CAT, imp = self, "Received verification metadata but no DSC manager available");
         }
+
+        Ok(())
+    }
+
+    fn handle_verification_meta(
+        &self,
+        buffer: &gst::BufferRef,
+        verif_meta: &gst_video::video_meta::VideoDSCVerificationMeta,
+        selection_meta: Option<&gst_video::video_meta::VideoDSCSelectionMeta>,
+        gop_state: &mut GopVerificationState,
+    ) -> Result<gst::FlowSuccess, gst::FlowError> {
+        let dsc_verification = verif_meta.dsc_verification();
+
+        let signature_len = unsafe {
+            if dsc_verification.signature.is_null() {
+                0
+            } else {
+                (*dsc_verification.signature).len as usize
+            }
+        };
+
+        gst::debug!(*CAT, imp = self, "Found DSC verification metadata - verifying substream, signature length: {}",
+            signature_len);
+
+        if !gop_state.gop_started {
+            gst::warning!(*CAT, imp = self, "Received verification metadata but no initialization metadata was received");
+            return Ok(gst::FlowSuccess::Ok);
+        }
+
+        let nal_units_to_hash = self.extract_nal_units(buffer, gop_state)?;
+        let substream_id = self.get_substream_id(selection_meta, dsc_verification.verification_substream_id as usize);
+
+        self.add_nal_units_to_substream(&nal_units_to_hash, substream_id, gop_state, true)?;
+        self.finalize_and_verify(&dsc_verification, substream_id, gop_state)?;
 
         Ok(gst::FlowSuccess::Ok)
     }
@@ -534,68 +591,14 @@ impl DscVerifier {
         selection_meta: Option<&gst_video::video_meta::VideoDSCSelectionMeta>,
         gop_state: &mut GopVerificationState,
     ) -> Result<(), gst::FlowError> {
-        let obj = self.obj();
-
         if !gop_state.gop_started || gop_state.dsc_manager.is_none() {
             return Ok(());
         }
 
-        let map = match buffer.map_readable() {
-            Ok(m) => m,
-            Err(_) => {
-                gst::error!(*CAT, imp = self, "Failed to map buffer for reading");
-                let msg = gst::message::Error::new(
-                    gst::CoreError::Failed,
-                    "Failed to map buffer for reading",
-                );
-                let _ = obj.post_message(msg);
-                return Err(gst::FlowError::Error);
-            }
-        };
+        let nal_units_to_hash = self.extract_nal_units(buffer, gop_state)?;
+        let substream_id = self.get_substream_id(selection_meta, 0);
 
-        let nal_units_to_hash = if let Some(ref nal_parser) = gop_state.nal_parser {
-            match nal_parser.extract_signable_data(&map) {
-                Ok(nal_units) => {
-                    gst::trace!(*CAT, imp = self, "Extracted {} NAL units from {} raw bytes",
-                        nal_units.len(), map.len());
-                    nal_units
-                },
-                Err(e) => {
-                    gst::error!(*CAT, imp = self, "NAL parsing failed: {}", e);
-                    let msg = gst::message::Error::new(
-                        gst::CoreError::Failed,
-                        &format!("NAL parsing failed: {}", e),
-                    );
-                    let _ = obj.post_message(msg);
-                    return Err(gst::FlowError::Error);
-                }
-            }
-        } else {
-            gst::error!(*CAT, imp = self, "No NAL parser available");
-            return Err(gst::FlowError::Error);
-        };
-
-        let substream_id = if let Some(sel_meta) = selection_meta {
-            let substream = sel_meta.dsc_selection().verification_substream_id as usize;
-            gst::log!(*CAT, imp = self, "Found DSC selection metadata, using substream: {}", substream);
-            substream
-        } else {
-            0
-        };
-
-        if let Some(ref mut dsc_manager) = gop_state.dsc_manager {
-            for nal_data in &nal_units_to_hash {
-                if let Err(e) = dsc_manager.add_to_substream(substream_id, nal_data) {
-                    gst::error!(*CAT, imp = self, "Failed to add NAL to substream: {}", e);
-                    return Err(gst::FlowError::Error);
-                }
-
-                gst::trace!(*CAT, imp = self, "Added NAL to substream {}, size: {}, first 32: {:02x?}, last 32: {:02x?}",
-                    substream_id, nal_data.len(),
-                    &nal_data[..std::cmp::min(32, nal_data.len())],
-                    &nal_data[nal_data.len().saturating_sub(32)..]);
-            }
-        }
+        self.add_nal_units_to_substream(&nal_units_to_hash, substream_id, gop_state, false)?;
 
         Ok(())
     }
