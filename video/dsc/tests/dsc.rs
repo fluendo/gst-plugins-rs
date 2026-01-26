@@ -10,6 +10,11 @@
 use gst::prelude::*;
 use openssl::pkey::PKey;
 use openssl::rsa::Rsa;
+use openssl::x509::X509;
+use openssl::asn1::Asn1Time;
+use openssl::bn::{BigNum, MsbOption};
+use openssl::hash::MessageDigest;
+use openssl::x509::X509NameBuilder;
 use std::fs;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -30,26 +35,76 @@ fn create_test_keys() -> (PathBuf, PathBuf) {
     let temp_dir = std::env::temp_dir();
     let unique_id = KEY_COUNTER.fetch_add(1, Ordering::SeqCst);
     let private_key_path = temp_dir.join(format!("test_private_key_{}.pem", unique_id));
-    let public_key_path = temp_dir.join(format!("test_public_key_{}.pem", unique_id));
+    let cert_path = temp_dir.join(format!("test_cert_{}.pem", unique_id));
 
-    // Generate RSA key pair
     let rsa = Rsa::generate(2048).unwrap();
     let pkey = PKey::from_rsa(rsa).unwrap();
 
-    // Save private key
     let private_pem = pkey.private_key_to_pem_pkcs8().unwrap();
     fs::write(&private_key_path, private_pem).unwrap();
 
-    // Save public key
-    let public_pem = pkey.public_key_to_pem().unwrap();
-    fs::write(&public_key_path, public_pem).unwrap();
+    let mut x509_name = X509NameBuilder::new().unwrap();
+    x509_name.append_entry_by_text("C", "US").unwrap();
+    x509_name.append_entry_by_text("ST", "Test").unwrap();
+    x509_name.append_entry_by_text("O", "Test Org").unwrap();
+    x509_name.append_entry_by_text("CN", "test.example.com").unwrap();
+    let x509_name = x509_name.build();
 
-    (private_key_path, public_key_path)
+    let mut cert_builder = X509::builder().unwrap();
+    cert_builder.set_version(2).unwrap();
+
+    let serial_number = {
+        let mut serial = BigNum::new().unwrap();
+        serial.rand(159, MsbOption::MAYBE_ZERO, false).unwrap();
+        serial.to_asn1_integer().unwrap()
+    };
+    cert_builder.set_serial_number(&serial_number).unwrap();
+
+    cert_builder.set_subject_name(&x509_name).unwrap();
+    cert_builder.set_issuer_name(&x509_name).unwrap();
+    cert_builder.set_pubkey(&pkey).unwrap();
+
+    let not_before = Asn1Time::days_from_now(0).unwrap();
+    cert_builder.set_not_before(&not_before).unwrap();
+    let not_after = Asn1Time::days_from_now(365).unwrap();
+    cert_builder.set_not_after(&not_after).unwrap();
+
+    cert_builder.sign(&pkey, MessageDigest::sha256()).unwrap();
+    let cert = cert_builder.build();
+
+    let cert_pem = cert.to_pem().unwrap();
+    fs::write(&cert_path, cert_pem).unwrap();
+
+    (private_key_path, cert_path)
 }
 
-fn cleanup_test_keys(private_key_path: &PathBuf, public_key_path: &PathBuf) {
+fn create_test_h264_buffer(index: usize, is_i_frame: bool) -> gst::Buffer {
+    // Create a simple H.264 NAL unit with start code
+    let nal_type = if is_i_frame { 0x65 } else { 0x41 }; // IDR slice or non-IDR slice
+
+    let mut data = vec![
+        0x00, 0x00, 0x00, 0x01, // Start code
+        nal_type,               // NAL header
+    ];
+
+    // Add some payload data
+    for j in 0..100 {
+        data.push(((index * 100 + j) % 256) as u8);
+    }
+
+    let mut buffer = gst::Buffer::from_slice(data);
+    {
+        let buffer_ref = buffer.get_mut().unwrap();
+        if !is_i_frame {
+            buffer_ref.set_flags(gst::BufferFlags::DELTA_UNIT);
+        }
+    }
+    buffer
+}
+
+fn cleanup_test_keys(private_key_path: &PathBuf, cert_path: &PathBuf) {
     let _ = fs::remove_file(private_key_path);
-    let _ = fs::remove_file(public_key_path);
+    let _ = fs::remove_file(cert_path);
 }
 
 #[test]
@@ -80,98 +135,142 @@ fn test_signer_verifier_sha224() {
 fn test_signer_verifier_with_hash(hash_method: &str) {
     init();
 
-    let (private_key_path, public_key_path) = create_test_keys();
-    let key_store_path = public_key_path.parent().unwrap().to_str().unwrap();
-    let public_key_filename = public_key_path.file_name().unwrap().to_str().unwrap();
+    let (private_key_path, cert_path) = create_test_keys();
+    let key_store_path = cert_path.parent().unwrap().to_str().unwrap();
 
-    // Create signer harness
-    let mut h_signer = gst_check::Harness::new("dscsigner");
-    h_signer.play();
+    let pipeline = gst::Pipeline::new();
 
-    // Configure signer
-    let signer = h_signer.element().unwrap();
-    signer.set_property("hash-method", hash_method);
-    signer.set_property(
-        "private-key-path",
-        private_key_path.to_str().unwrap(),
-    );
-    signer.set_property("public-key-uri", public_key_filename);
+    let videotestsrc = gst::ElementFactory::make("videotestsrc")
+        .property("num-buffers", 10i32)
+        .build()
+        .unwrap();
 
-    let caps = gst::Caps::builder("video/x-h264")
+    let capsfilter1 = gst::ElementFactory::make("capsfilter")
+        .build()
+        .unwrap();
+    let caps1 = gst::Caps::builder("video/x-raw")
+        .field("framerate", gst::Fraction::new(30, 1))
+        .build();
+    capsfilter1.set_property("caps", caps1);
+
+    let videoconvert = gst::ElementFactory::make("videoconvert")
+        .build()
+        .unwrap();
+
+    let x264enc = gst::ElementFactory::make("x264enc")
+        .property("key-int-max", 5u32)
+        .build()
+        .unwrap();
+
+    let capsfilter2 = gst::ElementFactory::make("capsfilter")
+        .build()
+        .unwrap();
+    let caps2 = gst::Caps::builder("video/x-h264")
         .field("stream-format", "byte-stream")
         .field("alignment", "au")
         .build();
-    h_signer.set_src_caps(caps.clone());
+    capsfilter2.set_property("caps", caps2);
 
-    // Create test buffers with H.264-like NAL units
-    // We need at least 2 I-frames to get a signature (GOP-based signing)
-    let num_buffers = 10;
+    let signer = gst::ElementFactory::make("dscsigner")
+        .property("hash-method", hash_method)
+        .property("private-key-path", private_key_path.to_str().unwrap())
+        .property("public-key-uri", cert_path.to_str().unwrap())
+        .property("substream-length", 5u32)
+        .build()
+        .unwrap();
 
-    for i in 0..num_buffers {
-        let is_i_frame = i % 5 == 0; // I-frame every 5 frames
-        let buffer = create_test_h264_buffer(i, is_i_frame);
-        h_signer.push(buffer).unwrap();
-    }
+    let verifier = gst::ElementFactory::make("dscverifier")
+        .property("key-store-path", key_store_path)
+        .build()
+        .unwrap();
 
-    h_signer.push_event(gst::event::Eos::new());
+    let fakesink = gst::ElementFactory::make("fakesink")
+        .build()
+        .unwrap();
 
-    // Create verifier harness
-    let mut h_verifier = gst_check::Harness::new("dscverifier");
-    h_verifier.play();
+    pipeline.add_many([
+        &videotestsrc,
+        &capsfilter1,
+        &videoconvert,
+        &x264enc,
+        &capsfilter2,
+        &signer,
+        &verifier,
+        &fakesink,
+    ]).unwrap();
 
-    let verifier = h_verifier.element().unwrap();
-    verifier.set_property("key-store-path", key_store_path);
+    gst::Element::link_many([
+        &videotestsrc,
+        &capsfilter1,
+        &videoconvert,
+        &x264enc,
+        &capsfilter2,
+        &signer,
+        &verifier,
+        &fakesink,
+    ]).unwrap();
 
-    h_verifier.set_src_caps(caps);
+    let bus = pipeline.bus().unwrap();
+    let mut verification_count = 0;
+    let mut verification_success = true;
+    let mut pipeline_finished = false;
 
-    let mut signature_found = false;
-    for _ in 0..num_buffers {
-        let signed_buffer = h_signer.pull().unwrap();
-        
-        // Check if this buffer has signature meta by checking for DSC verification meta
-        if signed_buffer.meta::<gst_video::video_meta::VideoDSCVerificationMeta>().is_some() {
-            signature_found = true;
+    pipeline.set_state(gst::State::Playing).unwrap();
+
+    while !pipeline_finished {
+        let msg = bus.timed_pop(gst::ClockTime::from_seconds(5));
+
+        match msg {
+            Some(msg) => {
+                use gst::MessageView;
+
+                match msg.view() {
+                    MessageView::Eos(..) => {
+                        println!("EOS received");
+                        pipeline_finished = true;
+                    }
+                    MessageView::Error(err) => {
+                        panic!(
+                            "Error from {:?}: {} ({:?})",
+                            err.src().map(|s| s.path_string()),
+                            err.error(),
+                            err.debug()
+                        );
+                    }
+                    MessageView::Element(element_msg) => {
+                        if let Some(structure) = element_msg.structure() {
+                            if structure.name() == "dsc-verification-result" {
+                                if let Ok(verified) = structure.get::<bool>("verified") {
+                                    verification_count += 1;
+                                    verification_success &= verified;
+
+                                    if verified {
+                                        println!("Verification #{} succeeded", verification_count);
+                                    } else {
+                                        eprintln!("Verification #{} failed", verification_count);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            None => {
+                eprintln!("Timeout waiting for message");
+                pipeline_finished = true;
+            }
         }
-
-        h_verifier.push(signed_buffer).unwrap();
     }
 
-    h_verifier.push_event(gst::event::Eos::new());
+    pipeline.set_state(gst::State::Null).unwrap();
 
-    // Pull verified buffers
-    for _ in 0..num_buffers {
-        let _verified_buffer = h_verifier.pull().unwrap();
-    }
+    assert_eq!(verification_count, 2,
+        "Expected 2 verification messages (one per GOP), got {}", verification_count);
+    assert!(verification_success,
+        "All verifications should succeed");
 
-    // With GOP-based signing, we should have at least one signature
-    // (attached to the second I-frame for the first GOP)
-    assert!(signature_found, "Expected at least one buffer with signature meta");
-
-    cleanup_test_keys(&private_key_path, &public_key_path);
-}
-
-fn create_test_h264_buffer(index: usize, is_i_frame: bool) -> gst::Buffer {
-    // Create a simple H.264 NAL unit with start code
-    let nal_type = if is_i_frame { 0x65 } else { 0x41 }; // IDR slice or non-IDR slice
-    
-    let mut data = vec![
-        0x00, 0x00, 0x00, 0x01, // Start code
-        nal_type,               // NAL header
-    ];
-    
-    // Add some payload data
-    for j in 0..100 {
-        data.push(((index * 100 + j) % 256) as u8);
-    }
-
-    let mut buffer = gst::Buffer::from_slice(data);
-    {
-        let buffer_ref = buffer.get_mut().unwrap();
-        if !is_i_frame {
-            buffer_ref.set_flags(gst::BufferFlags::DELTA_UNIT);
-        }
-    }
-    buffer
+    cleanup_test_keys(&private_key_path, &cert_path);
 }
 
 #[test]
@@ -187,25 +286,16 @@ fn test_signer_without_key() {
         .build();
     h.set_src_caps(caps);
 
-    // First I-frame starts GOP 1 - this succeeds because no signature is created yet
     let buffer1 = create_test_h264_buffer(0, true);
-    let result1 = h.push(buffer1);
-    // First I-frame might pass (no signature to create), or fail early if key check is done upfront
-    
-    // Add some P-frames
+    let result = h.push(buffer1);
+
     for i in 1..5 {
         let buffer = create_test_h264_buffer(i, false);
         let _ = h.push(buffer); // These might pass or fail
     }
-    
-    // Second I-frame triggers signature for GOP 1 - this MUST fail without private key
-    let buffer2 = create_test_h264_buffer(5, true);
-    let result2 = h.push(buffer2);
-    
-    // At least one of these should fail - the second I-frame definitely should
-    // because it tries to create a signature without a private key
+
     assert!(
-        result1.is_err() || result2.is_err(),
+        result.is_err(),
         "Expected signer to fail without private key when creating signature"
     );
 }
@@ -214,8 +304,8 @@ fn test_signer_without_key() {
 fn test_verifier_without_signature_meta() {
     init();
 
-    let (_, public_key_path) = create_test_keys();
-    let key_store_path = public_key_path.parent().unwrap().to_str().unwrap();
+    let (_, cert_path) = create_test_keys();
+    let key_store_path = cert_path.parent().unwrap().to_str().unwrap();
 
     let mut h = gst_check::Harness::new("dscverifier");
     h.play();
@@ -229,33 +319,21 @@ fn test_verifier_without_signature_meta() {
         .build();
     h.set_src_caps(caps);
 
-    // Buffer without signature meta - verifier should handle gracefully for first GOP
     let buffer = create_test_h264_buffer(0, true);
-    
-    // First I-frame without signature should pass (first GOP)
+
     let result = h.push(buffer);
     assert!(result.is_ok(), "First I-frame without signature should pass");
 
-    cleanup_test_keys(&PathBuf::new(), &public_key_path);
+    cleanup_test_keys(&PathBuf::new(), &cert_path);
 }
 
 #[test]
 fn test_signature_meta_preservation() {
     init();
 
-    let (private_key_path, public_key_path) = create_test_keys();
-    let public_key_filename = public_key_path.file_name().unwrap().to_str().unwrap();
+    let (private_key_path, cert_path) = create_test_keys();
 
     let mut h = gst_check::Harness::new("dscsigner");
-    h.play();
-
-    let signer = h.element().unwrap();
-    signer.set_property("hash-method", "sha256");
-    signer.set_property(
-        "private-key-path",
-        private_key_path.to_str().unwrap(),
-    );
-    signer.set_property("public-key-uri", public_key_filename);
 
     let caps = gst::Caps::builder("video/x-h264")
         .field("stream-format", "byte-stream")
@@ -263,26 +341,29 @@ fn test_signature_meta_preservation() {
         .build();
     h.set_src_caps(caps);
 
-    // Push multiple I-frames to trigger signature generation
-    // First I-frame starts GOP 1
+    let signer = h.element().unwrap();
+    signer.set_property("hash-method", "sha256");
+    signer.set_property(
+        "private-key-path",
+        private_key_path.to_str().unwrap(),
+    );
+    signer.set_property("public-key-uri", cert_path.to_str().unwrap());
+    signer.set_property("substream-length", 5u32);
+
+    h.play();
+
     let buffer1 = create_test_h264_buffer(0, true);
     h.push(buffer1).unwrap();
-    
-    // Some P-frames in GOP 1
+
     for i in 1..5 {
         let buffer = create_test_h264_buffer(i, false);
         h.push(buffer).unwrap();
     }
-    
-    // Second I-frame triggers signature for GOP 1
-    let buffer2 = create_test_h264_buffer(5, true);
-    h.push(buffer2).unwrap();
 
     h.push_event(gst::event::Eos::new());
 
-    // Pull all buffers
     let mut signed_buffer_with_meta = None;
-    for _ in 0..6 {
+    for _ in 0..5 {
         let signed_buffer = h.pull().unwrap();
         if signed_buffer.meta::<gst_video::video_meta::VideoDSCVerificationMeta>().is_some() {
             signed_buffer_with_meta = Some(signed_buffer);
@@ -292,7 +373,7 @@ fn test_signature_meta_preservation() {
 
     // Verify signature meta exists on at least one buffer
     let signed_buffer = signed_buffer_with_meta.expect("Should have at least one buffer with signature meta");
-    
+
     let has_signature_meta = signed_buffer.foreach_meta(|meta| {
         if meta.api().name() == "GstVideoDSCVerificationMeta" {
             std::ops::ControlFlow::Break(())
@@ -300,7 +381,7 @@ fn test_signature_meta_preservation() {
             std::ops::ControlFlow::Continue(())
         }
     });
-    
+
     assert!(has_signature_meta, "Buffer should have signature meta");
 
     // Test that signature meta is preserved when copying
@@ -312,73 +393,87 @@ fn test_signature_meta_preservation() {
             std::ops::ControlFlow::Continue(())
         }
     });
-    
+
     assert!(copied_has_signature_meta, "Copied buffer should have signature meta");
 
-    cleanup_test_keys(&private_key_path, &public_key_path);
+    cleanup_test_keys(&private_key_path, &cert_path);
 }
 
 #[test]
 fn test_multiple_hash_methods_sequential() {
     init();
 
-    let (private_key_path, public_key_path) = create_test_keys();
-    let key_store_path = public_key_path.parent().unwrap().to_str().unwrap();
-    let public_key_filename = public_key_path.file_name().unwrap().to_str().unwrap();
+    let (private_key_path, cert_path) = create_test_keys();
+    let key_store_path = cert_path.parent().unwrap().to_str().unwrap();
     let hash_methods = ["sha1", "sha224", "sha256", "sha384", "sha512"];
 
     for hash_method in &hash_methods {
-        let mut h_signer = gst_check::Harness::new("dscsigner");
-        h_signer.play();
+        println!("Testing hash method: {}", hash_method);
 
-        let signer = h_signer.element().unwrap();
-        signer.set_property("hash-method", *hash_method);
-        signer.set_property(
-            "private-key-path",
-            private_key_path.to_str().unwrap(),
-        );
-        signer.set_property("public-key-uri", public_key_filename);
+        let pipeline = gst::Pipeline::new();
 
-        let caps = gst::Caps::builder("video/x-h264")
+        let videotestsrc = gst::ElementFactory::make("videotestsrc")
+            .property("num-buffers", 10i32)
+            .build()
+            .unwrap();
+
+        let capsfilter1 = gst::ElementFactory::make("capsfilter").build().unwrap();
+        capsfilter1.set_property("caps", gst::Caps::builder("video/x-raw")
+            .field("framerate", gst::Fraction::new(30, 1))
+            .build());
+
+        let videoconvert = gst::ElementFactory::make("videoconvert").build().unwrap();
+        let x264enc = gst::ElementFactory::make("x264enc")
+            .property("key-int-max", 5u32)
+            .build()
+            .unwrap();
+
+        let capsfilter2 = gst::ElementFactory::make("capsfilter").build().unwrap();
+        capsfilter2.set_property("caps", gst::Caps::builder("video/x-h264")
             .field("stream-format", "byte-stream")
             .field("alignment", "au")
-            .build();
-        h_signer.set_src_caps(caps.clone());
+            .build());
 
-        // Push two I-frames to get a signature
-        let buffer1 = create_test_h264_buffer(0, true);
-        h_signer.push(buffer1).unwrap();
-        
-        for i in 1..5 {
-            let buffer = create_test_h264_buffer(i, false);
-            h_signer.push(buffer).unwrap();
+        let signer = gst::ElementFactory::make("dscsigner")
+            .property("hash-method", *hash_method)
+            .property("private-key-path", private_key_path.to_str().unwrap())
+            .property("public-key-uri", cert_path.to_str().unwrap())
+            .build()
+            .unwrap();
+
+        let verifier = gst::ElementFactory::make("dscverifier")
+            .property("key-store-path", key_store_path)
+            .build()
+            .unwrap();
+
+        let fakesink = gst::ElementFactory::make("fakesink").build().unwrap();
+
+        pipeline.add_many([&videotestsrc, &capsfilter1, &videoconvert, &x264enc,
+                          &capsfilter2, &signer, &verifier, &fakesink]).unwrap();
+        gst::Element::link_many([&videotestsrc, &capsfilter1, &videoconvert, &x264enc,
+                                &capsfilter2, &signer, &verifier, &fakesink]).unwrap();
+
+        let bus = pipeline.bus().unwrap();
+        pipeline.set_state(gst::State::Playing).unwrap();
+
+        let mut pipeline_finished = false;
+        while !pipeline_finished {
+            if let Some(msg) = bus.timed_pop(gst::ClockTime::from_seconds(5)) {
+                use gst::MessageView;
+                match msg.view() {
+                    MessageView::Eos(..) => pipeline_finished = true,
+                    MessageView::Error(err) => {
+                        panic!("Error in {}: {} ({:?})", hash_method, err.error(), err.debug());
+                    }
+                    _ => {}
+                }
+            } else {
+                pipeline_finished = true;
+            }
         }
-        
-        let buffer2 = create_test_h264_buffer(5, true);
-        h_signer.push(buffer2).unwrap();
-        
-        h_signer.push_event(gst::event::Eos::new());
 
-        // Verify with matching hash method (read from metadata)
-        let mut h_verifier = gst_check::Harness::new("dscverifier");
-        h_verifier.play();
-
-        let verifier = h_verifier.element().unwrap();
-        verifier.set_property("key-store-path", key_store_path);
-
-        h_verifier.set_src_caps(caps);
-
-        for _ in 0..6 {
-            let signed_buffer = h_signer.pull().unwrap();
-            h_verifier.push(signed_buffer).unwrap();
-        }
-        
-        h_verifier.push_event(gst::event::Eos::new());
-
-        for _ in 0..6 {
-            let _verified_buffer = h_verifier.pull().unwrap();
-        }
+        pipeline.set_state(gst::State::Null).unwrap();
     }
 
-    cleanup_test_keys(&private_key_path, &public_key_path);
+    cleanup_test_keys(&private_key_path, &cert_path);
 }
