@@ -47,6 +47,7 @@ fn supports_mp4_brands(name: &str) -> bool {
             | "audio/x-adpcm"
             | "audio/x-ac3"
             | "audio/x-eac3"
+            | "audio/x-mpeg-h"
     )
 }
 

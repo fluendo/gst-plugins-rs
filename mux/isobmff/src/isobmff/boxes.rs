@@ -10,7 +10,7 @@ use crate::av1::util::{av1_seq_level_idx, av1_tier};
 use crate::isobmff::flac::parse_flac_stream_header;
 use crate::isobmff::fmp4mux::boxes::write_mvex;
 use crate::isobmff::uncompressed::write_uncompressed_sample_entries;
-use crate::isobmff::{CAT, ChnlLayoutInfo, Chunk, Variant, ac3, eac3};
+use crate::isobmff::{CAT, ChnlLayoutInfo, Chunk, Variant, ac3, eac3, mha};
 use crate::isobmff::{
     PresentationConfiguration, TrackConfiguration, resolve_original_caps,
     transform_matrix::IDENTITY_MATRIX,
@@ -1359,7 +1359,7 @@ pub(crate) fn write_stsd(v: &mut Vec<u8>, stream: &TrackConfiguration) -> Result
 
 fn get_audio_fourcc(
     s: &gst::StructureRef,
-    audio_info: &gst_audio::AudioInfo,
+    audio_info: Option<&gst_audio::AudioInfo>,
 ) -> Result<[u8; 4], Error> {
     let fourcc = match s.name().as_str() {
         "audio/mpeg" => b"mp4a",
@@ -1377,8 +1377,12 @@ fn get_audio_fourcc(
         }
         "audio/x-ac3" => b"ac-3",
         "audio/x-eac3" => b"ec-3",
+        // TODO: `mha1`/`mha2` (raw mpegh3daFrame) sample entries are not yet
+        // supported; only the MHAS-based `mhm1`/`mhm2` entries are implemented,
+        // and only single-stream (`mhm1`) for now.
+        "audio/x-mpeg-h" => b"mhm1",
         "audio/x-raw" => {
-            if audio_info.is_float() {
+            if audio_info.unwrap().is_float() {
                 b"fpcm"
             } else {
                 b"ipcm"
@@ -2192,9 +2196,16 @@ pub(crate) fn write_chnl(
 }
 
 fn write_audio_sample_entry(v: &mut Vec<u8>, stream: &TrackConfiguration) -> Result<(), Error> {
-    let audio_info = gst_audio::AudioInfo::from_caps(stream.caps()).context("failed AudioInfo")?;
     let s = stream.caps().structure(0).unwrap();
-    let fourcc = get_audio_fourcc(s, &audio_info).context("failed fourcc")?;
+
+    // MPEG-H 3D audio has no fixed channel count (ChannelCount is 0 in the
+    // sample entry), so there is no AudioInfo to be derived from its caps.
+    let audio_info = if s.name().as_str() == "audio/x-mpeg-h" {
+        None
+    } else {
+        Some(gst_audio::AudioInfo::from_caps(stream.caps()).context("failed AudioInfo")?)
+    };
+    let fourcc = get_audio_fourcc(s, audio_info.as_ref()).context("failed fourcc")?;
 
     let sample_size = match s.name().as_str() {
         "audio/x-adpcm" => {
@@ -2206,7 +2217,7 @@ fn write_audio_sample_entry(v: &mut Vec<u8>, stream: &TrackConfiguration) -> Res
                 parse_flac_stream_header(stream.caps()).context("FLAC streamheader")?;
             streamheader.stream_info.bits_per_sample as u16
         }
-        "audio/x-raw" => audio_info.width() as u16,
+        "audio/x-raw" => audio_info.as_ref().unwrap().width() as u16,
         _ => 16u16,
     };
 
@@ -2215,8 +2226,15 @@ fn write_audio_sample_entry(v: &mut Vec<u8>, stream: &TrackConfiguration) -> Res
         v.extend([0u8; 2 * 4]);
 
         // Channel count
-        let channels = u16::try_from(s.get::<i32>("channels").context("no channels")?)
-            .context("too many channels")?;
+        // MPEG-H 3D audio has ChannelCount 0 (inapplicable); the preferred
+        // reproduction layout is signalled via referenceChannelLayout in the
+        // mhaC box instead.
+        let channels = if s.name().as_str() == "audio/x-mpeg-h" {
+            0u16
+        } else {
+            u16::try_from(s.get::<i32>("channels").context("no channels")?)
+                .context("too many channels")?
+        };
         v.extend(channels.to_be_bytes());
 
         // Sample size
@@ -2270,13 +2288,22 @@ fn write_audio_sample_entry(v: &mut Vec<u8>, stream: &TrackConfiguration) -> Res
                 assert!(&stream.codec_specific_boxes[4..8] == b"pcmC");
                 v.extend_from_slice(&stream.codec_specific_boxes);
             }
+            "audio/x-mpeg-h" => {
+                // The mhaC box is optional for the `mhm1`/`mhm2` sample entries
+                // (in-band configuration), so only write it if a configuration
+                // packet was found in the first buffer.
+                if !stream.codec_specific_boxes.is_empty() {
+                    assert!(&stream.codec_specific_boxes[4..8] == b"mhaC");
+                    v.extend_from_slice(&stream.codec_specific_boxes);
+                }
+            }
             _ => unreachable!(),
         }
 
-        if s.name().as_str() == "audio/x-raw" && audio_info.channels() > 1 {
+        if s.name().as_str() == "audio/x-raw" && audio_info.as_ref().unwrap().channels() > 1 {
             // ChannelLayout is mandatory if PCM channel count > 1.
             write_full_box(v, b"chnl", FULL_BOX_VERSION_0, FULL_BOX_FLAGS_NONE, |v| {
-                write_chnl(v, stream, &audio_info)
+                write_chnl(v, stream, audio_info.as_ref().unwrap())
             })?;
         }
 
@@ -2481,6 +2508,34 @@ pub(crate) fn create_pcmc(audio_info: &gst_audio::AudioInfo) -> Result<Vec<u8>, 
             Ok(())
         },
     )?;
+
+    Ok(v)
+}
+
+/// Create MPEG-H 3D audio `mhaC` box.
+pub(crate) fn create_mhac(config: &mha::MhaConfig) -> Result<Vec<u8>, Error> {
+    let mut v = Vec::<u8>::new();
+
+    write_box(&mut v, b"mhaC", move |v| {
+        // configurationVersion = 1
+        v.extend(1u8.to_be_bytes());
+
+        // mpegh3daProfileLevelIndication
+        v.extend(config.profile_level_indication.to_be_bytes());
+
+        // referenceChannelLayout
+        v.extend(config.reference_channel_layout.to_be_bytes());
+
+        // mpegh3daConfigLength
+        let length =
+            u16::try_from(config.mpegh3da_config.len()).context("mpegh3daConfig too large")?;
+        v.extend(length.to_be_bytes());
+
+        // mpegh3daConfig
+        v.extend_from_slice(&config.mpegh3da_config);
+
+        Ok(())
+    })?;
 
     Ok(v)
 }
