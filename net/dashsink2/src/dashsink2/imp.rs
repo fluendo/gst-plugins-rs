@@ -978,7 +978,7 @@ impl DashSink2 {
                 .expect("pad name not found in streams");
 
             // Calculate bandwidth of the current segment: total_size (bytes) * 8 (bits) / segment duration (secs)
-            let current_bandwidth = total_size as u64 * 8 / (target_duration / 1000);
+            let current_bandwidth = total_size as u64 * 1000 * 8 / target_duration;
             // Update the bandwidth of the overall stream
             let previous_bandwidth = dash_stream.bandwidth.unwrap_or(0);
             let previous_segments = dash_stream.segment_idx.saturating_sub(1) as u64;
