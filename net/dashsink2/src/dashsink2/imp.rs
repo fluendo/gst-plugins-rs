@@ -40,6 +40,24 @@ static CAT: LazyLock<gst::DebugCategory> = LazyLock::new(|| {
     )
 });
 
+// RFC 6381 code for MPEG-H 3D audio. See ISO/IEC 23008-3 Clause 21.2 and Table 67.
+fn build_mpegh_codec_string(profile: &str, level: i32) -> Option<String> {
+    let indication = match profile {
+        "main" => level,                  // 0x01-0x05  main profile
+        "high" => 0x05 + level,           // 0x06-0x0A  high profile
+        "low-complexity" => 0x0A + level, // 0x0B-0x0F  low complexity profile
+        "baseline" => 0x0F + level,       // 0x10-0x14  baseline profile
+        _ => return None,
+    };
+
+    if !(1..=5).contains(&level) {
+        return None;
+    }
+
+    // Hardcoded to `mhm1` because that's the only thing cmafmux is emitting for now
+    Some(format!("mhm1.0x{:02x}", indication))
+}
+
 struct DashSink2Settings {
     dynamic: bool,
     mpd_root_path: Option<String>,
@@ -381,6 +399,11 @@ impl ElementImpl for DashSink2 {
                         .field("channels", gst::IntRange::new(1i32, 8))
                         .field("rate", gst::IntRange::new(1, i32::MAX))
                         .build(),
+                    gst::Structure::builder("audio/x-mpeg-h")
+                        .field("stream-format", "mhas")
+                        .field("stream-type", "single")
+                        .field("rate", gst::IntRange::new(1, i32::MAX))
+                        .build(),
                 ]
                 .into_iter()
                 .collect::<gst::Caps>(),
@@ -698,9 +721,18 @@ impl DashSink2 {
                         }
                     }
                 }
-                let codec: String = gst_pbutils::codec_utils_caps_get_mime_codec(caps)
-                    .unwrap()
-                    .to_string();
+                // TODO: gst_pbutils::codec_utils_caps_get_mime_codec() has no
+                // support for MPEG-H 3D audio, so we're computing the RFC 6381
+                // string here. Pending to move this patch to gst-plugins-base.
+                let codec: String = if s.name().as_str() == "audio/x-mpeg-h" {
+                    let profile = s.get::<&str>("profile").unwrap_or("baseline");
+                    let level = s.get::<i32>("level").unwrap_or(1);
+                    build_mpegh_codec_string(profile, level).unwrap_or_else(|| "mhm1".to_string())
+                } else {
+                    gst_pbutils::codec_utils_caps_get_mime_codec(caps)
+                        .unwrap()
+                        .to_string()
+                };
 
                 let (width, height, framerate) = if is_video {
                     let width = s.get::<i32>("width").unwrap_or(1280);

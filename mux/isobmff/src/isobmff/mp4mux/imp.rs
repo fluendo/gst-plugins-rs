@@ -35,10 +35,12 @@ use crate::isobmff::boxes::create_dac3;
 use crate::isobmff::boxes::create_dec3;
 use crate::isobmff::boxes::create_ftyp;
 use crate::isobmff::boxes::create_mdat_header_non_frag;
+use crate::isobmff::boxes::create_mhac;
 use crate::isobmff::boxes::create_moov;
 use crate::isobmff::boxes::create_pcmc;
 use crate::isobmff::boxes::generate_audio_channel_layout_info;
 use crate::isobmff::brands::brands_from_variant_and_caps;
+use crate::isobmff::mha::parse_mhas_config;
 use std::sync::LazyLock;
 
 use crate::isobmff::transform_matrix::TransformMatrix;
@@ -1723,6 +1725,45 @@ impl MP4Mux {
                 }
                 "audio/x-alaw" | "audio/x-mulaw" => (),
                 "audio/x-adpcm" => (),
+                "audio/x-mpeg-h" => {
+                    let Some(first_buffer) = pad.peek_buffer() else {
+                        gst::error!(
+                            CAT,
+                            obj = pad,
+                            "Need first buffer for MPEG-H 3D Audio when creating header"
+                        );
+                        return Err(gst::FlowError::NotNegotiated);
+                    };
+
+                    match parse_mhas_config(&first_buffer) {
+                        Ok(Some(config)) => {
+                            codec_specific_boxes = match create_mhac(&config) {
+                                Ok(boxes) => boxes,
+                                Err(err) => {
+                                    gst::error!(
+                                        CAT,
+                                        obj = pad,
+                                        "Failed to create MPEG-H codec specific box: {err}"
+                                    );
+                                    return Err(gst::FlowError::NotNegotiated);
+                                }
+                            };
+                        }
+                        Ok(None) => {
+                            // No in-band configuration packet before the first
+                            // frame. The mhaC box is optional for mhm1/mhm2, so
+                            // there is nothing to write.
+                        }
+                        Err(err) => {
+                            gst::error!(
+                                CAT,
+                                obj = pad,
+                                "Failed to parse MPEG-H configuration: {err}"
+                            );
+                            return Err(gst::FlowError::NotNegotiated);
+                        }
+                    }
+                }
                 "audio/x-raw" => {
                     let audio_info = gst_audio::AudioInfo::from_caps(&caps).map_err(|err| {
                         gst::error!(CAT, obj = pad, "Failed to get audio info: {err}");
@@ -2833,6 +2874,11 @@ impl ElementImpl for ISOMP4Mux {
                     .field("channels", gst::IntRange::<i32>::new(1, u16::MAX as i32))
                     .field("rate", gst::IntRange::<i32>::new(1, i32::MAX))
                     .build(),
+                gst::Structure::builder("audio/x-mpeg-h")
+                    .field("stream-format", "mhas")
+                    .field("stream-type", "single")
+                    .field("rate", gst::IntRange::<i32>::new(1, i32::MAX))
+                    .build(),
                 gst::Structure::builder("audio/x-raw")
                     .field(
                         "format",
@@ -2951,6 +2997,11 @@ impl ElementImpl for ONVIFMP4Mux {
                         .field("mpegversion", 4i32)
                         .field("stream-format", "raw")
                         .field("channels", gst::IntRange::<i32>::new(1, u16::MAX as i32))
+                        .field("rate", gst::IntRange::<i32>::new(1, i32::MAX))
+                        .build(),
+                    gst::Structure::builder("audio/x-mpeg-h")
+                        .field("stream-format", "mhas")
+                        .field("stream-type", "single")
                         .field("rate", gst::IntRange::<i32>::new(1, i32::MAX))
                         .build(),
                     gst::Structure::builder("audio/x-alaw")

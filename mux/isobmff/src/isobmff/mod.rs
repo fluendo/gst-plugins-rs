@@ -23,6 +23,7 @@ mod brands;
 mod eac3;
 mod flac;
 mod fmp4mux;
+mod mha;
 mod mp4mux;
 #[cfg(feature = "v1_28")]
 mod precision_timestamps;
@@ -610,6 +611,7 @@ impl TrackConfiguration {
                     | "audio/x-adpcm"
                     | "audio/x-ac3"
                     | "audio/x-eac3"
+                    | "audio/x-mpeg-h"
                     | "audio/x-raw"
             )
         })
