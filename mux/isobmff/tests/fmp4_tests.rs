@@ -11,7 +11,11 @@ use gst::prelude::*;
 use mp4_atom::{Atom, ReadAtom as _, ReadFrom as _};
 use tempfile::tempdir;
 
-use std::{fs::File, path::Path, thread};
+use std::{
+    fs::File,
+    path::{Path, PathBuf},
+    thread,
+};
 
 pub mod support;
 use support::{ExpectedConfiguration, check_ftyp_output, check_mvhd_sanity};
@@ -4308,23 +4312,26 @@ fn check_frag_file_structure(
     expected_compatible_brands: Vec<mp4_atom::FourCC>,
     expected_config: ExpectedConfiguration,
 ) {
-    let mut required_top_level_boxes: Vec<mp4_atom::FourCC> = vec![
-        b"ftyp".into(),
-        b"moov".into(),
-        b"styp".into(),
-        b"moof".into(),
-        b"mdat".into(),
+    let mut required_once: Vec<mp4_atom::FourCC> = vec![b"ftyp".into(), b"moov".into()];
+    let repeatable = [
+        mp4_atom::Styp::KIND,
+        mp4_atom::Moof::KIND,
+        mp4_atom::Mdat::KIND,
     ];
-
     let mut input = File::open(location).unwrap();
+    let mut fragment_index = 0u32;
+    let mut next_decode_time = 0u64;
     while let Ok(header) = mp4_atom::Header::read_from(&mut input) {
         println!("header.kind: {:?}", header.kind);
-        assert!(required_top_level_boxes.contains(&header.kind));
-        let pos = required_top_level_boxes
-            .iter()
-            .position(|&fourcc| fourcc == header.kind)
-            .unwrap_or_else(|| panic!("expected to find a matching fourcc {:?}", header.kind));
-        required_top_level_boxes.remove(pos);
+        if required_once.contains(&header.kind) {
+            required_once.retain(|k| *k != header.kind);
+        } else {
+            assert!(
+                repeatable.contains(&header.kind),
+                "unexpected top-level box: {:?}",
+                header.kind
+            );
+        }
         match header.kind {
             mp4_atom::Ftyp::KIND => {
                 let ftyp = mp4_atom::Ftyp::read_atom(&header, &mut input).unwrap();
@@ -4350,15 +4357,11 @@ fn check_frag_file_structure(
             }
             mp4_atom::Moof::KIND => {
                 let moof = mp4_atom::Moof::read_atom(&header, &mut input).unwrap();
-                assert_eq!(moof.mfhd.sequence_number, 1);
+                assert_eq!(moof.mfhd.sequence_number, fragment_index + 1);
                 assert_eq!(moof.traf.len(), 1);
                 let traf0 = &moof.traf[0];
-                assert!(
-                    traf0
-                        .tfdt
-                        .as_ref()
-                        .is_some_and(|tfdt| { tfdt.base_media_decode_time == 0 })
-                );
+                let tfdt = traf0.tfdt.as_ref().expect("missing tfdt");
+                assert_eq!(tfdt.base_media_decode_time, next_decode_time);
                 assert_eq!(traf0.tfhd.track_id, 1);
                 assert!(traf0.tfhd.base_data_offset.is_none());
                 if expected_config.is_audio {
@@ -4369,7 +4372,10 @@ fn check_frag_file_structure(
                 }
                 assert!(traf0.tfhd.default_sample_size.is_none());
                 assert!(traf0.tfhd.sample_description_index.is_none());
-                if expected_config.is_audio {
+
+                if expected_config.per_sample_flags {
+                    assert!(traf0.tfhd.default_sample_flags.is_none());
+                } else if expected_config.is_audio {
                     assert_eq!(traf0.tfhd.default_sample_flags, Some(0x02800000));
                 } else {
                     assert_eq!(traf0.tfhd.default_sample_flags, Some(0x01010000));
@@ -4384,6 +4390,24 @@ fn check_frag_file_structure(
                     assert_eq!(trun.data_offset, Some(184));
                     assert_eq!(trun.entries.len(), 10);
                 }
+                if expected_config.per_sample_flags {
+                    assert_eq!(trun.samples.get(0).unwrap().flags, Some(0x02000000));
+                    assert_eq!(trun.samples.get(1).unwrap().flags, Some(0x01010000));
+                }
+                let default_duration = traf0.tfhd.default_sample_duration;
+                let fragment_duration: u64 = traf0
+                    .trun
+                    .iter()
+                    .flat_map(|trun| trun.samples.iter())
+                    .map(|entry| {
+                        entry
+                            .duration
+                            .or(default_duration)
+                            .expect("no sample duration available") as u64
+                    })
+                    .sum();
+                next_decode_time += fragment_duration;
+                fragment_index += 1;
                 // TODO: this could check the entries.
             }
             mp4_atom::Mdat::KIND => {
@@ -4396,8 +4420,8 @@ fn check_frag_file_structure(
         }
     }
     assert!(
-        required_top_level_boxes.is_empty(),
-        "expected all top level boxes to be found, but these were missed: {required_top_level_boxes:?}"
+        required_once.is_empty(),
+        "expected all top level boxes to be found, but these were missed: {required_once:?}"
     );
 }
 
@@ -4720,6 +4744,44 @@ fn test_eac3_fmux_boxes() {
             is_fragmented: true,
             audio_channel_count: 2,
             audio_sample_rate: 44100.into(),
+            audio_sample_size: 16,
+            ..Default::default()
+        },
+    );
+}
+
+#[test]
+fn test_ac4_mux_boxes() {
+    init();
+
+    let mut fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    fixture.push("tests/Audio_ID_720p_25fps_h264_6ch_128kbps_ac4.mp4");
+    let temp_dir = tempdir().unwrap();
+    let temp_file_path = temp_dir
+        .path()
+        .join("Audio_ID_720p_25fps_h264_6ch_128kbps_ac4.mp4");
+    let location = temp_file_path.as_path();
+    let pipeline_text = format!(
+        "filesrc location={fixture:?} ! qtdemux ! \
+        capsfilter caps=\"audio/x-ac4,framed=true,alignment=frame\" ! \
+        isofmp4mux ! filesink location={location:?}"
+    );
+    let pipeline = gst::parse::launch(&pipeline_text).expect("could not build encoding pipeline");
+    let pipeline = pipeline.downcast::<gst::Pipeline>().unwrap();
+    to_completion(&pipeline);
+
+    check_frag_file_structure(
+        location,
+        b"iso6".into(),
+        0,
+        vec![b"dby1".into(), b"iso6".into()],
+        ExpectedConfiguration {
+            is_fragmented: true,
+            is_audio: true,
+            has_stss: true, // stss is always written for fragmented muxing
+            per_sample_flags: true,
+            audio_channel_count: 6,
+            audio_sample_rate: 48000.into(),
             audio_sample_size: 16,
             ..Default::default()
         },

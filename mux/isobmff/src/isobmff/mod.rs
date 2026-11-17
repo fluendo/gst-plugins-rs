@@ -17,6 +17,7 @@ use gst::tags;
 use num_integer::Integer;
 
 mod ac3;
+mod ac4;
 mod aux_info;
 mod boxes;
 mod brands;
@@ -610,6 +611,7 @@ impl TrackConfiguration {
                     | "audio/x-adpcm"
                     | "audio/x-ac3"
                     | "audio/x-eac3"
+                    | "audio/x-ac4"
                     | "audio/x-raw"
             )
         })

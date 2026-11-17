@@ -10,7 +10,7 @@ use crate::av1::util::{av1_seq_level_idx, av1_tier};
 use crate::isobmff::flac::parse_flac_stream_header;
 use crate::isobmff::fmp4mux::boxes::write_mvex;
 use crate::isobmff::uncompressed::write_uncompressed_sample_entries;
-use crate::isobmff::{CAT, ChnlLayoutInfo, Chunk, Variant, ac3, eac3};
+use crate::isobmff::{CAT, ChnlLayoutInfo, Chunk, Variant, ac3, ac4, eac3};
 use crate::isobmff::{
     PresentationConfiguration, TrackConfiguration, resolve_original_caps,
     transform_matrix::IDENTITY_MATRIX,
@@ -1359,7 +1359,7 @@ pub(crate) fn write_stsd(v: &mut Vec<u8>, stream: &TrackConfiguration) -> Result
 
 fn get_audio_fourcc(
     s: &gst::StructureRef,
-    audio_info: &gst_audio::AudioInfo,
+    audio_info: Option<&gst_audio::AudioInfo>,
 ) -> Result<[u8; 4], Error> {
     let fourcc = match s.name().as_str() {
         "audio/mpeg" => b"mp4a",
@@ -1377,12 +1377,10 @@ fn get_audio_fourcc(
         }
         "audio/x-ac3" => b"ac-3",
         "audio/x-eac3" => b"ec-3",
+        "audio/x-ac4" => b"ac-4",
         "audio/x-raw" => {
-            if audio_info.is_float() {
-                b"fpcm"
-            } else {
-                b"ipcm"
-            }
+            let info = audio_info.expect("audio/x-raw requires AudioInfo");
+            if info.is_float() { b"fpcm" } else { b"ipcm" }
         }
         _ => unreachable!(),
     };
@@ -2192,9 +2190,13 @@ pub(crate) fn write_chnl(
 }
 
 fn write_audio_sample_entry(v: &mut Vec<u8>, stream: &TrackConfiguration) -> Result<(), Error> {
-    let audio_info = gst_audio::AudioInfo::from_caps(stream.caps()).context("failed AudioInfo")?;
     let s = stream.caps().structure(0).unwrap();
-    let fourcc = get_audio_fourcc(s, &audio_info).context("failed fourcc")?;
+    let audio_info = if s.name().as_str() == "audio/x-raw" {
+        Some(gst_audio::AudioInfo::from_caps(stream.caps()).context("failed AudioInfo")?)
+    } else {
+        None
+    };
+    let fourcc = get_audio_fourcc(s, audio_info.as_ref()).context("failed fourcc")?;
 
     let sample_size = match s.name().as_str() {
         "audio/x-adpcm" => {
@@ -2206,7 +2208,10 @@ fn write_audio_sample_entry(v: &mut Vec<u8>, stream: &TrackConfiguration) -> Res
                 parse_flac_stream_header(stream.caps()).context("FLAC streamheader")?;
             streamheader.stream_info.bits_per_sample as u16
         }
-        "audio/x-raw" => audio_info.width() as u16,
+        "audio/x-raw" => audio_info
+            .as_ref()
+            .expect("audio/x-raw requires AudioInfo")
+            .width() as u16,
         _ => 16u16,
     };
 
@@ -2265,6 +2270,11 @@ fn write_audio_sample_entry(v: &mut Vec<u8>, stream: &TrackConfiguration) -> Res
                 assert!(&stream.codec_specific_boxes[4..8] == b"dec3");
                 v.extend_from_slice(&stream.codec_specific_boxes);
             }
+            "audio/x-ac4" => {
+                assert!(!stream.codec_specific_boxes.is_empty());
+                assert!(&stream.codec_specific_boxes[4..8] == b"dac4");
+                v.extend_from_slice(&stream.codec_specific_boxes);
+            }
             "audio/x-raw" => {
                 assert!(!stream.codec_specific_boxes.is_empty());
                 assert!(&stream.codec_specific_boxes[4..8] == b"pcmC");
@@ -2273,10 +2283,10 @@ fn write_audio_sample_entry(v: &mut Vec<u8>, stream: &TrackConfiguration) -> Res
             _ => unreachable!(),
         }
 
-        if s.name().as_str() == "audio/x-raw" && audio_info.channels() > 1 {
+        if let Some(info) = audio_info.as_ref().filter(|info| info.channels() > 1) {
             // ChannelLayout is mandatory if PCM channel count > 1.
             write_full_box(v, b"chnl", FULL_BOX_VERSION_0, FULL_BOX_FLAGS_NONE, |v| {
-                write_chnl(v, stream, &audio_info)
+                write_chnl(v, stream, info)
             })?;
         }
 
@@ -2455,6 +2465,31 @@ pub(crate) fn create_dec3(buffer: &gst::BufferRef) -> Result<Vec<u8>, Error> {
         .context("Writing dec3 box")?;
 
     Ok(dec3)
+}
+
+/// Create AC-4 `dac4` box.
+pub(crate) fn create_dac4(buffer: &gst::BufferRef) -> Result<Vec<u8>, Error> {
+    use bitstream_io::{BitRead as _, BitWrite as _};
+
+    let map = buffer
+        .map_readable()
+        .context("Mapping AC-4 buffer readable")?;
+    let mut reader = bitstream_io::BitReader::endian(
+        std::io::Cursor::new(map.as_slice()),
+        bitstream_io::BigEndian,
+    );
+
+    let header = reader
+        .parse::<ac4::Ac4Toc>()
+        .context("Parsing AC-4 table of content")?;
+
+    let mut dac4 = Vec::with_capacity(11);
+    let mut writer = bitstream_io::BitWriter::endian(&mut dac4, bitstream_io::BigEndian);
+    writer
+        .build(&ac4::Dac4::from_toc(&header)?)
+        .context("Writing ac4_dsi_v1 in dac4 box")?;
+
+    Ok(dac4)
 }
 
 /// Create `pcmC` box for raw audio.

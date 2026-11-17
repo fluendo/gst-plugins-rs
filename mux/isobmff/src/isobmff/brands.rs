@@ -47,6 +47,7 @@ fn supports_mp4_brands(name: &str) -> bool {
             | "audio/x-adpcm"
             | "audio/x-ac3"
             | "audio/x-eac3"
+            | "audio/x-ac4"
     )
 }
 
@@ -381,7 +382,7 @@ pub(crate) fn brands_from_variant_and_caps<'a>(
                 // sdtp, sbgp, sgpd is also required which we
                 // currently do not support.
             }
-            "audio/x-ac3" | "audio/x-eac3" => {
+            "audio/x-ac3" | "audio/x-eac3" | "audio/x-ac4" => {
                 compatible_brands.insert(*b"dby1");
             }
             "audio/x-opus" => {

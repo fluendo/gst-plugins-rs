@@ -35,6 +35,7 @@ use crate::isobmff::TrackConfiguration;
 use crate::isobmff::Variant;
 use crate::isobmff::WriteEdtsMode;
 use crate::isobmff::boxes::create_dac3;
+use crate::isobmff::boxes::create_dac4;
 use crate::isobmff::boxes::create_dec3;
 use crate::isobmff::boxes::create_pcmc;
 use crate::isobmff::boxes::generate_audio_channel_layout_info;
@@ -1060,7 +1061,7 @@ impl FMP4Mux {
             | "application/x-deflate-compressed"
             | "application/x-brotli-compressed" => ["original-caps"].as_slice(),
             "audio/mpeg" | "audio/x-opus" | "audio/x-flac" | "audio/x-alaw" | "audio/x-mulaw"
-            | "audio/x-ac3" | "audio/x-eac3" | "audio/x-adpcm" | "audio/x-raw" => {
+            | "audio/x-ac3" | "audio/x-eac3" | "audio/x-ac4" | "audio/x-adpcm" | "audio/x-raw" => {
                 ["channels", "rate", "layout", "bitrate", "codec_data"].as_slice()
             }
             "application/x-onvif-metadata" => [].as_slice(),
@@ -3928,6 +3929,33 @@ impl FMP4Mux {
                         _ => unreachable!(),
                     }
                 }
+                "audio/x-ac4" => {
+                    let Some(first_buffer) = pad.peek_buffer() else {
+                        gst::error!(
+                            CAT,
+                            obj = pad,
+                            "Need first buffer for AC-4 when creating header"
+                        );
+                        return Err(gst::FlowError::NotNegotiated);
+                    };
+
+                    /* Based on ETSI TS 103 190-2, AC-4 frames can be I-frames or
+                     * non-I-frames, and non-I-frames depend only on preceding frames
+                     * without any reordering, so `PredictiveOnly` is used */
+                    delta_frames = DeltaFrames::PredictiveOnly;
+
+                    codec_specific_boxes = match create_dac4(&first_buffer) {
+                        Ok(boxes) => boxes,
+                        Err(err) => {
+                            gst::error!(
+                                CAT,
+                                obj = pad,
+                                "Failed to create AC-4 codec specific box: {err}"
+                            );
+                            return Err(gst::FlowError::NotNegotiated);
+                        }
+                    };
+                }
                 "audio/x-raw" => {
                     let audio_info = gst_audio::AudioInfo::from_caps(&caps).map_err(|err| {
                         gst::error!(CAT, obj = pad, "Failed to get audio info: {err}");
@@ -5459,6 +5487,10 @@ impl ElementImpl for ISOFMP4Mux {
                     .field("channels", gst::IntRange::<i32>::new(1, u16::MAX as i32))
                     .field("rate", gst::IntRange::<i32>::new(1, i32::MAX))
                     .build(),
+                gst::Structure::builder("audio/x-ac4")
+                    .field("channels", gst::IntRange::<i32>::new(1, u16::MAX as i32))
+                    .field("rate", gst::IntRange::<i32>::new(1, i32::MAX))
+                    .build(),
                 gst::Structure::builder("audio/x-raw")
                     .field(
                         "format",
@@ -5747,6 +5779,10 @@ impl ElementImpl for DASHMP4Mux {
                     gst::Structure::builder("audio/x-eac3")
                         .field("framed", true)
                         .field("alignment", "iec61937")
+                        .field("channels", gst::IntRange::<i32>::new(1, u16::MAX as i32))
+                        .field("rate", gst::IntRange::<i32>::new(1, i32::MAX))
+                        .build(),
+                    gst::Structure::builder("audio/x-ac4")
                         .field("channels", gst::IntRange::<i32>::new(1, u16::MAX as i32))
                         .field("rate", gst::IntRange::<i32>::new(1, i32::MAX))
                         .build(),
