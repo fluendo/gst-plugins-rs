@@ -8,6 +8,7 @@
 //
 
 use mp4_atom::ChannelStructure;
+use mp4_atom::Decode;
 
 pub struct ExpectedConfiguration {
     pub is_audio: bool,
@@ -27,6 +28,7 @@ pub struct ExpectedConfiguration {
     pub codecs_len: u32,
     pub codecs: Vec<mp4_atom::Codec>,
     pub audio_channel_layout: u8,
+    pub per_sample_flags: bool,
 }
 
 impl Default for ExpectedConfiguration {
@@ -49,6 +51,7 @@ impl Default for ExpectedConfiguration {
             codecs_len: 1,
             codecs: Vec::new(),
             audio_channel_layout: 2,
+            per_sample_flags: false,
         }
     }
 }
@@ -389,8 +392,14 @@ fn check_stsd_sanity(stsd: &mp4_atom::Stsd, expected_config: &ExpectedConfigurat
             mp4_atom::Codec::S16l(_s16l) => {
                 todo!("Unsupported codec type: s16l");
             }
-            mp4_atom::Codec::Unknown(four_cc, _) => {
-                todo!("Unsupported codec type: {:?}", four_cc);
+            mp4_atom::Codec::Unknown(four_cc, data) => {
+                // Since mp4_atom doesn't support AC-4 now, check
+                // AC-4 info manually
+                if *four_cc == mp4_atom::FourCC::new(b"ac-4") {
+                    check_ac4_codec_sanity(data, expected_config);
+                } else {
+                    todo!("Unsupported codec type: {:?}", four_cc);
+                }
             }
             &_ => {
                 todo!("Unsupported codec type (wildcard case)");
@@ -462,6 +471,25 @@ fn check_ac3_codec_sanity(ac3: &mp4_atom::Ac3, expected_config: &ExpectedConfigu
 fn check_eac3_codec_sanity(eac3: &mp4_atom::Eac3, expected_config: &ExpectedConfiguration) {
     check_audio_sample_entry_sanity(&eac3.audio, expected_config);
     check_eac3_sample_entry_sanity(&eac3.dec3, expected_config);
+}
+
+fn check_ac4_codec_sanity(ac4: &[u8], expected_config: &ExpectedConfiguration) {
+    let mut buf = ac4;
+    let audio = mp4_atom::Audio::decode(&mut buf).expect("failed to decode AC-4 AudioSampleEntry");
+    check_audio_sample_entry_sanity(&audio, expected_config);
+    let mut found_dac4 = false;
+    while !buf.is_empty() {
+        let atom = mp4_atom::Any::decode(&mut buf)
+            .expect("failed to decode child box of AC-4 sample entry");
+        match atom {
+            mp4_atom::Any::Unknown(kind,plyload ) if kind == mp4_atom::FourCC::new(b"dac4") => {
+                found_dac4 = true;
+                check_ac4_sample_entry_sanity(&plyload, expected_config);
+            }
+            _ => {}
+        }
+    }
+    assert!(found_dac4, "no dac4 box found in AC-4 sample entry");
 }
 
 fn check_audio_sample_entry_sanity(
@@ -578,6 +606,18 @@ fn check_eac3_sample_entry_sanity(
     );
 }
 
+fn check_ac4_sample_entry_sanity(
+    dac4: &[u8],
+    _expected_config: &ExpectedConfiguration,
+) {
+    const EXPECTED_DAC4: &[u8] = &[
+        0x20, 0xa4, 0x01, 0x40, 0x00, 0x00, 0x00, 0x1f,
+        0xff, 0xff, 0xff, 0xe0, 0x01, 0x0f, 0xf8, 0x00,
+        0x00, 0x08, 0x40, 0x00, 0x00, 0x4a, 0x02, 0x00,
+        0x00, 0x00, 0x60, 0x00, 0x00,
+    ];
+    assert_eq!(dac4, EXPECTED_DAC4);
+}
 fn check_uncv_codec_sanity(uncv: &mp4_atom::Uncv, expected_config: &ExpectedConfiguration) {
     check_visual_sample_entry_sanity(&uncv.visual, expected_config);
     assert_eq!(uncv.visual.compressor, mp4_atom::Compressor::default());

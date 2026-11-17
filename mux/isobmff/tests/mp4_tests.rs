@@ -9,7 +9,7 @@
 
 use std::{
     fs::File,
-    path::Path,
+    path::{Path, PathBuf},
     sync::{Arc, Mutex},
 };
 #[cfg(feature = "v1_28")]
@@ -1181,6 +1181,49 @@ fn test_eac3_mux_boxes() {
             is_audio: true,
             audio_channel_count: 2,
             audio_sample_rate: 44100.into(),
+            audio_sample_size: 16,
+            ..Default::default()
+        },
+    );
+}
+
+#[test]
+fn test_ac4_mux_boxes() {
+    init();
+
+    let mut fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    fixture.push("tests/ac4_2ch_48khz.mp4");
+    let temp_dir = tempdir().unwrap();
+    let temp_file_path = temp_dir.path().join("ac4_2ch_48khz.mp4");
+    let location = temp_file_path.as_path();
+    let pipeline_text = format!(
+        "filesrc location={fixture:?} ! qtdemux ! \
+        capsfilter caps=\"audio/x-ac4,framed=true,alignment=frame\" ! \
+        isomp4mux ! filesink location={location:?}"
+    );
+
+    let Ok(pipeline) = gst::parse::launch(&pipeline_text) else {
+        panic!("could not build encoding pipeline");
+    };
+    let pipeline = Pipeline(pipeline.downcast::<gst::Pipeline>().unwrap());
+    pipeline.into_completion();
+
+    check_generic_single_trak_file_structure(
+        location,
+        b"iso4".into(),
+        0,
+        vec![
+            b"dby1".into(),
+            b"iso4".into(),
+            b"isom".into(),
+            b"mp41".into(),
+            b"mp42".into(),
+        ],
+        ExpectedConfiguration {
+            is_audio: true,
+            has_stss: true, // AC-4 has non-I-frames
+            audio_channel_count: 2,
+            audio_sample_rate: 48000.into(),
             audio_sample_size: 16,
             ..Default::default()
         },
