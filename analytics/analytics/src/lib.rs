@@ -31,7 +31,13 @@ mod combiner;
 mod splitter;
 
 #[cfg(feature = "v1_28")]
+mod classifiertensordec;
+#[cfg(feature = "v1_28")]
+mod tensordecodebin;
+#[cfg(feature = "v1_28")]
 mod yolotensordec;
+#[cfg(feature = "v1_30")]
+mod zerodcetensordec;
 
 #[cfg(feature = "v1_30")]
 mod hand;
@@ -41,6 +47,12 @@ mod ctctexttensordec;
 
 #[cfg(feature = "v1_30")]
 mod pipnettensordec;
+
+#[cfg(feature = "v1_30")]
+mod crafttensordec;
+
+#[cfg(feature = "v1_30")]
+mod bytetracker;
 
 fn plugin_init(plugin: &gst::Plugin) -> Result<(), glib::BoolError> {
     #[cfg(feature = "v1_30")]
@@ -60,7 +72,16 @@ fn plugin_init(plugin: &gst::Plugin) -> Result<(), glib::BoolError> {
     }
 
     #[cfg(feature = "v1_28")]
+    classifiertensordec::register(plugin)?;
+
+    #[cfg(feature = "v1_28")]
     yolotensordec::register(plugin)?;
+
+    #[cfg(feature = "v1_28")]
+    tensordecodebin::register(plugin)?;
+
+    #[cfg(feature = "v1_30")]
+    zerodcetensordec::register(plugin)?;
 
     #[cfg(feature = "v1_30")]
     hand::register(plugin)?;
@@ -70,6 +91,12 @@ fn plugin_init(plugin: &gst::Plugin) -> Result<(), glib::BoolError> {
 
     #[cfg(feature = "v1_30")]
     pipnettensordec::register(plugin)?;
+
+    #[cfg(feature = "v1_30")]
+    crafttensordec::register(plugin)?;
+
+    #[cfg(feature = "v1_30")]
+    bytetracker::register(plugin)?;
 
     Ok(())
 }

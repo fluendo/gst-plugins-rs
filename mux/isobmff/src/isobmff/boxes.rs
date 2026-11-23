@@ -148,15 +148,21 @@ fn write_moov(v: &mut Vec<u8>, cfg: &PresentationConfiguration) -> Result<(), Er
     let creation_time =
         u64::try_from(now.difference(&base).as_seconds()).expect("time before 1904");
 
+    let tracks = cfg
+        .tracks
+        .iter()
+        .map(|stream| TrackBoxData::new(cfg, stream))
+        .collect::<Result<Vec<_>, _>>()?;
+
     write_full_box(v, b"mvhd", FULL_BOX_VERSION_1, FULL_BOX_FLAGS_NONE, |v| {
-        write_mvhd(v, cfg, creation_time)
+        write_mvhd(v, cfg, &tracks, creation_time)
     })?;
 
     // The first video-like track, used below to link it to ONVIF metadata tracks
     // via a `cdsc` track reference.
     let first_video_track_idx = cfg.tracks.iter().position(|s| s.is_video_track());
 
-    for (idx, stream) in cfg.tracks.iter().enumerate() {
+    for (idx, (stream, track)) in cfg.tracks.iter().zip(&tracks).enumerate() {
         write_box(v, b"trak", |v| {
             let mut references = Vec::new();
 
@@ -171,7 +177,7 @@ fn write_moov(v: &mut Vec<u8>, cfg: &PresentationConfiguration) -> Result<(), Er
                 });
             }
 
-            write_trak(v, cfg, idx, stream, creation_time, &references)
+            write_trak(v, cfg, idx, stream, track, creation_time, &references)
         })?;
     }
 
@@ -191,6 +197,7 @@ fn write_trak(
     cfg: &PresentationConfiguration,
     idx: usize,
     stream: &TrackConfiguration,
+    track: &TrackBoxData,
     creation_time: u64,
     references: &[TrackReference],
 ) -> Result<(), Error> {
@@ -199,21 +206,14 @@ fn write_trak(
         b"tkhd",
         FULL_BOX_VERSION_1,
         TKHD_FLAGS_TRACK_ENABLED | TKHD_FLAGS_TRACK_IN_MOVIE | TKHD_FLAGS_TRACK_IN_PREVIEW,
-        |v| write_tkhd(v, cfg, idx, stream, creation_time),
+        |v| write_tkhd(v, idx, stream, track.duration_ticks, creation_time),
     )?;
 
     // TODO: write edts optionally for negative DTS instead of offsetting the DTS
     write_box(v, b"mdia", |v| write_mdia(v, cfg, stream, creation_time))?;
-    // TODO: see if we can handle this better
-    if cfg.variant.is_fragmented() {
-        if !stream.elst_infos.is_empty()
-            && cfg.write_edts
-            && let Err(e) = write_edts(v, cfg, stream)
-        {
-            gst::warning!(CAT, "Failed to write edts: {e}");
-        }
-    } else {
-        write_box(v, b"edts", |v| write_edts(v, cfg, stream))?;
+
+    if let Some(entries) = &track.elst_entries {
+        write_box(v, b"edts", |v| write_elst(v, entries))?;
     }
 
     if !references.is_empty() {
@@ -916,6 +916,7 @@ fn write_xml_meta_data_sample_entry(
 fn write_mvhd(
     v: &mut Vec<u8>,
     cfg: &PresentationConfiguration,
+    tracks: &[TrackBoxData],
     creation_time: u64,
 ) -> Result<(), Error> {
     let timescale = cfg.to_timescale();
@@ -925,16 +926,18 @@ fn write_mvhd(
     v.extend(creation_time.to_be_bytes());
     // Timescale
     v.extend(timescale.to_be_bytes());
+
     // Duration
-    if cfg.variant.is_fragmented() {
-        v.extend(0u64.to_be_bytes());
-    } else {
-        let duration = (cfg.max_end_pts() - cfg.min_earliest_pts())
-            .nseconds()
-            .mul_div_round(timescale as u64, gst::ClockTime::SECOND.nseconds())
-            .context("too big track duration")?;
-        v.extend(duration.to_be_bytes());
-    }
+    // 8.2.2.3: the duration of the presentation is the duration of the longest
+    // track. Fragmented tracks have a duration of 0 (8.3.2.1), so this is 0 as
+    // recommended by 8.8.2.1; the MovieExtendsHeaderBox provides the overall
+    // duration including fragments when written (8.8.2.1/8.8.2.3).
+    let duration = tracks
+        .iter()
+        .map(|track| track.duration_ticks)
+        .max()
+        .unwrap_or(0);
+    v.extend(duration.to_be_bytes());
 
     // Rate 1.0
     v.extend((1u32 << 16).to_be_bytes());
@@ -1032,11 +1035,59 @@ fn find_width_and_height(caps: &[gst::Caps]) -> (u32, u32) {
     (width, height)
 }
 
+// Per-track data derived once from the track configuration and shared by the
+// `mvhd`, `tkhd` and `elst` boxes.
+struct TrackBoxData {
+    // The `elst` entries as `(edit_duration, media_time)` pairs, or `None` when
+    // no edit list is written.
+    elst_entries: Option<Vec<(u64, i64)>>,
+    // The track duration in movie timescale ticks, as written to `tkhd` and
+    // considered for the longest track in `mvhd`.
+    duration_ticks: u64,
+}
+
+impl TrackBoxData {
+    fn new(cfg: &PresentationConfiguration, stream: &TrackConfiguration) -> Result<Self, Error> {
+        // Only build the entries when an edit list is written. An empty list
+        // is stored as `None`.
+        let elst_entries = if cfg.write_edts {
+            let entries = elst_entries(cfg, stream);
+            (!entries.is_empty()).then_some(entries)
+        } else {
+            None
+        };
+
+        // 8.3.2.1: for fragmented variants the duration only covers the media
+        // in the enclosing MovieBox, of which there is none here.
+        //
+        // 8.3.2.3: otherwise it is the sum of the edit durations when an edit
+        // list is written, and the media duration given in the MediaHeaderBox
+        // converted into the movie timescale otherwise.
+        let duration_ticks = if cfg.variant.is_fragmented() {
+            0
+        } else if let Some(entries) = &elst_entries {
+            entries
+                .iter()
+                .map(|(edit_duration, _)| *edit_duration)
+                .sum()
+        } else {
+            media_duration_ticks(stream)?
+                .mul_div_round(cfg.to_timescale() as u64, stream.to_timescale() as u64)
+                .context("too big track duration")?
+        };
+
+        Ok(Self {
+            elst_entries,
+            duration_ticks,
+        })
+    }
+}
+
 fn write_tkhd(
     v: &mut Vec<u8>,
-    cfg: &PresentationConfiguration,
     idx: usize,
     stream: &TrackConfiguration,
+    duration_ticks: u64,
     creation_time: u64,
 ) -> Result<(), Error> {
     // Creation time
@@ -1047,21 +1098,8 @@ fn write_tkhd(
     v.extend((idx as u32 + 1).to_be_bytes());
     // Reserved
     v.extend(0u32.to_be_bytes());
-    // Duration
-    if cfg.variant.is_fragmented() {
-        v.extend(0u64.to_be_bytes());
-    } else {
-        // Track header duration is in movie header timescale
-        let timescale = cfg.to_timescale();
-
-        // Duration is the end PTS of this stream up to the beginning of the earliest stream
-        let duration = stream.end_pts - cfg.min_earliest_pts();
-        let duration = duration
-            .nseconds()
-            .mul_div_round(timescale as u64, gst::ClockTime::SECOND.nseconds())
-            .context("too big track duration")?;
-        v.extend(duration.to_be_bytes());
-    }
+    // Duration, in movie timescale ticks (see `TrackBoxData`)
+    v.extend(duration_ticks.to_be_bytes());
     // Reserved
     v.extend([0u8; 2 * 4]);
 
@@ -1101,6 +1139,20 @@ fn write_tkhd(
     Ok(())
 }
 
+// The duration of the media in media timescale ticks, as written to `mdhd`.
+fn media_duration_ticks(stream: &TrackConfiguration) -> Result<u64, Error> {
+    stream
+        .chunks
+        .iter()
+        .flat_map(|c| c.samples.iter().map(|b| b.duration.nseconds()))
+        .sum::<u64>()
+        .mul_div_round(
+            stream.to_timescale() as u64,
+            gst::ClockTime::SECOND.nseconds(),
+        )
+        .context("too big track duration")
+}
+
 fn write_mdhd(
     v: &mut Vec<u8>,
     cfg: &PresentationConfiguration,
@@ -1119,14 +1171,7 @@ fn write_mdhd(
     if cfg.variant.is_fragmented() {
         v.extend(0u64.to_be_bytes());
     } else {
-        let duration = stream
-            .chunks
-            .iter()
-            .flat_map(|c| c.samples.iter().map(|b| b.duration.nseconds()))
-            .sum::<u64>()
-            .mul_div_round(timescale as u64, gst::ClockTime::SECOND.nseconds())
-            .context("too big track duration")?;
-        v.extend(duration.to_be_bytes());
+        v.extend(media_duration_ticks(stream)?.to_be_bytes());
     }
 
     // Language as ISO-639-2/T
@@ -1273,31 +1318,14 @@ pub(crate) fn write_esds_aac(
     )
 }
 
-fn write_edts(
-    v: &mut Vec<u8>,
-    cfg: &PresentationConfiguration,
-    stream: &TrackConfiguration,
-) -> Result<(), Error> {
-    write_full_box(v, b"elst", FULL_BOX_VERSION_1, 0, |v| {
-        write_elst(v, cfg, stream)
-    })?;
-
-    Ok(())
-}
-
-fn write_elst(
-    v: &mut Vec<u8>,
-    cfg: &PresentationConfiguration,
-    stream: &TrackConfiguration,
-) -> Result<(), Error> {
+// The entries of the `elst` box as `(edit_duration, media_time)` pairs: the
+// edit duration in movie timescale ticks, the media time in media timescale
+// ticks (-1 for empty edits). Entries with a zero edit duration are dropped.
+fn elst_entries(cfg: &PresentationConfiguration, stream: &TrackConfiguration) -> Vec<(u64, i64)> {
     let movie_timescale = cfg.to_timescale();
     let track_timescale = stream.to_timescale();
 
-    // Entry count
-    let mut num_entries = 0u32;
-    let entry_count_position = v.len();
-    // Entry count, rewritten in the end
-    v.extend(0u32.to_be_bytes());
+    let mut entries = Vec::new();
 
     for elst_info in &stream.elst_infos {
         // Edit duration (in movie timescale)
@@ -1311,7 +1339,6 @@ fn write_elst(
         if edit_duration == 0 {
             continue;
         }
-        v.extend(edit_duration.to_be_bytes());
 
         // Media time (in media timescale)
         let media_time = elst_info
@@ -1326,18 +1353,29 @@ fn write_elst(
                     .unwrap()
             })
             .unwrap_or(-1i64);
-        v.extend(media_time.to_be_bytes());
 
-        // Media rate
-        v.extend(1u16.to_be_bytes());
-        v.extend(0u16.to_be_bytes());
-        num_entries += 1;
+        entries.push((edit_duration, media_time));
     }
 
-    // Rewrite entry count
-    v[entry_count_position..][..4].copy_from_slice(&num_entries.to_be_bytes());
+    entries
+}
 
-    Ok(())
+fn write_elst(v: &mut Vec<u8>, entries: &[(u64, i64)]) -> Result<(), Error> {
+    write_full_box(v, b"elst", FULL_BOX_VERSION_1, 0, |v| {
+        // Entry count
+        v.extend((entries.len() as u32).to_be_bytes());
+
+        for &(edit_duration, media_time) in entries {
+            v.extend(edit_duration.to_be_bytes());
+            v.extend(media_time.to_be_bytes());
+
+            // Media rate
+            v.extend(1u16.to_be_bytes());
+            v.extend(0u16.to_be_bytes());
+        }
+
+        Ok(())
+    })
 }
 
 pub(crate) fn write_stsd(v: &mut Vec<u8>, stream: &TrackConfiguration) -> Result<(), Error> {
@@ -2518,4 +2556,323 @@ pub(crate) fn create_pcmc(audio_info: &gst_audio::AudioInfo) -> Result<Vec<u8>, 
     )?;
 
     Ok(v)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::isobmff::{DeltaFrames, ElstInfo, Sample};
+    use mp4_atom::{Atom, ReadAtom as _, ReadFrom as _};
+    use std::collections::BTreeMap;
+
+    fn mono_pcm_track(elst_infos: Vec<ElstInfo>) -> TrackConfiguration {
+        let caps = gst::Caps::builder("audio/x-raw")
+            .field("format", "S16LE")
+            .field("channels", 1i32)
+            .field("rate", 48_000i32)
+            .field("layout", "interleaved")
+            .build();
+        let audio_info = gst_audio::AudioInfo::from_caps(&caps).unwrap();
+
+        TrackConfiguration {
+            caps: vec![caps],
+            delta_frames: DeltaFrames::IntraOnly,
+            trak_timescale: 48_000,
+            extra_header_data: None,
+            codec_specific_boxes: create_pcmc(&audio_info).unwrap(),
+            language_code: None,
+            orientation: &IDENTITY_MATRIX,
+            avg_bitrate: None,
+            max_bitrate: None,
+            elst_infos,
+            earliest_pts: gst::ClockTime::ZERO,
+            end_pts: gst::ClockTime::from_seconds(2),
+            chunks: Vec::new(),
+            image_sequence: false,
+            #[cfg(feature = "v1_28")]
+            tai_clock_info: None,
+            auxiliary_info: BTreeMap::new(),
+            chnl_layout_info: None,
+        }
+    }
+
+    fn chunk(duration: gst::ClockTime) -> Chunk {
+        Chunk {
+            offset: 0,
+            samples: vec![Sample {
+                sync_point: true,
+                duration,
+                composition_time_offset: None,
+                size: 4,
+                sample_desc_idx: 1,
+            }],
+        }
+    }
+
+    fn one_chunk() -> Chunk {
+        chunk(gst::ClockTime::from_seconds(2))
+    }
+
+    fn make_moov(
+        variant: Variant,
+        write_edts: bool,
+        tracks: Vec<TrackConfiguration>,
+    ) -> gst::Buffer {
+        create_moov(
+            PresentationConfiguration {
+                variant,
+                update: false,
+                movie_timescale: 1_000,
+                tracks,
+                write_mehd: false,
+                duration: None,
+                write_edts,
+            },
+            0,
+            None,
+            None,
+        )
+        .unwrap()
+    }
+
+    fn parse_moov(buffer: &gst::Buffer) -> mp4_atom::Moov {
+        let map = buffer.map_readable().unwrap();
+        let mut input = map.as_slice();
+
+        let header = mp4_atom::Header::read_from(&mut input).unwrap();
+        assert_eq!(header.kind, mp4_atom::Moov::KIND);
+        mp4_atom::Moov::read_atom(&header, &mut input).unwrap()
+    }
+
+    fn parse_trak(buffer: &gst::Buffer) -> mp4_atom::Trak {
+        parse_moov(buffer)
+            .trak
+            .into_iter()
+            .next()
+            .expect("one track")
+    }
+
+    // `write_edts` gates the `edts` the same way for both variants: no
+    // edit list when it is off, and an `edts` wrapping the `elst` when
+    // it is on. Also covers the regression where fragmented files got
+    // a bare `elst` outside any `edts` (8.6.6.1: the container of an
+    // `elst` is the EditBox).
+    #[test]
+    fn write_edts_flag_gates_edts_for_both_variants() {
+        gst::init().unwrap();
+
+        for variant in [Variant::FragmentedISO, Variant::ISO] {
+            for write_edts in [false, true] {
+                let elst_infos = vec![
+                    // An empty edit delaying the presentation start by 250ms.
+                    ElstInfo {
+                        start: None,
+                        duration: Some(gst::ClockTime::from_mseconds(250)),
+                    },
+                    // Then the media from 250ms in, to its end at 2s. The edit
+                    // durations add up to the 2s track duration.
+                    ElstInfo {
+                        start: Some(gst::Signed::Positive(gst::ClockTime::from_mseconds(250))),
+                        duration: Some(gst::ClockTime::from_mseconds(1750)),
+                    },
+                ];
+                let mut track = mono_pcm_track(elst_infos);
+                if !variant.is_fragmented() {
+                    // The non-fragmented sample tables are built from the chunks.
+                    track.chunks = vec![one_chunk()];
+                }
+
+                let trak = parse_trak(&make_moov(variant, write_edts, vec![track]));
+                assert_eq!(
+                    trak.edts.is_some(),
+                    write_edts,
+                    "variant {variant:?} with write_edts {write_edts}"
+                );
+
+                if write_edts {
+                    let elst = trak
+                        .edts
+                        .as_ref()
+                        .expect("edts box")
+                        .elst
+                        .as_ref()
+                        .expect("elst box");
+                    assert_eq!(elst.entries.len(), 2);
+
+                    let rate = mp4_atom::FixedPoint::new(1i16, 0i16);
+
+                    // 8.6.6.3: edit_duration is in movie timescale units.
+                    assert_eq!(elst.entries[0].segment_duration, 250);
+                    assert!(elst.entries[0].media_time.is_none());
+                    assert_eq!(elst.entries[0].media_rate, rate);
+
+                    // 8.6.6.3: media_time is in media timescale units, 250ms at
+                    // 48000 is 12000. Scaling with the movie timescale would
+                    // give 250.
+                    assert_eq!(elst.entries[1].segment_duration, 1_750);
+                    assert_eq!(elst.entries[1].media_time, Some(12_000));
+                    assert_eq!(elst.entries[1].media_rate, rate);
+                }
+
+                // The 8.3.2.3 tkhd duration rules are covered by the tkhd_*
+                // tests below.
+                if variant.is_fragmented() {
+                    // 8.3.2.1: the tkhd duration only covers media in the
+                    // MovieBox, of which there is none in a fragmented file.
+                    assert_eq!(trak.tkhd.duration, 0);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn tkhd_duration_is_sum_of_edit_durations() {
+        gst::init().unwrap();
+
+        // The edits cover only 1.75s of the 2s track: a 250ms empty edit
+        // delaying the start, then 1.5s of media from 250ms in.
+        let elst_infos = vec![
+            ElstInfo {
+                start: None,
+                duration: Some(gst::ClockTime::from_mseconds(250)),
+            },
+            ElstInfo {
+                start: Some(gst::Signed::Positive(gst::ClockTime::from_mseconds(250))),
+                duration: Some(gst::ClockTime::from_mseconds(1500)),
+            },
+        ];
+        let mut track = mono_pcm_track(elst_infos);
+        track.chunks = vec![one_chunk()];
+
+        let trak = parse_trak(&make_moov(Variant::ISO, true, vec![track]));
+
+        let elst = trak
+            .edts
+            .as_ref()
+            .expect("edts box")
+            .elst
+            .as_ref()
+            .expect("elst box");
+        let edit_duration_sum = elst.entries.iter().map(|e| e.segment_duration).sum::<u64>();
+        assert_eq!(edit_duration_sum, 1_750);
+
+        // 8.3.2.3: with an edit list, the tkhd duration is the sum of the edit
+        // durations, not the 2s media duration.
+        assert_eq!(trak.tkhd.duration, edit_duration_sum);
+    }
+
+    #[test]
+    fn tkhd_duration_without_edit_list_is_media_duration() {
+        gst::init().unwrap();
+
+        let elst_infos = vec![ElstInfo {
+            start: Some(gst::Signed::Positive(gst::ClockTime::from_mseconds(250))),
+            duration: Some(gst::ClockTime::from_mseconds(1500)),
+        }];
+        let mut track = mono_pcm_track(elst_infos);
+        track.chunks = vec![one_chunk()];
+        // Make the presentation span differ from the 2s media duration.
+        track.end_pts = gst::ClockTime::from_seconds(3);
+
+        let trak = parse_trak(&make_moov(Variant::ISO, false, vec![track]));
+
+        assert!(trak.edts.is_none());
+        // 8.3.2.3: without an edit list, the tkhd duration is the media
+        // duration given in the MediaHeaderBox, converted into the movie
+        // timescale: 2s of samples.
+        assert_eq!(trak.tkhd.duration, 2_000);
+    }
+
+    #[test]
+    fn no_edts_when_all_edits_are_dropped() {
+        gst::init().unwrap();
+
+        // 100us rounds to zero edit duration at movie timescale 1000 (1ms
+        // ticks), so the entry is dropped and no edit list is written.
+        let elst_infos = vec![ElstInfo {
+            start: Some(gst::Signed::Positive(gst::ClockTime::from_mseconds(250))),
+            duration: Some(gst::ClockTime::from_nseconds(100_000)),
+        }];
+        let mut track = mono_pcm_track(elst_infos);
+        track.chunks = vec![one_chunk()];
+
+        let trak = parse_trak(&make_moov(Variant::ISO, true, vec![track]));
+
+        assert!(trak.edts.is_none());
+        // Without an edit list, the tkhd duration is the media duration.
+        assert_eq!(trak.tkhd.duration, 2_000);
+    }
+
+    #[test]
+    fn mvhd_duration_is_longest_track() {
+        gst::init().unwrap();
+
+        // Track A presents 1s.
+        let mut track_a = mono_pcm_track(vec![ElstInfo {
+            start: Some(gst::Signed::Positive(gst::ClockTime::ZERO)),
+            duration: Some(gst::ClockTime::from_mseconds(1000)),
+        }]);
+
+        // Track B presents 1.75s: a 250ms empty edit delaying the start, then
+        // 1.5s of media from 250ms in. It is deliberately the middle track, so
+        // that using the first or last track would give the wrong result.
+        let mut track_b = mono_pcm_track(vec![
+            ElstInfo {
+                start: None,
+                duration: Some(gst::ClockTime::from_mseconds(250)),
+            },
+            ElstInfo {
+                start: Some(gst::Signed::Positive(gst::ClockTime::from_mseconds(250))),
+                duration: Some(gst::ClockTime::from_mseconds(1500)),
+            },
+        ]);
+
+        // Track C presents 1.25s.
+        let mut track_c = mono_pcm_track(vec![ElstInfo {
+            start: Some(gst::Signed::Positive(gst::ClockTime::ZERO)),
+            duration: Some(gst::ClockTime::from_mseconds(1250)),
+        }]);
+
+        // The non-fragmented sample tables are built from the chunks.
+        track_a.chunks = vec![one_chunk()];
+        track_b.chunks = vec![one_chunk()];
+        track_c.chunks = vec![one_chunk()];
+
+        let moov = parse_moov(&make_moov(
+            Variant::ISO,
+            true,
+            vec![track_a, track_b, track_c],
+        ));
+
+        // 8.2.2.3: the presentation duration is the duration of the longest
+        // track, i.e. the largest tkhd duration.
+        let tkhd_durations: Vec<u64> = moov.trak.iter().map(|trak| trak.tkhd.duration).collect();
+        assert_eq!(tkhd_durations, vec![1_000, 1_750, 1_250]);
+        assert_eq!(moov.mvhd.duration, 1_750);
+    }
+
+    #[test]
+    fn mvhd_duration_without_edit_list_is_longest_media_duration() {
+        gst::init().unwrap();
+
+        // Track A has a 2s media duration but a 5s presentation span, so a
+        // span-based duration would give the wrong result.
+        let mut track_a = mono_pcm_track(vec![ElstInfo {
+            start: Some(gst::Signed::Positive(gst::ClockTime::from_mseconds(250))),
+            duration: Some(gst::ClockTime::from_mseconds(1500)),
+        }]);
+        track_a.chunks = vec![one_chunk()];
+        track_a.end_pts = gst::ClockTime::from_seconds(5);
+
+        // Track B is the longest at 3s of media, and is the second track so
+        // that using the first track would give the wrong result.
+        let mut track_b = mono_pcm_track(Vec::new());
+        track_b.chunks = vec![chunk(gst::ClockTime::from_seconds(3))];
+
+        let moov = parse_moov(&make_moov(Variant::ISO, false, vec![track_a, track_b]));
+
+        // 8.2.2.3: without edit lists the duration is the media duration, 3s
+        // for the longest track.
+        assert_eq!(moov.mvhd.duration, 3_000);
+    }
 }

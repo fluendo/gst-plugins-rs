@@ -11,7 +11,7 @@
  * tracer-fmttracing:
  *
  * This tracer uses the `tracing_subscriber::fmt` subscriber to format
- * tracing events. This provides human-readable output on stderr.
+ * tracing events. This provides human-readable output on stdout.
  *
  * Example:
  *
@@ -40,11 +40,16 @@
  * ### `with-ansi`
  *
  * Whether to include ANSI color codes in the output (default: true).
+ *
+ * Span lifecycle is always logged: a line is printed when a span opens (with
+ * its field values) and another when it closes (with its duration), so custom
+ * spans emitted via gst_trace_span_begin()/gst_trace_span_end() are visible.
  */
 use gst::glib::Properties;
 use gst::{glib, prelude::*, subclass::prelude::*};
 use gst_tracing::tracer::{TracingTracer, TracingTracerImpl};
 use tracing::error;
+use tracing_subscriber::fmt::format::FmtSpan;
 
 use super::FmtFormat;
 
@@ -73,6 +78,7 @@ pub struct FmtTracer {
         name = "format",
         get,
         set,
+        construct,
         type = FmtFormat,
         member = format,
         blurb = "Output format",
@@ -82,6 +88,7 @@ pub struct FmtTracer {
         name = "with-time",
         get,
         set,
+        construct,
         type = bool,
         member = with_time,
         blurb = "Include timestamps",
@@ -91,6 +98,7 @@ pub struct FmtTracer {
         name = "with-target",
         get,
         set,
+        construct,
         type = bool,
         member = with_target,
         blurb = "Include the target",
@@ -100,6 +108,7 @@ pub struct FmtTracer {
         name = "with-ansi",
         get,
         set,
+        construct,
         type = bool,
         member = with_ansi,
         blurb = "Include ANSI color codes",
@@ -127,11 +136,18 @@ impl ObjectImpl for FmtTracer {
         let with_ansi = settings.with_ansi;
         drop(settings);
 
+        // Always log span lifecycle so custom spans are visible. The
+        // tracing-subscriber fmt layer otherwise only prints events, not spans.
+        let span_events = FmtSpan::NEW | FmtSpan::CLOSE;
+
         // Macro to reduce repetition - each format returns a different type
         // so we can't easily abstract over them without boxing
         macro_rules! init_subscriber {
             ($builder:expr) => {{
-                let builder = $builder.with_target(with_target).with_ansi(with_ansi);
+                let builder = $builder
+                    .with_target(with_target)
+                    .with_ansi(with_ansi)
+                    .with_span_events(span_events);
                 if with_time {
                     builder.try_init()
                 } else {
@@ -154,5 +170,8 @@ impl ObjectImpl for FmtTracer {
 }
 
 impl GstObjectImpl for FmtTracer {}
-impl TracerImpl for FmtTracer {}
+impl TracerImpl for FmtTracer {
+    // Parse the GST_TRACERS params (format=, with-time=, ...) into properties.
+    const USE_STRUCTURE_PARAMS: bool = true;
+}
 impl TracingTracerImpl for FmtTracer {}

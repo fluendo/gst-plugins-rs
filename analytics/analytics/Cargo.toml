@@ -15,19 +15,19 @@ path = "src/lib.rs"
 
 [dependencies]
 gst = { workspace = true, features = ["v1_24"] }
-gst-rtp = { workspace = true, features = ["v1_24"] }
 gst-base = { workspace = true, features = ["v1_24"] }
 gst-video = { workspace = true, features = ["v1_24"] }
 gst-analytics = { workspace = true }
-chrono = { version = "0.4.31", default-features = false }
 xmltree = "0.12"
 glib = { workspace = true, features = ["v2_62"] }
 byte-slice-cast = "1"
 itertools = "0.15"
 smol_str = { version = "0.3", optional = true }
+geo = { version = "0.33", default-features = false, optional = true }
 
 [dev-dependencies]
 gst-check.workspace = true
+tempfile = "3"
 
 [build-dependencies]
 gst-plugin-version-helper.workspace = true
@@ -37,7 +37,7 @@ static = []
 capi = []
 doc = []
 v1_28 = ["gst-analytics/v1_28"]
-v1_30 = ["v1_28", "gst/v1_30", "gst-analytics/v1_30", "dep:smol_str"]
+v1_30 = ["v1_28", "gst/v1_30", "gst-video/v1_30", "gst-analytics/v1_30", "dep:smol_str", "dep:geo"]
 
 [[test]]
 name = "analyticscombiner"
@@ -46,6 +46,14 @@ required-features = ["v1_28"]
 [[test]]
 name = "analyticssplitter"
 required-features = ["v1_28"]
+
+[[test]]
+name = "tensordecodebin"
+required-features = ["v1_28"]
+
+[[test]]
+name = "bytetracker"
+required-features = ["v1_30"]
 
 [package.metadata.capi]
 min_version = "0.9.21"

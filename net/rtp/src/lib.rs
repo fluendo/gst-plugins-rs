@@ -34,6 +34,9 @@ mod ac3;
 mod amr;
 mod av1;
 mod fmtp_color_params;
+mod g72x;
+mod h261;
+mod h263p;
 mod jpeg;
 mod jxsv;
 mod klv;
@@ -84,6 +87,15 @@ fn plugin_init(plugin: &gst::Plugin) -> Result<(), glib::BoolError> {
 
     av1::depay::register(plugin)?;
     av1::pay::register(plugin)?;
+
+    g72x::depay::register(plugin)?;
+    g72x::pay::register(plugin)?;
+
+    h261::depay::register(plugin)?;
+    h261::pay::register(plugin)?;
+
+    h263p::depay::register(plugin)?;
+    h263p::pay::register(plugin)?;
 
     jpeg::depay::register(plugin)?;
     jpeg::pay::register(plugin)?;

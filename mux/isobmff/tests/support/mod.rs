@@ -165,8 +165,10 @@ fn check_minf_sanity(minf: &mp4_atom::Minf, expected_config: &ExpectedConfigurat
 
 fn check_dinf_sanity(dinf: &mp4_atom::Dinf) {
     let dref = &dinf.dref;
-    assert_eq!(dref.urls.len(), 1);
-    let url = &dref.urls[0];
+    assert_eq!(dref.entries.len(), 1);
+    let mp4_atom::DrefEntry::Url(url) = &dref.entries[0] else {
+        panic!("Expected a url entry in dref");
+    };
     assert!(url.location.is_empty());
 }
 
@@ -286,7 +288,7 @@ fn check_stsd_sanity(stsd: &mp4_atom::Stsd, expected_config: &ExpectedConfigurat
                         .as_ref()
                         .is_some_and(|pasp| { pasp.h_spacing == 1 && pasp.v_spacing == 1 })
                 );
-                assert!(avc1.colr.as_ref().is_some_and(|colr| {
+                assert!(avc1.colr.iter().any(|colr| {
                     match colr {
                         mp4_atom::Colr::Nclx {
                             colour_primaries,

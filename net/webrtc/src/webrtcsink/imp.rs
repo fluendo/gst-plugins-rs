@@ -176,7 +176,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 
 static BD_SEQ: AtomicU32 = AtomicU32::new(0);
 fn get_bdseq() -> u32 {
-    BD_SEQ.fetch_and(1, Ordering::SeqCst) + 1
+    BD_SEQ.fetch_add(1, Ordering::SeqCst) + 1
 }
 
 #[derive(Debug, Clone)]
@@ -340,6 +340,8 @@ pub struct VideoEncoder {
     pub transceiver: gst_webrtc::WebRTCRTPTransceiver,
     /// name of the sink pad feeding this encoder
     stream_name: String,
+    /// Maximum bitrate that the receiver's offer allows
+    max_bitrate: Option<i32>,
 }
 
 struct SessionInner {
@@ -848,6 +850,12 @@ fn configure_encoder(enc: &gst::Element, start_bitrate: u32) {
                 enc.set_property_from_str("error-resilient", "default");
                 enc.set_property("lag-in-frames", 0i32);
             }
+            "x265enc" => {
+                enc.set_property("bitrate", start_bitrate / 1000);
+                enc.set_property_from_str("tune", "zerolatency");
+                enc.set_property_from_str("speed-preset", "ultrafast");
+                enc.set_property("key-int-max", 2560i32);
+            }
             "x264enc" => {
                 enc.set_property("bitrate", start_bitrate / 1000);
                 enc.set_property_from_str("tune", "zerolatency");
@@ -973,6 +981,11 @@ fn configure_encoder(enc: &gst::Element, start_bitrate: u32) {
                         .build();
                     enc.set_property("extra-controls", extra_controls);
                 }
+            }
+            "mpph264enc" => {
+                // bps-min / bps-max are derived from bps when left at 0
+                enc.set_property("bps", start_bitrate);
+                enc.set_property("gop", 2560i32);
             }
             _ => (),
         }
@@ -1290,6 +1303,7 @@ impl VideoEncoder {
             mitigation_mode: WebRTCSinkMitigationMode::NONE,
             transceiver,
             stream_name,
+            max_bitrate: None,
         })
     }
 
@@ -1299,6 +1313,7 @@ impl VideoEncoder {
             "vp8enc"
                 | "vp9enc"
                 | "x264enc"
+                | "x265enc"
                 | "openh264enc"
                 | "nvh264enc"
                 | "nvh265enc"
@@ -1328,6 +1343,7 @@ impl VideoEncoder {
                 | "vaav1enc"
                 | "vaav1lpenc"
                 | "v4l2h264enc"
+                | "mpph264enc"
         )
     }
 
@@ -1335,7 +1351,7 @@ impl VideoEncoder {
         let bitrate = match self.factory_name.as_str() {
             "vp8enc" | "vp9enc" => self.element.property::<i32>("target-bitrate"),
             "av1enc" => (self.element.property::<u32>("target-bitrate") * 1000) as i32,
-            "x264enc" | "nvh264enc" | "nvh265enc" | "vaapih264enc" | "vaapivp8enc"
+            "x264enc" | "x265enc" | "nvh264enc" | "nvh265enc" | "vaapih264enc" | "vaapivp8enc"
             | "vaapivp9enc" | "qsvh264enc" | "nvav1enc" | "vpuenc_h264" | "vpuenc_hevc"
             | "vavp8enc" | "vavp8lpenc" | "vavp9enc" | "vavp9lpenc" | "vah264enc"
             | "vah264lpenc" | "vah265enc" | "vah265lpenc" | "vaav1enc" | "vaav1lpenc" => {
@@ -1355,6 +1371,7 @@ impl VideoEncoder {
                         .map_err(|_| WebRTCSinkError::BitrateNotSupported)?
                 }
             }
+            "mpph264enc" => (self.element.property::<u32>("bps")) as i32,
             _ => return Err(WebRTCSinkError::BitrateNotSupported),
         };
 
@@ -1381,12 +1398,14 @@ impl VideoEncoder {
         bitrate: i32,
         enabled_mitigation_modes: WebRTCSinkMitigationMode,
     ) -> Result<(), WebRTCSinkError> {
+        let bitrate = self.max_bitrate.map_or(bitrate, |max| bitrate.min(max));
+
         match self.factory_name.as_str() {
             "vp8enc" | "vp9enc" => self.element.set_property("target-bitrate", bitrate),
             "av1enc" => self
                 .element
                 .set_property("target-bitrate", (bitrate / 1000) as u32),
-            "x264enc" | "nvh264enc" | "nvh265enc" | "vaapih264enc" | "vaapivp8enc"
+            "x264enc" | "x265enc" | "nvh264enc" | "nvh265enc" | "vaapih264enc" | "vaapivp8enc"
             | "vaapivp9enc" | "qsvh264enc" | "nvav1enc" | "vpuenc_h264" | "vpuenc_hevc"
             | "vavp8enc" | "vavp8lpenc" | "vavp9enc" | "vavp9lpenc" | "vah264enc"
             | "vah264lpenc" | "vah265enc" | "vah265lpenc" | "vaav1enc" | "vaav1lpenc" => {
@@ -1415,6 +1434,7 @@ impl VideoEncoder {
                 self.element.set_property("bitrate", bitrate);
             }
             "qtic2venc" => self.element.set_property("target-bitrate", bitrate as u32),
+            "mpph264enc" => self.element.set_property("bps", bitrate as u32),
             _ => return Err(WebRTCSinkError::BitrateNotSupported),
         }
 
@@ -1481,6 +1501,8 @@ impl VideoEncoder {
 impl State {
     fn finalize_session(&mut self, element: &super::BaseWebRTCSink, session: Session) {
         let mut inner = session.0.lock().unwrap();
+
+        let _ = inner.control_events_handler.take();
 
         gst::info!(CAT, "Ending session {}", inner.id);
         inner.pipeline.debug_to_dot_file_with_ts(
@@ -1620,6 +1642,17 @@ impl SessionInner {
         }
     }
 
+    fn on_data_channel(
+        &mut self,
+        element: &super::BaseWebRTCSink,
+        channel: &gst_webrtc::WebRTCDataChannel,
+    ) {
+        if channel.label().map(|l| l.to_string()) == Some("control".to_string()) {
+            self.control_events_handler =
+                Some(ControlRequestHandler::new(element, channel, &self.id));
+        }
+    }
+
     fn gather_stats(&self) -> gst::Structure {
         let mut ret = self.stats.to_owned();
 
@@ -1688,6 +1721,10 @@ impl SessionInner {
                 transceiver,
                 stream_name.to_string(),
             ) {
+                enc.max_bitrate = codec
+                    .max_bitrate(caps.structure(0).unwrap())
+                    .and_then(|bitrate| bitrate.try_into().ok());
+
                 match self.cc_info.heuristic {
                     WebRTCSinkCongestionControl::Disabled => {
                         // If congestion control is disabled, we simply use the highest
@@ -1882,18 +1919,14 @@ impl Drop for NavigationEventHandler {
 }
 
 impl ControlRequestHandler {
-    fn new(element: &super::BaseWebRTCSink, webrtcbin: &gst::Element, session_id: &str) -> Self {
-        let channel = webrtcbin.emit_by_name::<WebRTCDataChannel>(
-            "create-data-channel",
-            &[
-                &CONTROL_DATA_CHANNEL_LABEL,
-                &gst::Structure::builder("config")
-                    .field("priority", gst_webrtc::WebRTCPriorityType::High)
-                    .build(),
-            ],
-        );
-
+    fn new(
+        element: &super::BaseWebRTCSink,
+        channel: &gst_webrtc::WebRTCDataChannel,
+        session_id: &str,
+    ) -> Self {
         let session_id = session_id.to_string();
+
+        let channel = channel.clone();
 
         Self((
             Some(channel.connect_closure(
@@ -3216,10 +3249,7 @@ impl BaseWebRTCSink {
                 codec.set_pt(payload);
                 for (user_caps, codecs_and_caps) in ordered_codecs_and_caps.iter_mut() {
                     if codec.caps.is_subset(user_caps) {
-                        if encoding_name == "H264" && s.get("level-asymmetry-allowed") == Ok("1") {
-                            s.remove_field("profile-level-id");
-                        }
-
+                        codec.accept_lower_than_offered(s);
                         codecs_and_caps.push((codec, caps));
                         break;
                     }
@@ -3263,12 +3293,7 @@ impl BaseWebRTCSink {
                 .ok()
                 .map(|(mut s, enc)| {
                     let mut codec = codec.clone();
-                    let encoding_name = s.get::<String>("encoding-name").unwrap();
-
-                    if encoding_name == "H264" && s.get("level-asymmetry-allowed") == Ok("1") {
-                        s.remove_field("profile-level-id");
-                    }
-
+                    codec.unpin_discovered(&mut s);
                     codec.set_output_filter([s].into_iter().collect());
                     (codec, enc)
                 })
@@ -3675,6 +3700,30 @@ impl BaseWebRTCSink {
                 move |_webrtcbin: &gst::Element, sdp_m_line_index: u32, candidate: String| {
                     let this = element.imp();
                     this.on_ice_candidate(session_id.to_string(), sdp_m_line_index, candidate);
+                }
+            ),
+        );
+
+        webrtcbin.connect_closure(
+            "on-data-channel",
+            false,
+            glib::closure!(
+                #[watch]
+                element,
+                #[strong]
+                session_id,
+                move |_webrtcbin: &gst::Element, channel: &gst_webrtc::WebRTCDataChannel| {
+                    let this = element.imp();
+
+                    if !this.settings.lock().unwrap().enable_control_data_channel {
+                        return;
+                    }
+
+                    let state = this.state.lock().unwrap();
+
+                    if let Some(session) = state.sessions.get(&session_id) {
+                        session.0.lock().unwrap().on_data_channel(element, channel);
+                    }
                 }
             ),
         );
@@ -4155,16 +4204,16 @@ impl BaseWebRTCSink {
                     }
                 }
 
-                if enable_control_data_channel {
-                    let mut state = this.state.lock().unwrap();
-                    if let Some(session) = state.sessions.get_mut(&session_id) {
-                        let mut session = session.0.lock().unwrap();
-                        session.control_events_handler = Some(ControlRequestHandler::new(
-                            &element,
-                            &webrtcbin,
-                            &session_id,
-                        ));
-                    }
+                if enable_control_data_channel && offer.is_some() {
+                    webrtcbin.emit_by_name::<WebRTCDataChannel>(
+                        "create-data-channel",
+                        &[
+                            &CONTROL_DATA_CHANNEL_LABEL,
+                            &gst::Structure::builder("config")
+                                .field("priority", gst_webrtc::WebRTCPriorityType::High)
+                                .build(),
+                        ],
+                    );
                 }
 
                 // This is intentionally emitted with the pipeline in the Ready state,

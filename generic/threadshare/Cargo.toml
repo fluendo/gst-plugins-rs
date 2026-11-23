@@ -21,11 +21,12 @@ gst = { workspace = true, features = ["v1_18"] }
 gst-audio = { workspace = true, features = ["v1_18"] }
 gst-net = { workspace = true, features = ["v1_18"] }
 gst-rtp = { workspace = true, features = ["v1_18"] }
+gst-plugin-webrtcbin2 = { workspace = true, optional = true }
 num-traits = "0.2"
 pin-project-lite = "0.2.0"
 polling = "3.1.0"
 rand = "0.10"
-rtp-types = "0.1"
+rtp-types = "0.2"
 rustix = { version = "1.0", default-features = false, features = ["std", "fs", "net"] }
 slab = "0.4.7"
 smallvec = "1.0"
@@ -42,10 +43,18 @@ windows-sys = { version = ">=0.52, <=0.61", features = ["Win32_Foundation", "Win
 gst-check.workspace = true
 gst-app = { workspace = true, features = [ "v1_20" ] }
 # Used by examples
+anyhow = "1"
+async-tungstenite = { version = "0.35", features = ["tokio-runtime", "tokio-rustls-native-certs"] }
 clap = { version = "4", features = ["derive"] }
 ctrlc = "3.5"
 gst-plugin-rtp.workspace = true
 itertools = "0.15"
+# TLS provider selection
+rustls.workspace = true
+sdp-types.workspace = true
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "signal", "sync", "time"] }
 
 [lib]
 name = "gstthreadshare"
@@ -83,6 +92,11 @@ path = "examples/standalone/rtprecv.rs"
 [[example]]
 name = "ts-inter-simple"
 path = "examples/inter/simple.rs"
+
+[[example]]
+name = "ts-webrtcbin2-sendrecv"
+path = "examples/webrtcbin2/sendrecv.rs"
+required-features = ["webrtcbin2-plugin"]
 
 [[test]]
 name = "ts-inter"
@@ -122,6 +136,7 @@ capi = []
 tuning = []
 doc = ["gst/v1_18"]
 v1_30 = ["gst/v1_30"]
+webrtcbin2-plugin = ["dep:gst-plugin-webrtcbin2"]
 
 [package.metadata.capi]
 min_version = "0.9.21"

@@ -64,6 +64,7 @@ struct Settings {
     buffer_size: u32,
     bind_address: Option<IpAddr>,
     bind_port: u16,
+    reuse: bool,
 
     clients: Arc<IndexMap<Client, ClientEntry>>,
     // true if clients were updated by the application since
@@ -95,6 +96,7 @@ impl Default for Settings {
             buffer_size: 0,
             bind_address: None,
             bind_port: 0,
+            reuse: true,
 
             clients: Arc::new(IndexMap::new()),
             // Need to sync clients when we start
@@ -550,12 +552,12 @@ impl ObjectImpl for BaseUdpSink {
                     .build(),
                 glib::ParamSpecObject::builder::<gio::Socket>("socket")
                     .nick("Socket")
-                    .blurb("Socket to use for UDP sending. (None == allocate)")
+                    .blurb("Socket to use for UDP sending, can be shared with a receiving element. (None == allocate)")
                     .mutable_ready()
                     .build(),
                 glib::ParamSpecObject::builder::<gio::Socket>("socket-v6")
                     .nick("Socket IPv6")
-                    .blurb("Socket to use for UDPv6 sending. (None == allocate)")
+                    .blurb("Socket to use for UDPv6 sending, can be shared with a receiving element. (None == allocate)")
                     .mutable_ready()
                     .build(),
                 glib::ParamSpecBoolean::builder("close-socket")
@@ -575,13 +577,17 @@ impl ObjectImpl for BaseUdpSink {
                     .build(),
                 glib::ParamSpecBoolean::builder("auto-multicast")
                     .nick("Auto multicast")
-                    .blurb("Automatically join/leave multicast groups")
+                    .blurb("Automatically join/leave multicast groups, only one element sharing a socket should do this")
                     .default_value(Settings::default().auto_multicast)
                     .mutable_ready()
                     .build(),
                 glib::ParamSpecString::builder("multicast-iface")
                     .nick("Multicast interface")
-                    .blurb("The network interface on which to join the multicast group")
+                    .blurb("The network interface on which to join the multicast group. This allows multiple \
+                        interfaces separated by comma. (\"eth0,eth1\"). On Linux and Android the socket is \
+                        also bound to the given device via SO_BINDTODEVICE, so that all outgoing packets are \
+                        sent via this interface. SO_BINDTODEVICE only supports a single device, so with \
+                        multiple interfaces the socket is not bound to a device")
                     .mutable_ready()
                     .build(),
                 glib::ParamSpecUInt::builder("ttl")
@@ -602,7 +608,7 @@ impl ObjectImpl for BaseUdpSink {
                     .build(),
                 glib::ParamSpecBoolean::builder("loop")
                     .nick("Loop")
-                    .blurb("Multicast loopback")
+                    .blurb("Deliver multicast packets sent via the socket to local sockets")
                     .default_value(Settings::default().loop_)
                     .mutable_ready()
                     .build(),
@@ -633,6 +639,12 @@ impl ObjectImpl for BaseUdpSink {
                     .minimum(0)
                     .maximum(65535)
                     .default_value(Settings::default().bind_port as u32)
+                    .mutable_ready()
+                    .build(),
+                glib::ParamSpecBoolean::builder("reuse")
+                    .nick("Reuse")
+                    .blurb("Allow port reuse")
+                    .default_value(Settings::default().reuse)
                     .mutable_ready()
                     .build(),
             ]
@@ -814,6 +826,17 @@ impl ObjectImpl for BaseUdpSink {
                 );
                 settings.bind_port = bind_port;
             }
+            "reuse" => {
+                let mut settings = self.settings.lock().unwrap();
+                let reuse = value.get::<bool>().expect("type checked upstream");
+                gst::info!(
+                    CAT,
+                    imp = self,
+                    "Changing reuse from {:?} to {reuse:?}",
+                    settings.reuse,
+                );
+                settings.reuse = reuse;
+            }
             _ => unimplemented!(),
         }
     }
@@ -900,6 +923,10 @@ impl ObjectImpl for BaseUdpSink {
                 let settings = self.settings.lock().unwrap();
                 (settings.bind_port as u32).to_value()
             }
+            "reuse" => {
+                let settings = self.settings.lock().unwrap();
+                settings.reuse.to_value()
+            }
             _ => unimplemented!(),
         }
     }
@@ -949,7 +976,17 @@ impl BaseSinkImpl for BaseUdpSink {
         let mut used_socket_v6 = None;
 
         if let Some(ref socket) = settings.socket {
-            let socket = net::UdpSendSocket::wrap_socket(&*self.obj(), socket).map_err(|err| {
+            let socket = net::UdpSendSocket::wrap_socket(
+                &*self.obj(),
+                socket,
+                settings.multicast_iface.as_deref(),
+                settings.ttl,
+                settings.ttl_mc,
+                settings.loop_,
+                settings.qos_dscp,
+                settings.buffer_size,
+            )
+            .map_err(|err| {
                 gst::error_msg!(
                     gst::ResourceError::OpenRead,
                     ["Failed to wrap application socket: {err:?}"]
@@ -974,7 +1011,17 @@ impl BaseSinkImpl for BaseUdpSink {
                 ));
             }
 
-            let socket = net::UdpSendSocket::wrap_socket(&*self.obj(), socket).map_err(|err| {
+            let socket = net::UdpSendSocket::wrap_socket(
+                &*self.obj(),
+                socket,
+                settings.multicast_iface.as_deref(),
+                settings.ttl,
+                settings.ttl_mc,
+                settings.loop_,
+                settings.qos_dscp,
+                settings.buffer_size,
+            )
+            .map_err(|err| {
                 gst::error_msg!(
                     gst::ResourceError::OpenRead,
                     ["Failed to wrap application socket: {err:?}"]
@@ -1006,6 +1053,7 @@ impl BaseSinkImpl for BaseUdpSink {
                     settings.loop_,
                     settings.qos_dscp,
                     settings.buffer_size,
+                    settings.reuse,
                     bind_saddr,
                 )
                 .map_err(|err| {
@@ -1033,6 +1081,7 @@ impl BaseSinkImpl for BaseUdpSink {
                     settings.loop_,
                     settings.qos_dscp,
                     settings.buffer_size,
+                    settings.reuse,
                     bind_saddr,
                 )
                 .map_err(|err| {
@@ -1056,6 +1105,7 @@ impl BaseSinkImpl for BaseUdpSink {
                     settings.loop_,
                     settings.qos_dscp,
                     settings.buffer_size,
+                    settings.reuse,
                     bind_saddr,
                 );
 
@@ -1637,7 +1687,7 @@ impl BaseUdpSink {
         for buffer in buffers {
             let length = self.prepare_buffer(state, buffer, bytes_to_serve)?;
 
-            for (client, entry) in &mut state.clients {
+            'client: for (client, entry) in &mut state.clients {
                 let dups = if send_duplicates { entry.add_count } else { 1 };
                 let addr = SocketAddr::new(client.host.addr, client.port);
 
@@ -1704,12 +1754,13 @@ impl BaseUdpSink {
                                     continue 'dup;
                                 }
                                 _ => {
-                                    gst::element_imp_error!(
+                                    gst::element_imp_warning!(
                                         self,
                                         gst::ResourceError::Write,
+                                        ("Failed to send data to {addr:?}"),
                                         ["Failed to send data via sendmsg to {addr:?}: {err}"]
                                     );
-                                    return Err(gst::FlowError::Error);
+                                    continue 'client;
                                 }
                             },
                         };
@@ -1949,12 +2000,32 @@ impl BaseUdpSink {
                         continue 'batch;
                     }
                     _ => {
-                        gst::element_imp_error!(
+                        // sendmmsg() only returns -1 if the first message of the batch
+                        // failed, and each client's slots are contiguous
+                        let client_idx = state.msg_clients[start % family_total];
+                        let Some((client, _)) = state.clients.get_index(client_idx) else {
+                            unreachable!()
+                        };
+                        let addr = SocketAddr::new(client.host.addr, client.port);
+                        gst::element_imp_warning!(
                             self,
                             gst::ResourceError::Write,
-                            ["Failed to send data via sendmmsg over {family_str}: {err}"]
+                            ("Failed to send data to {addr:?}"),
+                            [
+                                "Failed to send data via sendmmsg over {family_str} to {addr:?}: {err}"
+                            ]
                         );
-                        return Err(gst::FlowError::Error);
+                        let mut skip = 1;
+                        while start + skip < total
+                            && state.msg_clients[(start + skip) % family_total] == client_idx
+                        {
+                            skip += 1;
+                        }
+                        start += skip;
+                        if start >= total {
+                            break 'batch;
+                        }
+                        continue 'batch;
                     }
                 }
             }

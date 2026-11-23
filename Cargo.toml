@@ -4,6 +4,7 @@ resolver = "3"
 members = [
     "tutorial",
     "version-helper",
+    "sdp-types-gst",
 
     "analytics/analytics",
     "analytics/burn",
@@ -27,7 +28,6 @@ members = [
     "generic/sodium",
     "generic/threadshare",
     "generic/inter",
-    "generic/streamgrouper",
     "generic/gopbuffer",
 
     "mux/flavors",
@@ -47,6 +47,7 @@ members = [
     "net/reqwest",
     "net/rtp",
     "net/rtsp",
+    "net/sdp",
     "net/udp",
     "net/webrtchttp",
     "net/webrtc",
@@ -64,7 +65,7 @@ members = [
 
     "utils/fallbackswitch",
     "utils/livesync",
-    "utils/debugseimetainserter",
+    "utils/debugutils",
     "utils/togglerecord",
     "utils/tracers",
     "utils/uriplaylistbin",
@@ -74,11 +75,13 @@ members = [
     "video/closedcaption",
     "video/colorlut",
     "video/dav1d",
+    "video/dsc",
     "video/ffv1",
     "video/gif",
     "video/gtk4",
     "video/hsv",
     "video/image",
+    "video/overlaycompositor",
     "video/png",
     "video/rav1e",
     "video/skia",
@@ -91,6 +94,7 @@ members = [
 # Only plugins without external dependencies
 default-members = [
     "version-helper",
+    "sdp-types-gst",
 
     "analytics/analytics",
     "analytics/burn",
@@ -107,7 +111,6 @@ default-members = [
     "generic/threadshare",
     "generic/inter",
     "generic/gopbuffer",
-    "generic/streamgrouper",
 
     "mux/isobmff",
 
@@ -122,6 +125,7 @@ default-members = [
     "net/reqwest",
     "net/rtp",
     "net/rtsp",
+    "net/sdp",
     "net/udp",
     "net/webrtchttp",
     "net/webrtc",
@@ -138,17 +142,19 @@ default-members = [
 
     "utils/fallbackswitch",
     "utils/livesync",
-    "utils/debugseimetainserter",
+    "utils/debugutils",
     "utils/togglerecord",
     "utils/tracers",
     "utils/uriplaylistbin",
 
     "video/cdg",
     "video/colorlut",
+    "video/dsc",
     "video/ffv1",
     "video/gif",
     "video/hsv",
     "video/image",
+    "video/overlaycompositor",
     "video/png",
     "video/rav1e",
 ]
@@ -182,7 +188,7 @@ gio = { git = "https://github.com/gtk-rs/gtk-rs-core", branch = "main", version 
 cairo-rs = { git = "https://github.com/gtk-rs/gtk-rs-core", branch = "main", features=["use_glib"], version = "0.23.0-alpha" }
 pango = { git = "https://github.com/gtk-rs/gtk-rs-core", branch = "main", version = "0.23.0-alpha" }
 pangocairo = { git = "https://github.com/gtk-rs/gtk-rs-core", branch = "main", version = "0.23.0-alpha" }
-gtk = { package = "gtk4", git = "https://github.com/gtk-rs/gtk4-rs", branch = "main", features = ["v4_6"], version = "0.12.0-alpha" }
+gtk = { package = "gtk4", git = "https://github.com/gtk-rs/gtk4-rs", branch = "main", features = ["v4_10"], version = "0.12.0-alpha" }
 gdk-wayland = { package = "gdk4-wayland", git = "https://github.com/gtk-rs/gtk4-rs", branch = "main", features = ["v4_4"], version = "0.12.0-alpha" }
 gdk-x11 = { package = "gdk4-x11", git = "https://github.com/gtk-rs/gtk4-rs", branch = "main", features = ["v4_4"], version = "0.12.0-alpha" }
 gdk-win32 = { package = "gdk4-win32", git = "https://github.com/gtk-rs/gtk4-rs", branch = "main", features = ["v4_4"], version = "0.12.0-alpha" }
@@ -215,7 +221,9 @@ gst-plugin-isobmff = { path="mux/isobmff", version = "0.16.0-alpha" }
 gst-plugin-gtk4 = { path="video/gtk4", version = "0.16.0-alpha" }
 gst-plugin-rtp = { path="net/rtp", version = "0.16.0-alpha" }
 gst-plugin-hlssink3 = { path="net/hlssink3", version = "0.16.0-alpha" }
-lru = "0.18"
+gst-plugin-webrtcbin2 = { path="net/webrtcbin2", version = "0.16.0-alpha" }
+lru = "0.19"
 rustls = { version = "0.23", default-features = false, features = ["std"] }
 rustls-platform-verifier = "0.7"
-sdp-types = "0.2"
+sdp-types = "0.3.2"
+sdp-types-gst = { path = "sdp-types-gst", version = "0.16.0-alpha" }

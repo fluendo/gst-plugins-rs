@@ -445,12 +445,19 @@ impl crate::basedepay::RtpBaseDepay2Impl for RtpRawVideoDepay {
 
         // TODO handle grayscale 16 TI specific attributes DEF STAN 00-082 § B.6.2
 
-        let video_info = VideoInfo::builder(fmt, width, height)
+        let Ok(video_info) = VideoInfo::builder(fmt, width, height)
             .colorimetry_if_some(colorimetry.as_ref())
             .fps_if_some(framerate)
             .chroma_site_if_some(chroma_site)
             .build()
-            .unwrap();
+        else {
+            gst::error!(
+                CAT,
+                imp = self,
+                "Unsupported resolution {width}x{height} for {fmt}"
+            );
+            return false;
+        };
 
         let output_caps = video_info.to_caps().unwrap();
 
@@ -460,6 +467,8 @@ impl crate::basedepay::RtpBaseDepay2Impl for RtpRawVideoDepay {
         {
             return false;
         }
+
+        let _ = state.output_frame.take();
 
         let pgroup = PixelGroup::from_video_info(&video_info).unwrap();
         gst::info!(CAT, imp = self, "{pgroup:?} for {video_info:?}");
@@ -639,7 +648,17 @@ impl crate::basedepay::RtpBaseDepay2Impl for RtpRawVideoDepay {
                     imp = self,
                     "skipping chunk {i}: {length} bytes @ out of range line nb {line_nb}"
                 );
-                let (_, remainder) = payload.split_at(length);
+                let Some((_, remainder)) = payload.split_at_checked(length) else {
+                    gst::warning!(
+                        CAT,
+                        imp = self,
+                        "Chunk {i} declares {length} bytes but only {} remain",
+                        payload.len(),
+                    );
+                    // The remaining chunk headers would be parsed from a
+                    // wrong offset, so drop the rest of this packet
+                    break;
+                };
                 payload = remainder;
                 continue;
             };
@@ -657,7 +676,7 @@ impl crate::basedepay::RtpBaseDepay2Impl for RtpRawVideoDepay {
 
             // Check lengths and line/pixel offsets
 
-            if payload.len() < length || length % pgroup_size != 0 {
+            if payload.len() < length {
                 gst::warning!(
                     CAT,
                     imp = self,
@@ -666,8 +685,26 @@ impl crate::basedepay::RtpBaseDepay2Impl for RtpRawVideoDepay {
                     payload.len(),
                 );
 
+                // The following chunks can't be located anymore, so drop the
+                // rest of this packet
+                break;
+            }
+
+            if length % pgroup_size != 0 {
+                gst::warning!(
+                    CAT,
+                    imp = self,
+                    "Bad chunk header: specifies {length} bytes which is not a \
+                    multiple of the pixel group size {pgroup_size}",
+                );
+
+                // The following chunks are still at the offset the header
+                // declares, so skip this chunk and continue with the next one
+                payload = &payload[length..];
                 continue;
             }
+
+            let (chunk_data, remainder) = payload.split_at(length);
 
             if x + x_inc > width.next_multiple_of(x_inc)
                 || y + y_inc > height.next_multiple_of(y_inc)
@@ -682,10 +719,9 @@ impl crate::basedepay::RtpBaseDepay2Impl for RtpRawVideoDepay {
                     and pgroup size {pgroup_size}, x_inc {x_inc}, y_inc {y_inc}",
                 );
 
+                payload = remainder;
                 continue;
             }
-
-            let (chunk_data, remainder) = payload.split_at(length);
 
             match format {
                 // Formats where we can just memcpy pixels directly from source to dest
@@ -714,7 +750,7 @@ impl crate::basedepay::RtpBaseDepay2Impl for RtpRawVideoDepay {
                     let byte_offset = x * pstride;
                     let pixels = &mut line[byte_offset..][..length];
 
-                    pixels.copy_from_slice(chunk_data);
+                    pixels.copy_from_slice(&chunk_data[..length]);
                 }
 
                 // Uyvy: packed YUV 4:2:2

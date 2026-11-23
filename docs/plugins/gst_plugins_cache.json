@@ -367,7 +367,14 @@
                         "writable": true
                     }
                 },
-                "rank": "none"
+                "rank": "none",
+                "signals": {
+                    "request-credentials": {
+                        "args": [],
+                        "return-type": "GstStructure",
+                        "when": "last"
+                    }
+                }
             },
             "awss3hlssink": {
                 "author": "Daily. Co",
@@ -558,7 +565,14 @@
                         "writable": false
                     }
                 },
-                "rank": "none"
+                "rank": "none",
+                "signals": {
+                    "request-credentials": {
+                        "args": [],
+                        "return-type": "GstStructure",
+                        "when": "last"
+                    }
+                }
             },
             "awss3putobjectsink": {
                 "author": "Arun Raghavan <arun@asymptotic.io>",
@@ -880,7 +894,14 @@
                         "writable": true
                     }
                 },
-                "rank": "none"
+                "rank": "none",
+                "signals": {
+                    "request-credentials": {
+                        "args": [],
+                        "return-type": "GstStructure",
+                        "when": "last"
+                    }
+                }
             },
             "awss3sink": {
                 "author": "Marcin Kolny <mkolny@amazon.com>",
@@ -1222,7 +1243,14 @@
                         "writable": true
                     }
                 },
-                "rank": "primary"
+                "rank": "primary",
+                "signals": {
+                    "request-credentials": {
+                        "args": [],
+                        "return-type": "GstStructure",
+                        "when": "last"
+                    }
+                }
             },
             "awss3src": {
                 "author": "Arun Raghavan <arun@arunraghavan.net>",
@@ -1375,7 +1403,14 @@
                         "writable": true
                     }
                 },
-                "rank": "primary"
+                "rank": "primary",
+                "signals": {
+                    "request-credentials": {
+                        "args": [],
+                        "return-type": "GstStructure",
+                        "when": "last"
+                    }
+                }
             },
             "awstranscribeparse": {
                 "author": "Mathieu Duponchelle <mathieu@centricular.com>",
@@ -1633,7 +1668,14 @@
                         "writable": true
                     }
                 },
-                "rank": "none"
+                "rank": "none",
+                "signals": {
+                    "request-credentials": {
+                        "args": [],
+                        "return-type": "GstStructure",
+                        "when": "last"
+                    }
+                }
             },
             "awstranscriber2": {
                 "author": "Mathieu Duponchelle <mathieu@centricular.com>",
@@ -1822,7 +1864,14 @@
                         "writable": true
                     }
                 },
-                "rank": "none"
+                "rank": "none",
+                "signals": {
+                    "request-credentials": {
+                        "args": [],
+                        "return-type": "GstStructure",
+                        "when": "last"
+                    }
+                }
             },
             "awstranslate": {
                 "author": "Mathieu Duponchelle <mathieu@centricular.com>",
@@ -1961,7 +2010,14 @@
                         "writable": true
                     }
                 },
-                "rank": "none"
+                "rank": "none",
+                "signals": {
+                    "request-credentials": {
+                        "args": [],
+                        "return-type": "GstStructure",
+                        "when": "last"
+                    }
+                }
             }
         },
         "filename": "gstaws",
@@ -3528,7 +3584,7 @@
             }
         },
         "filename": "gstdashsink2",
-        "license": "MIT/Apache-2.0",
+        "license": "MPL-2.0",
         "other-types": {},
         "package": "gst-plugin-dashsink2",
         "source": "gst-plugin-dashsink2",
@@ -3649,8 +3705,8 @@
         "tracers": {},
         "url": "https://gitlab.freedesktop.org/gstreamer/gst-plugins-rs"
     },
-    "debugseimetainserter": {
-        "description": "GStreamer Debug SEI Meta Inserter Plugin",
+    "debugutils": {
+        "description": "GStreamer Rust Debug Utilities Plugin",
         "elements": {
             "debugseimetainserter": {
                 "author": "Thibault Saunier <tsaunier@igalia.com>",
@@ -3703,13 +3759,64 @@
                     }
                 },
                 "rank": "none"
+            },
+            "streamgrouper": {
+                "author": "Alicia Boya García <aboya@igalia.com>",
+                "description": "Modifies all input streams to use the same group-id",
+                "hierarchy": [
+                    "GstStreamGrouper",
+                    "GstElement",
+                    "GstObject",
+                    "GInitiallyUnowned",
+                    "GObject"
+                ],
+                "klass": "Generic",
+                "pad-templates": {
+                    "sink_%%u": {
+                        "caps": "ANY",
+                        "direction": "sink",
+                        "presence": "request"
+                    },
+                    "src_%%u": {
+                        "caps": "ANY",
+                        "direction": "src",
+                        "presence": "sometimes"
+                    }
+                },
+                "rank": "none"
+            },
+            "udmabufupload": {
+                "author": "Xavier Claessens <xclaessens@netflix.com>",
+                "description": "Copies raw video frames into udmabuf memory",
+                "hierarchy": [
+                    "GstUdmabufUpload",
+                    "GstBaseTransform",
+                    "GstElement",
+                    "GstObject",
+                    "GInitiallyUnowned",
+                    "GObject"
+                ],
+                "klass": "Filter/Video",
+                "pad-templates": {
+                    "sink": {
+                        "caps": "video/x-raw(memory:DMABuf):\n         format: DMA_DRM\n          width: [ 1, 2147483647 ]\n         height: [ 1, 2147483647 ]\n      framerate: [ 0/1, 2147483647/1 ]\nvideo/x-raw:\n         format: { AYUV_F32, RGBA_F32LE, ARGB_F32, RGBA_F32BE, A444_16LE, A444_16BE, Y416_LE, AYUV64, RGBA64_LE, ARGB64, ARGB64_LE, BGRA64_LE, ABGR64_LE, Y416_BE, RGBA64_BE, ARGB64_BE, BGRA64_BE, ABGR64_BE, A422_16LE, A422_16BE, A420_16LE, A420_16BE, A444_12LE, GBRA_12LE, A444_12BE, GBRA_12BE, Y412_LE, Y412_BE, A422_12LE, A422_12BE, A420_12LE, A420_12BE, RGBA_F16LE, RGBA_F16BE, A444_10LE, GBRA_10LE, A444_10BE, GBRA_10BE, A422_10LE, A422_10BE, A420_10LE, A420_10BE, BGR10A2_LE, RGB10A2_LE, Y410, A444, GBRA, AYUV, VUYA, RGBA, RBGA, ARGB, BGRA, ABGR, A422, A420, AV12, RGBP_F32LE, RGBP_F32BE, RGB_F32LE, RGB_F32BE, Y444_16LE, GBR_16LE, Y444_16BE, GBR_16BE, Y216_LE, Y216_BE, v216, P016_LE, P016_BE, Y444_12LE, GBR_12LE, Y444_12BE, GBR_12BE, I422_12LE, I422_12BE, Y212_LE, Y212_BE, I420_12LE, I420_12BE, P012_LE, P012_BE, RGBP_F16LE, RGBP_F16BE, RGB_F16LE, RGB_F16BE, Y444_10LE, GBR_10LE, Y444_10BE, GBR_10BE, BGR10x2_LE, RGB10x2_LE, r210, I422_10LE, I422_10BE, NV16_10LE40, NV16_10LE32, Y210, UYVP, v210, I420_10LE, I420_10BE, P010_10LE, NV12_10LE40, NV12_10LE32, P010_10BE, MT2110R, MT2110T, NV12_10BE_8L128, NV12_10LE40_4L4, Y444, BGRP, GBR, RGBP, NV24, v308, IYU2, RGBx, xRGB, BGRx, xBGR, RGB, BGR, Y42B, NV16, NV61, YUY2, YVYU, UYVY, VYUY, I420, YV12, NV12, NV21, NV12_16L32S, NV12_32L32, NV12_4L4, NV12_64Z32, NV12_8L128, Y41B, IYU1, YUV9, YVU9, BGR16, RGB16, BGR15, RGB15, RGB8P, GRAY_F32LE, GRAY_F32BE, GRAY16_LE, GRAY16_BE, GRAY_F16LE, GRAY_F16BE, GRAY10_LE16, GRAY10_LE32, GRAY8 }\n          width: [ 1, 2147483647 ]\n         height: [ 1, 2147483647 ]\n      framerate: [ 0/1, 2147483647/1 ]\n",
+                        "direction": "sink",
+                        "presence": "always"
+                    },
+                    "src": {
+                        "caps": "video/x-raw(memory:DMABuf):\n         format: DMA_DRM\n          width: [ 1, 2147483647 ]\n         height: [ 1, 2147483647 ]\n      framerate: [ 0/1, 2147483647/1 ]\n",
+                        "direction": "src",
+                        "presence": "always"
+                    }
+                },
+                "rank": "none"
             }
         },
-        "filename": "gstdebugseimetainserter",
+        "filename": "gstdebugutils",
         "license": "MPL",
         "other-types": {},
-        "package": "gst-plugin-debugseimetainserter",
-        "source": "gst-plugin-debugseimetainserter",
+        "package": "gst-plugin-debugutils",
+        "source": "gst-plugin-debugutils",
         "tracers": {},
         "url": "https://gitlab.freedesktop.org/gstreamer/gst-plugins-rs"
     },
@@ -3979,6 +4086,228 @@
         "other-types": {},
         "package": "gst-plugin-demucs",
         "source": "gst-plugin-demucs",
+        "tracers": {},
+        "url": "https://gitlab.freedesktop.org/gstreamer/gst-plugins-rs"
+    },
+    "dsc": {
+        "description": "GStreamer Digital Signed Content plugin",
+        "elements": {
+            "dscsigner": {
+                "author": "Diego Nieto <dnieto@fluendo.com>",
+                "description": "Signs video buffers using H.274 DSC SEI metadata",
+                "hierarchy": [
+                    "GstDscSigner",
+                    "GstBaseTransform",
+                    "GstElement",
+                    "GstObject",
+                    "GInitiallyUnowned",
+                    "GObject"
+                ],
+                "klass": "Generic",
+                "pad-templates": {
+                    "sink": {
+                        "caps": "video/x-h265:\n      alignment: au\n  stream-format: { (string)byte-stream, (string)hvc1, (string)hev1 }\nvideo/x-h266:\n      alignment: au\n  stream-format: { (string)byte-stream, (string)vvc1, (string)vvi1 }\n",
+                        "direction": "sink",
+                        "presence": "always"
+                    },
+                    "src": {
+                        "caps": "video/x-h265:\n      alignment: au\n  stream-format: { (string)byte-stream, (string)hvc1, (string)hev1 }\nvideo/x-h266:\n      alignment: au\n  stream-format: { (string)byte-stream, (string)vvc1, (string)vvi1 }\n",
+                        "direction": "src",
+                        "presence": "always"
+                    }
+                },
+                "properties": {
+                    "content-uuid": {
+                        "blurb": "Content UUID as hex string (32 characters)",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "NULL",
+                        "mutable": "ready",
+                        "readable": true,
+                        "type": "gchararray",
+                        "writable": true
+                    },
+                    "hash-method": {
+                        "blurb": "Hash algorithm to use",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "sha256 (2)",
+                        "mutable": "ready",
+                        "readable": true,
+                        "type": "GstDscHashMethod",
+                        "writable": true
+                    },
+                    "private-key-path": {
+                        "blurb": "Path to PEM-encoded private key",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "NULL",
+                        "mutable": "ready",
+                        "readable": true,
+                        "type": "gchararray",
+                        "writable": true
+                    },
+                    "public-key-uri": {
+                        "blurb": "URI of the public key for signature verification",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "NULL",
+                        "mutable": "ready",
+                        "readable": true,
+                        "type": "gchararray",
+                        "writable": true
+                    },
+                    "substream-length": {
+                        "blurb": "Number of buffers per substream (GOP length)",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "5",
+                        "max": "-1",
+                        "min": "1",
+                        "mutable": "ready",
+                        "readable": true,
+                        "type": "guint",
+                        "writable": true
+                    }
+                },
+                "rank": "none"
+            },
+            "dscverifier": {
+                "author": "Diego Nieto <dnieto@fluendo.com>",
+                "description": "Verifies video buffer signatures using metadata-provided keys",
+                "hierarchy": [
+                    "GstDscVerifier",
+                    "GstElement",
+                    "GstObject",
+                    "GInitiallyUnowned",
+                    "GObject"
+                ],
+                "klass": "Generic",
+                "pad-templates": {
+                    "sink": {
+                        "caps": "video/x-h265:\n      alignment: au\n  stream-format: { (string)byte-stream, (string)hvc1, (string)hev1 }\nvideo/x-h266:\n      alignment: au\n  stream-format: { (string)byte-stream, (string)vvc1, (string)vvi1 }\n",
+                        "direction": "sink",
+                        "presence": "always"
+                    },
+                    "src": {
+                        "caps": "video/x-h265:\n      alignment: au\n  stream-format: { (string)byte-stream, (string)hvc1, (string)hev1 }\nvideo/x-h266:\n      alignment: au\n  stream-format: { (string)byte-stream, (string)vvc1, (string)vvi1 }\n",
+                        "direction": "src",
+                        "presence": "always"
+                    }
+                },
+                "properties": {
+                    "buffer": {
+                        "blurb": "Whether to buffer the full GOP before outputting after verification (default: true)",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "true",
+                        "mutable": "ready",
+                        "readable": true,
+                        "type": "gboolean",
+                        "writable": true
+                    },
+                    "fail-on-verification-error": {
+                        "blurb": "Whether to fail the pipeline when signature verification fails (default: false)",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "false",
+                        "mutable": "playing",
+                        "readable": true,
+                        "type": "gboolean",
+                        "writable": true
+                    },
+                    "key-store-path": {
+                        "blurb": "Fallback directory used to resolve the certificate file name when the key source URI from the stream cannot be fetched directly",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "NULL",
+                        "mutable": "ready",
+                        "readable": true,
+                        "type": "gchararray",
+                        "writable": true
+                    },
+                    "max-buffering-time": {
+                        "blurb": "Maximum media duration of buffers held before forwarding (0 = unlimited). When exceeded, buffered data is forwarded unverified and the current substream is reported as failed",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "5000000000",
+                        "max": "18446744073709551614",
+                        "min": "0",
+                        "mutable": "ready",
+                        "readable": true,
+                        "type": "guint64",
+                        "writable": true
+                    },
+                    "trust-store-path": {
+                        "blurb": "Directory path where trusted CA certificates are stored (trustStoreDir)",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "NULL",
+                        "mutable": "ready",
+                        "readable": true,
+                        "type": "gchararray",
+                        "writable": true
+                    }
+                },
+                "rank": "none"
+            }
+        },
+        "filename": "gstdsc",
+        "license": "MPL-2.0",
+        "other-types": {
+            "GstDscHashMethod": {
+                "kind": "enum",
+                "values": [
+                    {
+                        "desc": "SHA-1",
+                        "name": "sha1",
+                        "value": "0"
+                    },
+                    {
+                        "desc": "SHA-224",
+                        "name": "sha224",
+                        "value": "1"
+                    },
+                    {
+                        "desc": "SHA-256",
+                        "name": "sha256",
+                        "value": "2"
+                    },
+                    {
+                        "desc": "SHA-384",
+                        "name": "sha384",
+                        "value": "3"
+                    },
+                    {
+                        "desc": "SHA-512",
+                        "name": "sha512",
+                        "value": "4"
+                    }
+                ]
+            }
+        },
+        "package": "gst-plugin-dsc",
+        "source": "gst-plugin-dsc",
         "tracers": {},
         "url": "https://gitlab.freedesktop.org/gstreamer/gst-plugins-rs"
     },
@@ -5699,6 +6028,18 @@
                         "type": "GstHlsSink3PlaylistType",
                         "writable": true
                     },
+                    "send-keyframe-requests": {
+                        "blurb": "Send keyframe requests to ensure correct fragmentation. If this is disabled then the input must have keyframes in regular intervals.",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "true",
+                        "mutable": "null",
+                        "readable": true,
+                        "type": "gboolean",
+                        "writable": true
+                    },
                     "sync": {
                         "blurb": "Sync on the clock",
                         "conditionally-available": false,
@@ -6762,6 +7103,73 @@
     "imagers": {
         "description": "GStreamer plugin based on image-rs",
         "elements": {
+            "animatedimagersdec": {
+                "author": "Amyspark <amy@centricular.com>",
+                "description": "Decodes animated image formats",
+                "hierarchy": [
+                    "GstImageRsAnimDecoder",
+                    "GstElement",
+                    "GstObject",
+                    "GInitiallyUnowned",
+                    "GObject"
+                ],
+                "klass": "Codec/Decoder/Video",
+                "pad-templates": {
+                    "sink": {
+                        "caps": "image/png:\n       animated: true\nimage/gif:\nimage/webp:\n       animated: true\n",
+                        "direction": "sink",
+                        "presence": "always"
+                    },
+                    "src": {
+                        "caps": "video/x-raw:\n         format: RGBA\n          width: [ 1, 2147483647 ]\n         height: [ 1, 2147483647 ]\n      framerate: [ 0/1, 2147483647/1 ]\n",
+                        "direction": "src",
+                        "presence": "always"
+                    }
+                },
+                "properties": {
+                    "loop": {
+                        "blurb": "Set the repeat behaviour of the image",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "image (2)",
+                        "mutable": "ready",
+                        "readable": true,
+                        "type": "GstImageRsLoopStrategy",
+                        "writable": true
+                    },
+                    "max-alloc-bytes": {
+                        "blurb": "Max. amount of data to allocate for decoding (bytes, 0=disable)",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "0",
+                        "max": "18446744073709551615",
+                        "min": "0",
+                        "mutable": "ready",
+                        "readable": true,
+                        "type": "guint64",
+                        "writable": true
+                    },
+                    "max-size-bytes": {
+                        "blurb": "Max. amount of data to buffer (bytes, 0=disable)",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "0",
+                        "max": "18446744073709551615",
+                        "min": "0",
+                        "mutable": "ready",
+                        "readable": true,
+                        "type": "guint64",
+                        "writable": true
+                    }
+                },
+                "rank": "secondary + 2"
+            },
             "imagersdec": {
                 "author": "Amyspark <amy@centricular.com>",
                 "description": "Decodes still image formats",
@@ -6775,7 +7183,7 @@
                 "klass": "Codec/Decoder/Image",
                 "pad-templates": {
                     "sink": {
-                        "caps": "image/bmp:\nimage/x-MS-bmp:\nimage/vnd.ms-dds:\nimage/x-farbfeld:\nimage/vnd.radiance:\nimage/x-icon:\nimage/jpeg:\nimage/openraster:\nimage/x-nokia-over-the-air-bitmap:\nimage/vnd.zbrush.pcx:\nimage/x-pcx:\nimage/png:\nimage/x-portable-anymap:\nimage/x-portable-bitmap:\nimage/x-portable-graymap:\nimage/x-portable-pixmap:\nimage/x-qoi:\nimage/qoi:\nimage/sgi:\nimage/x-targa:\nimage/x-tga:\nimage/tiff:\nimage/vnd.wap.wbmp:\nimage/x-xbitmap:\nimage/x-xbm:\nimage/x-xpixmap:\n",
+                        "caps": "image/bmp:\nimage/x-MS-bmp:\nimage/vnd.ms-dds:\nimage/x-farbfeld:\nimage/vnd.radiance:\nimage/x-icon:\nimage/jpeg:\nimage/openraster:\nimage/x-nokia-over-the-air-bitmap:\nimage/vnd.zbrush.pcx:\nimage/x-pcx:\nimage/png:\nimage/x-portable-anymap:\nimage/x-portable-bitmap:\nimage/x-portable-graymap:\nimage/x-portable-pixmap:\nimage/x-qoi:\nimage/qoi:\nimage/sgi:\nimage/x-targa:\nimage/x-tga:\nimage/tiff:\nimage/webp:\nimage/vnd.wap.wbmp:\nimage/x-xbitmap:\nimage/x-xbm:\nimage/x-xpixmap:\n",
                         "direction": "sink",
                         "presence": "always"
                     },
@@ -7043,6 +7451,26 @@
         "filename": "gstimagers",
         "license": "MPL-2.0",
         "other-types": {
+            "GstImageRsLoopStrategy": {
+                "kind": "enum",
+                "values": [
+                    {
+                        "desc": "Loop the animation irrespective of the image's settings",
+                        "name": "force-yes",
+                        "value": "0"
+                    },
+                    {
+                        "desc": "Play the animation only once irrespective of the image's settings",
+                        "name": "force-no",
+                        "value": "1"
+                    },
+                    {
+                        "desc": "Respect the image's settings",
+                        "name": "image",
+                        "value": "2"
+                    }
+                ]
+            },
             "GstImageRsOverlayPositioningMode": {
                 "kind": "enum",
                 "values": [
@@ -7985,11 +8413,52 @@
     "llamacpp": {
         "description": "GStreamer llama.cpp Plugin",
         "elements": {
+            "llamacpp-imagetransform": {
+                "author": "Sebastian Dröge <sebastian@centricular.com>",
+                "description": "Transforms an image to text based on a vision LLM and a system prompt",
+                "hierarchy": [
+                    "GstLlamaCppImageTransform",
+                    "GstLlamaBaseTransform",
+                    "GstElement",
+                    "GstObject",
+                    "GInitiallyUnowned",
+                    "GObject"
+                ],
+                "klass": "Text/LLM/Video",
+                "pad-templates": {
+                    "sink": {
+                        "caps": "image/jpeg:\nimage/png:\nvideo/x-raw:\n         format: RGB\n          width: [ 1, 2147483647 ]\n         height: [ 1, 2147483647 ]\n",
+                        "direction": "sink",
+                        "presence": "always"
+                    },
+                    "src": {
+                        "caps": "text/x-raw:\n         format: utf8\n",
+                        "direction": "src",
+                        "presence": "always"
+                    }
+                },
+                "properties": {
+                    "mmproj-path": {
+                        "blurb": "Path to the GGUF multimodal projection model file",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "NULL",
+                        "mutable": "null",
+                        "readable": true,
+                        "type": "gchararray",
+                        "writable": true
+                    }
+                },
+                "rank": "none"
+            },
             "llamacpp-texttransform": {
                 "author": "Sebastian Dröge <sebastian@centricular.com>",
                 "description": "Transforms text based on an LLM and a system prompt",
                 "hierarchy": [
                     "GstLlamaCppTextTransform",
+                    "GstLlamaBaseTransform",
                     "GstElement",
                     "GstObject",
                     "GInitiallyUnowned",
@@ -8193,7 +8662,198 @@
         },
         "filename": "gstllamacpp",
         "license": "MPL",
-        "other-types": {},
+        "other-types": {
+            "GstLlamaBaseTransform": {
+                "hierarchy": [
+                    "GstLlamaBaseTransform",
+                    "GstElement",
+                    "GstObject",
+                    "GInitiallyUnowned",
+                    "GObject"
+                ],
+                "kind": "object",
+                "properties": {
+                    "context-size": {
+                        "blurb": "Size of the context window for the LLM",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "2048",
+                        "max": "-1",
+                        "min": "512",
+                        "mutable": "null",
+                        "readable": true,
+                        "type": "guint",
+                        "writable": true
+                    },
+                    "history-size": {
+                        "blurb": "Number of previous messages to keep in context",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "5",
+                        "max": "100",
+                        "min": "0",
+                        "mutable": "null",
+                        "readable": true,
+                        "type": "guint",
+                        "writable": true
+                    },
+                    "min-p": {
+                        "blurb": "Minimum probability threshold (0.0 = disabled)",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "0.05",
+                        "max": "1",
+                        "min": "0",
+                        "mutable": "null",
+                        "readable": true,
+                        "type": "gfloat",
+                        "writable": true
+                    },
+                    "model-path": {
+                        "blurb": "Path to the GGUF model file",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "NULL",
+                        "mutable": "null",
+                        "readable": true,
+                        "type": "gchararray",
+                        "writable": true
+                    },
+                    "penalty-freq": {
+                        "blurb": "Frequency penalty (0.0 = disabled)",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "0",
+                        "max": "3.40282e+38",
+                        "min": "0",
+                        "mutable": "null",
+                        "readable": true,
+                        "type": "gfloat",
+                        "writable": true
+                    },
+                    "penalty-last-n": {
+                        "blurb": "Last n tokens to penalize (0 = disable, -1 = context size)",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "64",
+                        "max": "2147483647",
+                        "min": "-1",
+                        "mutable": "null",
+                        "readable": true,
+                        "type": "gint",
+                        "writable": true
+                    },
+                    "penalty-present": {
+                        "blurb": "Presence penalty (0.0 = disabled)",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "0",
+                        "max": "3.40282e+38",
+                        "min": "0",
+                        "mutable": "null",
+                        "readable": true,
+                        "type": "gfloat",
+                        "writable": true
+                    },
+                    "penalty-repeat": {
+                        "blurb": "Repetition penalty (1.0 = disabled)",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "1",
+                        "max": "3.40282e+38",
+                        "min": "0",
+                        "mutable": "null",
+                        "readable": true,
+                        "type": "gfloat",
+                        "writable": true
+                    },
+                    "seed": {
+                        "blurb": "Random seed for sampling",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "-1159983106",
+                        "max": "-1",
+                        "min": "0",
+                        "mutable": "null",
+                        "readable": true,
+                        "type": "guint",
+                        "writable": true
+                    },
+                    "system-prompt": {
+                        "blurb": "System prompt for the LLM",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "NULL",
+                        "mutable": "null",
+                        "readable": true,
+                        "type": "gchararray",
+                        "writable": true
+                    },
+                    "temp": {
+                        "blurb": "Sampling temperature",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "0.8",
+                        "max": "3.40282e+38",
+                        "min": "0",
+                        "mutable": "null",
+                        "readable": true,
+                        "type": "gfloat",
+                        "writable": true
+                    },
+                    "top-k": {
+                        "blurb": "Top-k sampling parameter (<= 0 to use vocab size)",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "40",
+                        "max": "2147483647",
+                        "min": "-2147483648",
+                        "mutable": "null",
+                        "readable": true,
+                        "type": "gint",
+                        "writable": true
+                    },
+                    "top-p": {
+                        "blurb": "Top-p sampling parameter (1.0 = disabled)",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "0.95",
+                        "max": "1",
+                        "min": "0",
+                        "mutable": "null",
+                        "readable": true,
+                        "type": "gfloat",
+                        "writable": true
+                    }
+                }
+            }
+        },
         "package": "gst-plugin-llamacpp",
         "source": "gst-plugin-llamacpp",
         "tracers": {},
@@ -8654,6 +9314,43 @@
         "tracers": {},
         "url": "https://gitlab.freedesktop.org/gstreamer/gst-plugins-rs"
     },
+    "overlaycompositor": {
+        "description": "GStreamer overlay composition blending plugin",
+        "elements": {
+            "overlaycompositor": {
+                "author": "Seungha Yang <seungha@centricular.com>",
+                "description": "Blends overlay composition metadata into video frames",
+                "hierarchy": [
+                    "GstOverlayCompositor",
+                    "GstElement",
+                    "GstObject",
+                    "GInitiallyUnowned",
+                    "GObject"
+                ],
+                "klass": "Filter/Editor/Video",
+                "pad-templates": {
+                    "sink": {
+                        "caps": "video/x-raw(ANY):\n         format: { AYUV_F32, RGBA_F32LE, ARGB_F32, RGBA_F32BE, A444_16LE, A444_16BE, Y416_LE, AYUV64, RGBA64_LE, ARGB64, ARGB64_LE, BGRA64_LE, ABGR64_LE, Y416_BE, RGBA64_BE, ARGB64_BE, BGRA64_BE, ABGR64_BE, A422_16LE, A422_16BE, A420_16LE, A420_16BE, A444_12LE, GBRA_12LE, A444_12BE, GBRA_12BE, Y412_LE, Y412_BE, A422_12LE, A422_12BE, A420_12LE, A420_12BE, RGBA_F16LE, RGBA_F16BE, A444_10LE, GBRA_10LE, A444_10BE, GBRA_10BE, A422_10LE, A422_10BE, A420_10LE, A420_10BE, BGR10A2_LE, RGB10A2_LE, Y410, A444, GBRA, AYUV, VUYA, RGBA, RBGA, ARGB, BGRA, ABGR, A422, A420, AV12, RGBP_F32LE, RGBP_F32BE, RGB_F32LE, RGB_F32BE, Y444_16LE, GBR_16LE, Y444_16BE, GBR_16BE, Y216_LE, Y216_BE, v216, P016_LE, P016_BE, Y444_12LE, GBR_12LE, Y444_12BE, GBR_12BE, I422_12LE, I422_12BE, Y212_LE, Y212_BE, I420_12LE, I420_12BE, P012_LE, P012_BE, RGBP_F16LE, RGBP_F16BE, RGB_F16LE, RGB_F16BE, Y444_10LE, GBR_10LE, Y444_10BE, GBR_10BE, BGR10x2_LE, RGB10x2_LE, r210, I422_10LE, I422_10BE, NV16_10LE40, NV16_10LE32, Y210, UYVP, v210, I420_10LE, I420_10BE, P010_10LE, NV12_10LE40, NV12_10LE32, P010_10BE, MT2110R, MT2110T, NV12_10BE_8L128, NV12_10LE40_4L4, Y444, BGRP, GBR, RGBP, NV24, v308, IYU2, RGBx, xRGB, BGRx, xBGR, RGB, BGR, Y42B, NV16, NV61, YUY2, YVYU, UYVY, VYUY, I420, YV12, NV12, NV21, NV12_16L32S, NV12_32L32, NV12_4L4, NV12_64Z32, NV12_8L128, Y41B, IYU1, YUV9, YVU9, BGR16, RGB16, BGR15, RGB15, RGB8P, GRAY_F32LE, GRAY_F32BE, GRAY16_LE, GRAY16_BE, GRAY_F16LE, GRAY_F16BE, GRAY10_LE16, GRAY10_LE32, GRAY8 }\n          width: [ 1, 2147483647 ]\n         height: [ 1, 2147483647 ]\n      framerate: [ 0/1, 2147483647/1 ]\n",
+                        "direction": "sink",
+                        "presence": "always"
+                    },
+                    "src": {
+                        "caps": "video/x-raw(ANY):\n         format: { AYUV_F32, RGBA_F32LE, ARGB_F32, RGBA_F32BE, A444_16LE, A444_16BE, Y416_LE, AYUV64, RGBA64_LE, ARGB64, ARGB64_LE, BGRA64_LE, ABGR64_LE, Y416_BE, RGBA64_BE, ARGB64_BE, BGRA64_BE, ABGR64_BE, A422_16LE, A422_16BE, A420_16LE, A420_16BE, A444_12LE, GBRA_12LE, A444_12BE, GBRA_12BE, Y412_LE, Y412_BE, A422_12LE, A422_12BE, A420_12LE, A420_12BE, RGBA_F16LE, RGBA_F16BE, A444_10LE, GBRA_10LE, A444_10BE, GBRA_10BE, A422_10LE, A422_10BE, A420_10LE, A420_10BE, BGR10A2_LE, RGB10A2_LE, Y410, A444, GBRA, AYUV, VUYA, RGBA, RBGA, ARGB, BGRA, ABGR, A422, A420, AV12, RGBP_F32LE, RGBP_F32BE, RGB_F32LE, RGB_F32BE, Y444_16LE, GBR_16LE, Y444_16BE, GBR_16BE, Y216_LE, Y216_BE, v216, P016_LE, P016_BE, Y444_12LE, GBR_12LE, Y444_12BE, GBR_12BE, I422_12LE, I422_12BE, Y212_LE, Y212_BE, I420_12LE, I420_12BE, P012_LE, P012_BE, RGBP_F16LE, RGBP_F16BE, RGB_F16LE, RGB_F16BE, Y444_10LE, GBR_10LE, Y444_10BE, GBR_10BE, BGR10x2_LE, RGB10x2_LE, r210, I422_10LE, I422_10BE, NV16_10LE40, NV16_10LE32, Y210, UYVP, v210, I420_10LE, I420_10BE, P010_10LE, NV12_10LE40, NV12_10LE32, P010_10BE, MT2110R, MT2110T, NV12_10BE_8L128, NV12_10LE40_4L4, Y444, BGRP, GBR, RGBP, NV24, v308, IYU2, RGBx, xRGB, BGRx, xBGR, RGB, BGR, Y42B, NV16, NV61, YUY2, YVYU, UYVY, VYUY, I420, YV12, NV12, NV21, NV12_16L32S, NV12_32L32, NV12_4L4, NV12_64Z32, NV12_8L128, Y41B, IYU1, YUV9, YVU9, BGR16, RGB16, BGR15, RGB15, RGB8P, GRAY_F32LE, GRAY_F32BE, GRAY16_LE, GRAY16_BE, GRAY_F16LE, GRAY_F16BE, GRAY10_LE16, GRAY10_LE32, GRAY8 }\n          width: [ 1, 2147483647 ]\n         height: [ 1, 2147483647 ]\n      framerate: [ 0/1, 2147483647/1 ]\n",
+                        "direction": "src",
+                        "presence": "always"
+                    }
+                },
+                "rank": "none"
+            }
+        },
+        "filename": "gstoverlaycompositor",
+        "license": "MPL-2.0",
+        "other-types": {},
+        "package": "gst-plugin-overlaycompositor",
+        "source": "gst-plugin-overlaycompositor",
+        "tracers": {},
+        "url": "https://gitlab.freedesktop.org/gstreamer/gst-plugins-rs"
+    },
     "pcap": {
         "description": "GStreamer Plugin for PCAP",
         "elements": {
@@ -8956,6 +9653,18 @@
                         "mutable": "null",
                         "readable": true,
                         "type": "guint",
+                        "writable": true
+                    },
+                    "congestion-control": {
+                        "blurb": "QUIC congestion control algorithm to use",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "cubic (0)",
+                        "mutable": "ready",
+                        "readable": true,
+                        "type": "GstQuinnQuicCongestionControl",
                         "writable": true
                     },
                     "datagram-receive-buffer-size": {
@@ -9329,6 +10038,18 @@
                         "mutable": "null",
                         "readable": true,
                         "type": "gchararray",
+                        "writable": true
+                    },
+                    "congestion-control": {
+                        "blurb": "QUIC congestion control algorithm to use",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "cubic (0)",
+                        "mutable": "ready",
+                        "readable": true,
+                        "type": "GstQuinnQuicCongestionControl",
                         "writable": true
                     },
                     "datagram-receive-buffer-size": {
@@ -9741,6 +10462,18 @@
                         "type": "gchararray",
                         "writable": true
                     },
+                    "congestion-control": {
+                        "blurb": "QUIC congestion control algorithm to use",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "cubic (0)",
+                        "mutable": "ready",
+                        "readable": true,
+                        "type": "GstQuinnQuicCongestionControl",
+                        "writable": true
+                    },
                     "datagram-receive-buffer-size": {
                         "blurb": "Maximum number of incoming application datagram bytes to buffer",
                         "conditionally-available": false,
@@ -10009,6 +10742,18 @@
                         "type": "gchararray",
                         "writable": true
                     },
+                    "congestion-control": {
+                        "blurb": "QUIC congestion control algorithm to use",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "cubic (0)",
+                        "mutable": "ready",
+                        "readable": true,
+                        "type": "GstQuinnQuicCongestionControl",
+                        "writable": true
+                    },
                     "is-live": {
                         "blurb": "Act like a live source",
                         "conditionally-available": false,
@@ -10142,6 +10887,26 @@
         "filename": "gstquinn",
         "license": "MPL",
         "other-types": {
+            "GstQuinnQuicCongestionControl": {
+                "kind": "enum",
+                "values": [
+                    {
+                        "desc": "Cubic: Cubic congestion control (quinn default)",
+                        "name": "cubic",
+                        "value": "0"
+                    },
+                    {
+                        "desc": "Newreno: New Reno congestion control (RFC 9002)",
+                        "name": "new-reno",
+                        "value": "1"
+                    },
+                    {
+                        "desc": "Bbr: BBR congestion control (experimental)",
+                        "name": "bbr",
+                        "value": "2"
+                    }
+                ]
+            },
             "GstQuinnQuicRole": {
                 "kind": "enum",
                 "values": [
@@ -11085,6 +11850,238 @@
                 },
                 "rank": "primary"
             },
+            "bytetracker": {
+                "author": "Denis Shimizu <denis.shimizu@collabora.com>",
+                "description": "Tracks detected objects across frames with ByteTrack",
+                "hierarchy": [
+                    "GstByteTracker",
+                    "GstBaseTransform",
+                    "GstElement",
+                    "GstObject",
+                    "GInitiallyUnowned",
+                    "GObject"
+                ],
+                "klass": "Analyzer/Video",
+                "pad-templates": {
+                    "sink": {
+                        "caps": "video/x-raw(ANY):\n         format: { AYUV_F32, RGBA_F32LE, ARGB_F32, RGBA_F32BE, A444_16LE, A444_16BE, Y416_LE, AYUV64, RGBA64_LE, ARGB64, ARGB64_LE, BGRA64_LE, ABGR64_LE, Y416_BE, RGBA64_BE, ARGB64_BE, BGRA64_BE, ABGR64_BE, A422_16LE, A422_16BE, A420_16LE, A420_16BE, A444_12LE, GBRA_12LE, A444_12BE, GBRA_12BE, Y412_LE, Y412_BE, A422_12LE, A422_12BE, A420_12LE, A420_12BE, RGBA_F16LE, RGBA_F16BE, A444_10LE, GBRA_10LE, A444_10BE, GBRA_10BE, A422_10LE, A422_10BE, A420_10LE, A420_10BE, BGR10A2_LE, RGB10A2_LE, Y410, A444, GBRA, AYUV, VUYA, RGBA, RBGA, ARGB, BGRA, ABGR, A422, A420, AV12, RGBP_F32LE, RGBP_F32BE, RGB_F32LE, RGB_F32BE, Y444_16LE, GBR_16LE, Y444_16BE, GBR_16BE, Y216_LE, Y216_BE, v216, P016_LE, P016_BE, Y444_12LE, GBR_12LE, Y444_12BE, GBR_12BE, I422_12LE, I422_12BE, Y212_LE, Y212_BE, I420_12LE, I420_12BE, P012_LE, P012_BE, RGBP_F16LE, RGBP_F16BE, RGB_F16LE, RGB_F16BE, Y444_10LE, GBR_10LE, Y444_10BE, GBR_10BE, BGR10x2_LE, RGB10x2_LE, r210, I422_10LE, I422_10BE, NV16_10LE40, NV16_10LE32, Y210, UYVP, v210, I420_10LE, I420_10BE, P010_10LE, NV12_10LE40, NV12_10LE32, P010_10BE, MT2110R, MT2110T, NV12_10BE_8L128, NV12_10LE40_4L4, Y444, BGRP, GBR, RGBP, NV24, v308, IYU2, RGBx, xRGB, BGRx, xBGR, RGB, BGR, Y42B, NV16, NV61, YUY2, YVYU, UYVY, VYUY, I420, YV12, NV12, NV21, NV12_16L32S, NV12_32L32, NV12_4L4, NV12_64Z32, NV12_8L128, Y41B, IYU1, YUV9, YVU9, BGR16, RGB16, BGR15, RGB15, RGB8P, GRAY_F32LE, GRAY_F32BE, GRAY16_LE, GRAY16_BE, GRAY_F16LE, GRAY_F16BE, GRAY10_LE16, GRAY10_LE32, GRAY8 }\n          width: [ 1, 2147483647 ]\n         height: [ 1, 2147483647 ]\n      framerate: [ 0/1, 2147483647/1 ]\n",
+                        "direction": "sink",
+                        "presence": "always"
+                    },
+                    "src": {
+                        "caps": "video/x-raw(ANY):\n         format: { AYUV_F32, RGBA_F32LE, ARGB_F32, RGBA_F32BE, A444_16LE, A444_16BE, Y416_LE, AYUV64, RGBA64_LE, ARGB64, ARGB64_LE, BGRA64_LE, ABGR64_LE, Y416_BE, RGBA64_BE, ARGB64_BE, BGRA64_BE, ABGR64_BE, A422_16LE, A422_16BE, A420_16LE, A420_16BE, A444_12LE, GBRA_12LE, A444_12BE, GBRA_12BE, Y412_LE, Y412_BE, A422_12LE, A422_12BE, A420_12LE, A420_12BE, RGBA_F16LE, RGBA_F16BE, A444_10LE, GBRA_10LE, A444_10BE, GBRA_10BE, A422_10LE, A422_10BE, A420_10LE, A420_10BE, BGR10A2_LE, RGB10A2_LE, Y410, A444, GBRA, AYUV, VUYA, RGBA, RBGA, ARGB, BGRA, ABGR, A422, A420, AV12, RGBP_F32LE, RGBP_F32BE, RGB_F32LE, RGB_F32BE, Y444_16LE, GBR_16LE, Y444_16BE, GBR_16BE, Y216_LE, Y216_BE, v216, P016_LE, P016_BE, Y444_12LE, GBR_12LE, Y444_12BE, GBR_12BE, I422_12LE, I422_12BE, Y212_LE, Y212_BE, I420_12LE, I420_12BE, P012_LE, P012_BE, RGBP_F16LE, RGBP_F16BE, RGB_F16LE, RGB_F16BE, Y444_10LE, GBR_10LE, Y444_10BE, GBR_10BE, BGR10x2_LE, RGB10x2_LE, r210, I422_10LE, I422_10BE, NV16_10LE40, NV16_10LE32, Y210, UYVP, v210, I420_10LE, I420_10BE, P010_10LE, NV12_10LE40, NV12_10LE32, P010_10BE, MT2110R, MT2110T, NV12_10BE_8L128, NV12_10LE40_4L4, Y444, BGRP, GBR, RGBP, NV24, v308, IYU2, RGBx, xRGB, BGRx, xBGR, RGB, BGR, Y42B, NV16, NV61, YUY2, YVYU, UYVY, VYUY, I420, YV12, NV12, NV21, NV12_16L32S, NV12_32L32, NV12_4L4, NV12_64Z32, NV12_8L128, Y41B, IYU1, YUV9, YVU9, BGR16, RGB16, BGR15, RGB15, RGB8P, GRAY_F32LE, GRAY_F32BE, GRAY16_LE, GRAY16_BE, GRAY_F16LE, GRAY_F16BE, GRAY10_LE16, GRAY10_LE32, GRAY8 }\n          width: [ 1, 2147483647 ]\n         height: [ 1, 2147483647 ]\n      framerate: [ 0/1, 2147483647/1 ]\n",
+                        "direction": "src",
+                        "presence": "always"
+                    }
+                },
+                "properties": {
+                    "fuse-score": {
+                        "blurb": "Multiply the IoU by the detection confidence when associating the detections above track-threshold. Better disabled on crowded scenes.",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "true",
+                        "mutable": "playing",
+                        "readable": true,
+                        "type": "gboolean",
+                        "writable": true
+                    },
+                    "iou-score-threshold": {
+                        "blurb": "Minimum IoU (multiplied by the detection confidence if fuse-score is set) to associate a detection above track-threshold to a track",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "0.2",
+                        "max": "1",
+                        "min": "0",
+                        "mutable": "playing",
+                        "readable": true,
+                        "type": "gfloat",
+                        "writable": true
+                    },
+                    "lost-track-timeout": {
+                        "blurb": "Time, in nanoseconds, a lost track is kept to be found again, since its last detection",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "1000000000",
+                        "max": "18446744073709551615",
+                        "min": "0",
+                        "mutable": "playing",
+                        "readable": true,
+                        "type": "guint64",
+                        "writable": true
+                    },
+                    "low-threshold": {
+                        "blurb": "Detections with a confidence below this are ignored. The ones between this and track-threshold are only associated to the tracks remaining after the first association",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "0.1",
+                        "max": "1",
+                        "min": "0",
+                        "mutable": "playing",
+                        "readable": true,
+                        "type": "gfloat",
+                        "writable": true
+                    },
+                    "track-threshold": {
+                        "blurb": "Detections with a confidence above this are associated first, the ones between low-threshold and this are only associated to the remaining tracks. A detection needs a confidence of this plus 0.1 to start a track",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "0.5",
+                        "max": "1",
+                        "min": "0",
+                        "mutable": "playing",
+                        "readable": true,
+                        "type": "gfloat",
+                        "writable": true
+                    }
+                },
+                "rank": "marginal"
+            },
+            "classifiertensordec": {
+                "author": "Jeremy Whiting <jeremy.whiting@collabora.com>",
+                "description": "Decode tensors output from classification model using common format.",
+                "hierarchy": [
+                    "GstRsClassifierTensorDec",
+                    "GstBaseTransform",
+                    "GstElement",
+                    "GstObject",
+                    "GInitiallyUnowned",
+                    "GObject"
+                ],
+                "klass": "Tensordecoder",
+                "pad-templates": {
+                    "sink": {
+                        "caps": "video/x-raw(ANY):\n        tensors: \"tensorgroups\\,\\ classification-generic-out\\=\\(/uniquelist\\)\\{\\ \\(caps\\)\\\"tensor/strided\\\\\\,\\\\\\ tensor-id\\\\\\=\\\\\\(string\\\\\\)classification-generic-out\\\\\\,\\\\\\ dims\\\\\\=\\\\\\(int\\\\\\)\\\\\\<\\\\\\ \\\\\\[\\\\\\ 0\\\\\\,\\\\\\ 1\\\\\\ \\\\\\]\\\\\\,\\\\\\ \\\\\\[\\\\\\ 1\\\\\\,\\\\\\ 2147483647\\\\\\ \\\\\\]\\\\\\ \\\\\\>\\\\\\,\\\\\\ dims-order\\\\\\=\\\\\\(string\\\\\\)row-major\\\\\\,\\\\\\ type\\\\\\=\\\\\\(string\\\\\\)\\\\\\{\\\\\\ float32\\\\\\,\\\\\\ uint8\\\\\\ \\\\\\}\\\\\\;\\\\\\ tensor/strided\\\\\\,\\\\\\ tensor-id\\\\\\=\\\\\\(string\\\\\\)classification-generic-out\\\\\\,\\\\\\ dims\\\\\\=\\\\\\(int\\\\\\)\\\\\\<\\\\\\ \\\\\\[\\\\\\ 1\\\\\\,\\\\\\ 2147483647\\\\\\ \\\\\\]\\\\\\ \\\\\\>\\\\\\,\\\\\\ dims-order\\\\\\=\\\\\\(string\\\\\\)row-major\\\\\\,\\\\\\ type\\\\\\=\\\\\\(string\\\\\\)\\\\\\{\\\\\\ float32\\\\\\,\\\\\\ uint8\\\\\\ \\\\\\}\\\"\\ \\}\\;\"\n\nvideo/x-raw(ANY):\n        tensors: \"tensorgroups\\,\\ classification-generic-softmaxed-out\\=\\(/uniquelist\\)\\{\\ \\(caps\\)\\\"tensor/strided\\\\\\,\\\\\\ tensor-id\\\\\\=\\\\\\(string\\\\\\)classification-generic-softmaxed-out\\\\\\,\\\\\\ dims\\\\\\=\\\\\\(int\\\\\\)\\\\\\<\\\\\\ \\\\\\[\\\\\\ 0\\\\\\,\\\\\\ 1\\\\\\ \\\\\\]\\\\\\,\\\\\\ \\\\\\[\\\\\\ 1\\\\\\,\\\\\\ 2147483647\\\\\\ \\\\\\]\\\\\\ \\\\\\>\\\\\\,\\\\\\ dims-order\\\\\\=\\\\\\(string\\\\\\)row-major\\\\\\,\\\\\\ type\\\\\\=\\\\\\(string\\\\\\)\\\\\\{\\\\\\ float32\\\\\\,\\\\\\ uint8\\\\\\ \\\\\\}\\\\\\;\\\\\\ tensor/strided\\\\\\,\\\\\\ tensor-id\\\\\\=\\\\\\(string\\\\\\)classification-generic-softmaxed-out\\\\\\,\\\\\\ dims\\\\\\=\\\\\\(int\\\\\\)\\\\\\<\\\\\\ \\\\\\[\\\\\\ 1\\\\\\,\\\\\\ 2147483647\\\\\\ \\\\\\]\\\\\\ \\\\\\>\\\\\\,\\\\\\ dims-order\\\\\\=\\\\\\(string\\\\\\)row-major\\\\\\,\\\\\\ type\\\\\\=\\\\\\(string\\\\\\)\\\\\\{\\\\\\ float32\\\\\\,\\\\\\ uint8\\\\\\ \\\\\\}\\\"\\ \\}\\;\"\n",
+                        "direction": "sink",
+                        "presence": "always"
+                    },
+                    "src": {
+                        "caps": "ANY",
+                        "direction": "src",
+                        "presence": "always"
+                    }
+                },
+                "properties": {
+                    "class-confidence-threshold": {
+                        "blurb": "Classes with a confidence level inferior to this threshold will be excluded",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "0",
+                        "max": "1",
+                        "min": "0",
+                        "mutable": "playing",
+                        "readable": true,
+                        "type": "gfloat",
+                        "writable": true
+                    },
+                    "labels-file": {
+                        "blurb": "Path to a file containing class label following the COCO format",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "NULL",
+                        "mutable": "ready",
+                        "readable": true,
+                        "type": "gchararray",
+                        "writable": true
+                    }
+                },
+                "rank": "primary"
+            },
+            "crafttensordec": {
+                "author": "Seungha Yang <seungha@centricular.com>",
+                "description": "Decodes CRAFT text detection score maps",
+                "hierarchy": [
+                    "GstCraftTensorDec",
+                    "GstBaseTransform",
+                    "GstElement",
+                    "GstObject",
+                    "GInitiallyUnowned",
+                    "GObject"
+                ],
+                "klass": "Tensordecoder/Video",
+                "pad-templates": {
+                    "sink": {
+                        "caps": "video/x-raw(ANY):\n         format: { AYUV_F32, RGBA_F32LE, ARGB_F32, RGBA_F32BE, A444_16LE, A444_16BE, Y416_LE, AYUV64, RGBA64_LE, ARGB64, ARGB64_LE, BGRA64_LE, ABGR64_LE, Y416_BE, RGBA64_BE, ARGB64_BE, BGRA64_BE, ABGR64_BE, A422_16LE, A422_16BE, A420_16LE, A420_16BE, A444_12LE, GBRA_12LE, A444_12BE, GBRA_12BE, Y412_LE, Y412_BE, A422_12LE, A422_12BE, A420_12LE, A420_12BE, RGBA_F16LE, RGBA_F16BE, A444_10LE, GBRA_10LE, A444_10BE, GBRA_10BE, A422_10LE, A422_10BE, A420_10LE, A420_10BE, BGR10A2_LE, RGB10A2_LE, Y410, A444, GBRA, AYUV, VUYA, RGBA, RBGA, ARGB, BGRA, ABGR, A422, A420, AV12, RGBP_F32LE, RGBP_F32BE, RGB_F32LE, RGB_F32BE, Y444_16LE, GBR_16LE, Y444_16BE, GBR_16BE, Y216_LE, Y216_BE, v216, P016_LE, P016_BE, Y444_12LE, GBR_12LE, Y444_12BE, GBR_12BE, I422_12LE, I422_12BE, Y212_LE, Y212_BE, I420_12LE, I420_12BE, P012_LE, P012_BE, RGBP_F16LE, RGBP_F16BE, RGB_F16LE, RGB_F16BE, Y444_10LE, GBR_10LE, Y444_10BE, GBR_10BE, BGR10x2_LE, RGB10x2_LE, r210, I422_10LE, I422_10BE, NV16_10LE40, NV16_10LE32, Y210, UYVP, v210, I420_10LE, I420_10BE, P010_10LE, NV12_10LE40, NV12_10LE32, P010_10BE, MT2110R, MT2110T, NV12_10BE_8L128, NV12_10LE40_4L4, Y444, BGRP, GBR, RGBP, NV24, v308, IYU2, RGBx, xRGB, BGRx, xBGR, RGB, BGR, Y42B, NV16, NV61, YUY2, YVYU, UYVY, VYUY, I420, YV12, NV12, NV21, NV12_16L32S, NV12_32L32, NV12_4L4, NV12_64Z32, NV12_8L128, Y41B, IYU1, YUV9, YVU9, BGR16, RGB16, BGR15, RGB15, RGB8P, GRAY_F32LE, GRAY_F32BE, GRAY16_LE, GRAY16_BE, GRAY_F16LE, GRAY_F16BE, GRAY10_LE16, GRAY10_LE32, GRAY8 }\n          width: [ 1, 2147483647 ]\n         height: [ 1, 2147483647 ]\n      framerate: [ 0/1, 2147483647/1 ]\n        tensors: \"tensorgroups\\,\\ craft-out\\=\\(/uniquelist\\)\\{\\ \\(caps\\)\\\"tensor/strided\\\\\\,\\\\\\ tensor-id\\\\\\=\\\\\\(string\\\\\\)craft-out\\\\\\,\\\\\\ dims\\\\\\=\\\\\\(int\\\\\\)\\\\\\<\\\\\\ 1\\\\\\,\\\\\\ \\\\\\[\\\\\\ 0\\\\\\,\\\\\\ 2147483647\\\\\\ \\\\\\]\\\\\\,\\\\\\ \\\\\\[\\\\\\ 0\\\\\\,\\\\\\ 2147483647\\\\\\ \\\\\\]\\\\\\,\\\\\\ 2\\\\\\ \\\\\\>\\\\\\,\\\\\\ dims-order\\\\\\=\\\\\\(string\\\\\\)row-major\\\\\\,\\\\\\ type\\\\\\=\\\\\\(string\\\\\\)float32\\\"\\ \\}\\;\"\n",
+                        "direction": "sink",
+                        "presence": "always"
+                    },
+                    "src": {
+                        "caps": "video/x-raw(ANY):\n         format: { AYUV_F32, RGBA_F32LE, ARGB_F32, RGBA_F32BE, A444_16LE, A444_16BE, Y416_LE, AYUV64, RGBA64_LE, ARGB64, ARGB64_LE, BGRA64_LE, ABGR64_LE, Y416_BE, RGBA64_BE, ARGB64_BE, BGRA64_BE, ABGR64_BE, A422_16LE, A422_16BE, A420_16LE, A420_16BE, A444_12LE, GBRA_12LE, A444_12BE, GBRA_12BE, Y412_LE, Y412_BE, A422_12LE, A422_12BE, A420_12LE, A420_12BE, RGBA_F16LE, RGBA_F16BE, A444_10LE, GBRA_10LE, A444_10BE, GBRA_10BE, A422_10LE, A422_10BE, A420_10LE, A420_10BE, BGR10A2_LE, RGB10A2_LE, Y410, A444, GBRA, AYUV, VUYA, RGBA, RBGA, ARGB, BGRA, ABGR, A422, A420, AV12, RGBP_F32LE, RGBP_F32BE, RGB_F32LE, RGB_F32BE, Y444_16LE, GBR_16LE, Y444_16BE, GBR_16BE, Y216_LE, Y216_BE, v216, P016_LE, P016_BE, Y444_12LE, GBR_12LE, Y444_12BE, GBR_12BE, I422_12LE, I422_12BE, Y212_LE, Y212_BE, I420_12LE, I420_12BE, P012_LE, P012_BE, RGBP_F16LE, RGBP_F16BE, RGB_F16LE, RGB_F16BE, Y444_10LE, GBR_10LE, Y444_10BE, GBR_10BE, BGR10x2_LE, RGB10x2_LE, r210, I422_10LE, I422_10BE, NV16_10LE40, NV16_10LE32, Y210, UYVP, v210, I420_10LE, I420_10BE, P010_10LE, NV12_10LE40, NV12_10LE32, P010_10BE, MT2110R, MT2110T, NV12_10BE_8L128, NV12_10LE40_4L4, Y444, BGRP, GBR, RGBP, NV24, v308, IYU2, RGBx, xRGB, BGRx, xBGR, RGB, BGR, Y42B, NV16, NV61, YUY2, YVYU, UYVY, VYUY, I420, YV12, NV12, NV21, NV12_16L32S, NV12_32L32, NV12_4L4, NV12_64Z32, NV12_8L128, Y41B, IYU1, YUV9, YVU9, BGR16, RGB16, BGR15, RGB15, RGB8P, GRAY_F32LE, GRAY_F32BE, GRAY16_LE, GRAY16_BE, GRAY_F16LE, GRAY_F16BE, GRAY10_LE16, GRAY10_LE32, GRAY8 }\n          width: [ 1, 2147483647 ]\n         height: [ 1, 2147483647 ]\n      framerate: [ 0/1, 2147483647/1 ]\n",
+                        "direction": "src",
+                        "presence": "always"
+                    }
+                },
+                "properties": {
+                    "group-text-box": {
+                        "blurb": "Merge nearby horizontal text boxes of similar height on the same line using EasyOCR's grouping rules",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "false",
+                        "mutable": "playing",
+                        "readable": true,
+                        "type": "gboolean",
+                        "writable": true
+                    },
+                    "link-threshold": {
+                        "blurb": "Threshold for link pixels",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "0.4",
+                        "max": "1",
+                        "min": "0",
+                        "mutable": "playing",
+                        "readable": true,
+                        "type": "gfloat",
+                        "writable": true
+                    },
+                    "low-text": {
+                        "blurb": "Threshold for text candidate pixels",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "0.4",
+                        "max": "1",
+                        "min": "0",
+                        "mutable": "playing",
+                        "readable": true,
+                        "type": "gfloat",
+                        "writable": true
+                    },
+                    "text-threshold": {
+                        "blurb": "Minimum component peak text score",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "0.7",
+                        "max": "1",
+                        "min": "0",
+                        "mutable": "playing",
+                        "readable": true,
+                        "type": "gfloat",
+                        "writable": true
+                    }
+                },
+                "rank": "primary"
+            },
             "ctctexttensordec": {
                 "author": "Seungha Yang <seungha@centricular.com>",
                 "description": "Decodes CTC text recognition tensors",
@@ -11205,12 +12202,12 @@
                 "klass": "Tensordecoder/Video",
                 "pad-templates": {
                     "sink": {
-                        "caps": "video/x-raw:\n         format: { AYUV_F32, RGBA_F32LE, ARGB_F32, RGBA_F32BE, A444_16LE, A444_16BE, Y416_LE, AYUV64, RGBA64_LE, ARGB64, ARGB64_LE, BGRA64_LE, ABGR64_LE, Y416_BE, RGBA64_BE, ARGB64_BE, BGRA64_BE, ABGR64_BE, A422_16LE, A422_16BE, A420_16LE, A420_16BE, A444_12LE, GBRA_12LE, A444_12BE, GBRA_12BE, Y412_LE, Y412_BE, A422_12LE, A422_12BE, A420_12LE, A420_12BE, RGBA_F16LE, RGBA_F16BE, A444_10LE, GBRA_10LE, A444_10BE, GBRA_10BE, A422_10LE, A422_10BE, A420_10LE, A420_10BE, BGR10A2_LE, RGB10A2_LE, Y410, A444, GBRA, AYUV, VUYA, RGBA, RBGA, ARGB, BGRA, ABGR, A422, A420, AV12, RGBP_F32LE, RGBP_F32BE, RGB_F32LE, RGB_F32BE, Y444_16LE, GBR_16LE, Y444_16BE, GBR_16BE, Y216_LE, Y216_BE, v216, P016_LE, P016_BE, Y444_12LE, GBR_12LE, Y444_12BE, GBR_12BE, I422_12LE, I422_12BE, Y212_LE, Y212_BE, I420_12LE, I420_12BE, P012_LE, P012_BE, RGBP_F16LE, RGBP_F16BE, RGB_F16LE, RGB_F16BE, Y444_10LE, GBR_10LE, Y444_10BE, GBR_10BE, BGR10x2_LE, RGB10x2_LE, r210, I422_10LE, I422_10BE, NV16_10LE40, NV16_10LE32, Y210, UYVP, v210, I420_10LE, I420_10BE, P010_10LE, NV12_10LE40, NV12_10LE32, P010_10BE, MT2110R, MT2110T, NV12_10BE_8L128, NV12_10LE40_4L4, Y444, BGRP, GBR, RGBP, NV24, v308, IYU2, RGBx, xRGB, BGRx, xBGR, RGB, BGR, Y42B, NV16, NV61, YUY2, YVYU, UYVY, VYUY, I420, YV12, NV12, NV21, NV12_16L32S, NV12_32L32, NV12_4L4, NV12_64Z32, NV12_8L128, Y41B, IYU1, YUV9, YVU9, BGR16, RGB16, BGR15, RGB15, RGB8P, GRAY_F32LE, GRAY_F32BE, GRAY16_LE, GRAY16_BE, GRAY_F16LE, GRAY_F16BE, GRAY10_LE16, GRAY10_LE32, GRAY8 }\n          width: [ 1, 2147483647 ]\n         height: [ 1, 2147483647 ]\n      framerate: [ 0/1, 2147483647/1 ]\n        tensors: \"tensorgroups\\,\\ palm-detection-out\\=\\(/uniquelist\\)\\{\\ \\(caps\\)\\\"tensor/strided\\\\\\,\\\\\\ tensor-id\\\\\\=\\\\\\(string\\\\\\)palm-detection-out\\\\\\,\\\\\\ dims\\\\\\=\\\\\\(int\\\\\\)\\\\\\<\\\\\\ \\\\\\[\\\\\\ 0\\\\\\,\\\\\\ 2147483647\\\\\\ \\\\\\]\\\\\\,\\\\\\ 8\\\\\\ \\\\\\>\\\\\\,\\\\\\ dims-order\\\\\\=\\\\\\(string\\\\\\)row-major\\\\\\,\\\\\\ type\\\\\\=\\\\\\(string\\\\\\)float32\\\"\\ \\}\\;\"\n",
+                        "caps": "video/x-raw(ANY):\n         format: { AYUV_F32, RGBA_F32LE, ARGB_F32, RGBA_F32BE, A444_16LE, A444_16BE, Y416_LE, AYUV64, RGBA64_LE, ARGB64, ARGB64_LE, BGRA64_LE, ABGR64_LE, Y416_BE, RGBA64_BE, ARGB64_BE, BGRA64_BE, ABGR64_BE, A422_16LE, A422_16BE, A420_16LE, A420_16BE, A444_12LE, GBRA_12LE, A444_12BE, GBRA_12BE, Y412_LE, Y412_BE, A422_12LE, A422_12BE, A420_12LE, A420_12BE, RGBA_F16LE, RGBA_F16BE, A444_10LE, GBRA_10LE, A444_10BE, GBRA_10BE, A422_10LE, A422_10BE, A420_10LE, A420_10BE, BGR10A2_LE, RGB10A2_LE, Y410, A444, GBRA, AYUV, VUYA, RGBA, RBGA, ARGB, BGRA, ABGR, A422, A420, AV12, RGBP_F32LE, RGBP_F32BE, RGB_F32LE, RGB_F32BE, Y444_16LE, GBR_16LE, Y444_16BE, GBR_16BE, Y216_LE, Y216_BE, v216, P016_LE, P016_BE, Y444_12LE, GBR_12LE, Y444_12BE, GBR_12BE, I422_12LE, I422_12BE, Y212_LE, Y212_BE, I420_12LE, I420_12BE, P012_LE, P012_BE, RGBP_F16LE, RGBP_F16BE, RGB_F16LE, RGB_F16BE, Y444_10LE, GBR_10LE, Y444_10BE, GBR_10BE, BGR10x2_LE, RGB10x2_LE, r210, I422_10LE, I422_10BE, NV16_10LE40, NV16_10LE32, Y210, UYVP, v210, I420_10LE, I420_10BE, P010_10LE, NV12_10LE40, NV12_10LE32, P010_10BE, MT2110R, MT2110T, NV12_10BE_8L128, NV12_10LE40_4L4, Y444, BGRP, GBR, RGBP, NV24, v308, IYU2, RGBx, xRGB, BGRx, xBGR, RGB, BGR, Y42B, NV16, NV61, YUY2, YVYU, UYVY, VYUY, I420, YV12, NV12, NV21, NV12_16L32S, NV12_32L32, NV12_4L4, NV12_64Z32, NV12_8L128, Y41B, IYU1, YUV9, YVU9, BGR16, RGB16, BGR15, RGB15, RGB8P, GRAY_F32LE, GRAY_F32BE, GRAY16_LE, GRAY16_BE, GRAY_F16LE, GRAY_F16BE, GRAY10_LE16, GRAY10_LE32, GRAY8 }\n          width: [ 1, 2147483647 ]\n         height: [ 1, 2147483647 ]\n      framerate: [ 0/1, 2147483647/1 ]\n        tensors: \"tensorgroups\\,\\ palm-detection-out\\=\\(/uniquelist\\)\\{\\ \\(caps\\)\\\"tensor/strided\\\\\\,\\\\\\ tensor-id\\\\\\=\\\\\\(string\\\\\\)palm-detection-out\\\\\\,\\\\\\ dims\\\\\\=\\\\\\(int\\\\\\)\\\\\\<\\\\\\ \\\\\\[\\\\\\ 0\\\\\\,\\\\\\ 2147483647\\\\\\ \\\\\\]\\\\\\,\\\\\\ 8\\\\\\ \\\\\\>\\\\\\,\\\\\\ dims-order\\\\\\=\\\\\\(string\\\\\\)row-major\\\\\\,\\\\\\ type\\\\\\=\\\\\\(string\\\\\\)float32\\\"\\ \\}\\;\"\n",
                         "direction": "sink",
                         "presence": "always"
                     },
                     "src": {
-                        "caps": "video/x-raw:\n         format: { AYUV_F32, RGBA_F32LE, ARGB_F32, RGBA_F32BE, A444_16LE, A444_16BE, Y416_LE, AYUV64, RGBA64_LE, ARGB64, ARGB64_LE, BGRA64_LE, ABGR64_LE, Y416_BE, RGBA64_BE, ARGB64_BE, BGRA64_BE, ABGR64_BE, A422_16LE, A422_16BE, A420_16LE, A420_16BE, A444_12LE, GBRA_12LE, A444_12BE, GBRA_12BE, Y412_LE, Y412_BE, A422_12LE, A422_12BE, A420_12LE, A420_12BE, RGBA_F16LE, RGBA_F16BE, A444_10LE, GBRA_10LE, A444_10BE, GBRA_10BE, A422_10LE, A422_10BE, A420_10LE, A420_10BE, BGR10A2_LE, RGB10A2_LE, Y410, A444, GBRA, AYUV, VUYA, RGBA, RBGA, ARGB, BGRA, ABGR, A422, A420, AV12, RGBP_F32LE, RGBP_F32BE, RGB_F32LE, RGB_F32BE, Y444_16LE, GBR_16LE, Y444_16BE, GBR_16BE, Y216_LE, Y216_BE, v216, P016_LE, P016_BE, Y444_12LE, GBR_12LE, Y444_12BE, GBR_12BE, I422_12LE, I422_12BE, Y212_LE, Y212_BE, I420_12LE, I420_12BE, P012_LE, P012_BE, RGBP_F16LE, RGBP_F16BE, RGB_F16LE, RGB_F16BE, Y444_10LE, GBR_10LE, Y444_10BE, GBR_10BE, BGR10x2_LE, RGB10x2_LE, r210, I422_10LE, I422_10BE, NV16_10LE40, NV16_10LE32, Y210, UYVP, v210, I420_10LE, I420_10BE, P010_10LE, NV12_10LE40, NV12_10LE32, P010_10BE, MT2110R, MT2110T, NV12_10BE_8L128, NV12_10LE40_4L4, Y444, BGRP, GBR, RGBP, NV24, v308, IYU2, RGBx, xRGB, BGRx, xBGR, RGB, BGR, Y42B, NV16, NV61, YUY2, YVYU, UYVY, VYUY, I420, YV12, NV12, NV21, NV12_16L32S, NV12_32L32, NV12_4L4, NV12_64Z32, NV12_8L128, Y41B, IYU1, YUV9, YVU9, BGR16, RGB16, BGR15, RGB15, RGB8P, GRAY_F32LE, GRAY_F32BE, GRAY16_LE, GRAY16_BE, GRAY_F16LE, GRAY_F16BE, GRAY10_LE16, GRAY10_LE32, GRAY8 }\n          width: [ 1, 2147483647 ]\n         height: [ 1, 2147483647 ]\n      framerate: [ 0/1, 2147483647/1 ]\n",
+                        "caps": "video/x-raw(ANY):\n         format: { AYUV_F32, RGBA_F32LE, ARGB_F32, RGBA_F32BE, A444_16LE, A444_16BE, Y416_LE, AYUV64, RGBA64_LE, ARGB64, ARGB64_LE, BGRA64_LE, ABGR64_LE, Y416_BE, RGBA64_BE, ARGB64_BE, BGRA64_BE, ABGR64_BE, A422_16LE, A422_16BE, A420_16LE, A420_16BE, A444_12LE, GBRA_12LE, A444_12BE, GBRA_12BE, Y412_LE, Y412_BE, A422_12LE, A422_12BE, A420_12LE, A420_12BE, RGBA_F16LE, RGBA_F16BE, A444_10LE, GBRA_10LE, A444_10BE, GBRA_10BE, A422_10LE, A422_10BE, A420_10LE, A420_10BE, BGR10A2_LE, RGB10A2_LE, Y410, A444, GBRA, AYUV, VUYA, RGBA, RBGA, ARGB, BGRA, ABGR, A422, A420, AV12, RGBP_F32LE, RGBP_F32BE, RGB_F32LE, RGB_F32BE, Y444_16LE, GBR_16LE, Y444_16BE, GBR_16BE, Y216_LE, Y216_BE, v216, P016_LE, P016_BE, Y444_12LE, GBR_12LE, Y444_12BE, GBR_12BE, I422_12LE, I422_12BE, Y212_LE, Y212_BE, I420_12LE, I420_12BE, P012_LE, P012_BE, RGBP_F16LE, RGBP_F16BE, RGB_F16LE, RGB_F16BE, Y444_10LE, GBR_10LE, Y444_10BE, GBR_10BE, BGR10x2_LE, RGB10x2_LE, r210, I422_10LE, I422_10BE, NV16_10LE40, NV16_10LE32, Y210, UYVP, v210, I420_10LE, I420_10BE, P010_10LE, NV12_10LE40, NV12_10LE32, P010_10BE, MT2110R, MT2110T, NV12_10BE_8L128, NV12_10LE40_4L4, Y444, BGRP, GBR, RGBP, NV24, v308, IYU2, RGBx, xRGB, BGRx, xBGR, RGB, BGR, Y42B, NV16, NV61, YUY2, YVYU, UYVY, VYUY, I420, YV12, NV12, NV21, NV12_16L32S, NV12_32L32, NV12_4L4, NV12_64Z32, NV12_8L128, Y41B, IYU1, YUV9, YVU9, BGR16, RGB16, BGR15, RGB15, RGB8P, GRAY_F32LE, GRAY_F32BE, GRAY16_LE, GRAY16_BE, GRAY_F16LE, GRAY_F16BE, GRAY10_LE16, GRAY10_LE32, GRAY8 }\n          width: [ 1, 2147483647 ]\n         height: [ 1, 2147483647 ]\n      framerate: [ 0/1, 2147483647/1 ]\n",
                         "direction": "src",
                         "presence": "always"
                     }
@@ -11275,12 +12272,12 @@
                 "klass": "Tensordecoder/Video",
                 "pad-templates": {
                     "sink": {
-                        "caps": "video/x-raw:\n         format: { AYUV_F32, RGBA_F32LE, ARGB_F32, RGBA_F32BE, A444_16LE, A444_16BE, Y416_LE, AYUV64, RGBA64_LE, ARGB64, ARGB64_LE, BGRA64_LE, ABGR64_LE, Y416_BE, RGBA64_BE, ARGB64_BE, BGRA64_BE, ABGR64_BE, A422_16LE, A422_16BE, A420_16LE, A420_16BE, A444_12LE, GBRA_12LE, A444_12BE, GBRA_12BE, Y412_LE, Y412_BE, A422_12LE, A422_12BE, A420_12LE, A420_12BE, RGBA_F16LE, RGBA_F16BE, A444_10LE, GBRA_10LE, A444_10BE, GBRA_10BE, A422_10LE, A422_10BE, A420_10LE, A420_10BE, BGR10A2_LE, RGB10A2_LE, Y410, A444, GBRA, AYUV, VUYA, RGBA, RBGA, ARGB, BGRA, ABGR, A422, A420, AV12, RGBP_F32LE, RGBP_F32BE, RGB_F32LE, RGB_F32BE, Y444_16LE, GBR_16LE, Y444_16BE, GBR_16BE, Y216_LE, Y216_BE, v216, P016_LE, P016_BE, Y444_12LE, GBR_12LE, Y444_12BE, GBR_12BE, I422_12LE, I422_12BE, Y212_LE, Y212_BE, I420_12LE, I420_12BE, P012_LE, P012_BE, RGBP_F16LE, RGBP_F16BE, RGB_F16LE, RGB_F16BE, Y444_10LE, GBR_10LE, Y444_10BE, GBR_10BE, BGR10x2_LE, RGB10x2_LE, r210, I422_10LE, I422_10BE, NV16_10LE40, NV16_10LE32, Y210, UYVP, v210, I420_10LE, I420_10BE, P010_10LE, NV12_10LE40, NV12_10LE32, P010_10BE, MT2110R, MT2110T, NV12_10BE_8L128, NV12_10LE40_4L4, Y444, BGRP, GBR, RGBP, NV24, v308, IYU2, RGBx, xRGB, BGRx, xBGR, RGB, BGR, Y42B, NV16, NV61, YUY2, YVYU, UYVY, VYUY, I420, YV12, NV12, NV21, NV12_16L32S, NV12_32L32, NV12_4L4, NV12_64Z32, NV12_8L128, Y41B, IYU1, YUV9, YVU9, BGR16, RGB16, BGR15, RGB15, RGB8P, GRAY_F32LE, GRAY_F32BE, GRAY16_LE, GRAY16_BE, GRAY_F16LE, GRAY_F16BE, GRAY10_LE16, GRAY10_LE32, GRAY8 }\n          width: [ 1, 2147483647 ]\n         height: [ 1, 2147483647 ]\n      framerate: [ 0/1, 2147483647/1 ]\n        tensors: \"tensorgroups\\,\\ hand_landmarks\\=\\(/uniquelist\\)\\{\\ \\(caps\\)\\\"tensor/strided\\\\\\,\\\\\\ tensor-id\\\\\\=\\\\\\(string\\\\\\)hand_landmarks\\\\\\,\\\\\\ dims\\\\\\=\\\\\\(int\\\\\\)\\\\\\<\\\\\\ \\\\\\[\\\\\\ 0\\\\\\,\\\\\\ 2147483647\\\\\\ \\\\\\]\\\\\\,\\\\\\ 63\\\\\\ \\\\\\>\\\\\\,\\\\\\ dims-order\\\\\\=\\\\\\(string\\\\\\)row-major\\\\\\,\\\\\\ type\\\\\\=\\\\\\(string\\\\\\)float32\\\"\\ \\}\\;\"\n",
+                        "caps": "video/x-raw(ANY):\n         format: { AYUV_F32, RGBA_F32LE, ARGB_F32, RGBA_F32BE, A444_16LE, A444_16BE, Y416_LE, AYUV64, RGBA64_LE, ARGB64, ARGB64_LE, BGRA64_LE, ABGR64_LE, Y416_BE, RGBA64_BE, ARGB64_BE, BGRA64_BE, ABGR64_BE, A422_16LE, A422_16BE, A420_16LE, A420_16BE, A444_12LE, GBRA_12LE, A444_12BE, GBRA_12BE, Y412_LE, Y412_BE, A422_12LE, A422_12BE, A420_12LE, A420_12BE, RGBA_F16LE, RGBA_F16BE, A444_10LE, GBRA_10LE, A444_10BE, GBRA_10BE, A422_10LE, A422_10BE, A420_10LE, A420_10BE, BGR10A2_LE, RGB10A2_LE, Y410, A444, GBRA, AYUV, VUYA, RGBA, RBGA, ARGB, BGRA, ABGR, A422, A420, AV12, RGBP_F32LE, RGBP_F32BE, RGB_F32LE, RGB_F32BE, Y444_16LE, GBR_16LE, Y444_16BE, GBR_16BE, Y216_LE, Y216_BE, v216, P016_LE, P016_BE, Y444_12LE, GBR_12LE, Y444_12BE, GBR_12BE, I422_12LE, I422_12BE, Y212_LE, Y212_BE, I420_12LE, I420_12BE, P012_LE, P012_BE, RGBP_F16LE, RGBP_F16BE, RGB_F16LE, RGB_F16BE, Y444_10LE, GBR_10LE, Y444_10BE, GBR_10BE, BGR10x2_LE, RGB10x2_LE, r210, I422_10LE, I422_10BE, NV16_10LE40, NV16_10LE32, Y210, UYVP, v210, I420_10LE, I420_10BE, P010_10LE, NV12_10LE40, NV12_10LE32, P010_10BE, MT2110R, MT2110T, NV12_10BE_8L128, NV12_10LE40_4L4, Y444, BGRP, GBR, RGBP, NV24, v308, IYU2, RGBx, xRGB, BGRx, xBGR, RGB, BGR, Y42B, NV16, NV61, YUY2, YVYU, UYVY, VYUY, I420, YV12, NV12, NV21, NV12_16L32S, NV12_32L32, NV12_4L4, NV12_64Z32, NV12_8L128, Y41B, IYU1, YUV9, YVU9, BGR16, RGB16, BGR15, RGB15, RGB8P, GRAY_F32LE, GRAY_F32BE, GRAY16_LE, GRAY16_BE, GRAY_F16LE, GRAY_F16BE, GRAY10_LE16, GRAY10_LE32, GRAY8 }\n          width: [ 1, 2147483647 ]\n         height: [ 1, 2147483647 ]\n      framerate: [ 0/1, 2147483647/1 ]\n        tensors: \"tensorgroups\\,\\ hand-landmark-out\\=\\(/uniquelist\\)\\{\\ \\(caps\\)\\\"tensor/strided\\\\\\,\\\\\\ tensor-id\\\\\\=\\\\\\(string\\\\\\)hand-landmark-out-landmarks\\\\\\,\\\\\\ dims\\\\\\=\\\\\\(int\\\\\\)\\\\\\<\\\\\\ \\\\\\[\\\\\\ 0\\\\\\,\\\\\\ 2147483647\\\\\\ \\\\\\]\\\\\\,\\\\\\ 63\\\\\\ \\\\\\>\\\\\\,\\\\\\ dims-order\\\\\\=\\\\\\(string\\\\\\)row-major\\\\\\,\\\\\\ type\\\\\\=\\\\\\(string\\\\\\)float32\\\"\\ \\}\\;\"\n",
                         "direction": "sink",
                         "presence": "always"
                     },
                     "src": {
-                        "caps": "video/x-raw:\n         format: { AYUV_F32, RGBA_F32LE, ARGB_F32, RGBA_F32BE, A444_16LE, A444_16BE, Y416_LE, AYUV64, RGBA64_LE, ARGB64, ARGB64_LE, BGRA64_LE, ABGR64_LE, Y416_BE, RGBA64_BE, ARGB64_BE, BGRA64_BE, ABGR64_BE, A422_16LE, A422_16BE, A420_16LE, A420_16BE, A444_12LE, GBRA_12LE, A444_12BE, GBRA_12BE, Y412_LE, Y412_BE, A422_12LE, A422_12BE, A420_12LE, A420_12BE, RGBA_F16LE, RGBA_F16BE, A444_10LE, GBRA_10LE, A444_10BE, GBRA_10BE, A422_10LE, A422_10BE, A420_10LE, A420_10BE, BGR10A2_LE, RGB10A2_LE, Y410, A444, GBRA, AYUV, VUYA, RGBA, RBGA, ARGB, BGRA, ABGR, A422, A420, AV12, RGBP_F32LE, RGBP_F32BE, RGB_F32LE, RGB_F32BE, Y444_16LE, GBR_16LE, Y444_16BE, GBR_16BE, Y216_LE, Y216_BE, v216, P016_LE, P016_BE, Y444_12LE, GBR_12LE, Y444_12BE, GBR_12BE, I422_12LE, I422_12BE, Y212_LE, Y212_BE, I420_12LE, I420_12BE, P012_LE, P012_BE, RGBP_F16LE, RGBP_F16BE, RGB_F16LE, RGB_F16BE, Y444_10LE, GBR_10LE, Y444_10BE, GBR_10BE, BGR10x2_LE, RGB10x2_LE, r210, I422_10LE, I422_10BE, NV16_10LE40, NV16_10LE32, Y210, UYVP, v210, I420_10LE, I420_10BE, P010_10LE, NV12_10LE40, NV12_10LE32, P010_10BE, MT2110R, MT2110T, NV12_10BE_8L128, NV12_10LE40_4L4, Y444, BGRP, GBR, RGBP, NV24, v308, IYU2, RGBx, xRGB, BGRx, xBGR, RGB, BGR, Y42B, NV16, NV61, YUY2, YVYU, UYVY, VYUY, I420, YV12, NV12, NV21, NV12_16L32S, NV12_32L32, NV12_4L4, NV12_64Z32, NV12_8L128, Y41B, IYU1, YUV9, YVU9, BGR16, RGB16, BGR15, RGB15, RGB8P, GRAY_F32LE, GRAY_F32BE, GRAY16_LE, GRAY16_BE, GRAY_F16LE, GRAY_F16BE, GRAY10_LE16, GRAY10_LE32, GRAY8 }\n          width: [ 1, 2147483647 ]\n         height: [ 1, 2147483647 ]\n      framerate: [ 0/1, 2147483647/1 ]\n",
+                        "caps": "video/x-raw(ANY):\n         format: { AYUV_F32, RGBA_F32LE, ARGB_F32, RGBA_F32BE, A444_16LE, A444_16BE, Y416_LE, AYUV64, RGBA64_LE, ARGB64, ARGB64_LE, BGRA64_LE, ABGR64_LE, Y416_BE, RGBA64_BE, ARGB64_BE, BGRA64_BE, ABGR64_BE, A422_16LE, A422_16BE, A420_16LE, A420_16BE, A444_12LE, GBRA_12LE, A444_12BE, GBRA_12BE, Y412_LE, Y412_BE, A422_12LE, A422_12BE, A420_12LE, A420_12BE, RGBA_F16LE, RGBA_F16BE, A444_10LE, GBRA_10LE, A444_10BE, GBRA_10BE, A422_10LE, A422_10BE, A420_10LE, A420_10BE, BGR10A2_LE, RGB10A2_LE, Y410, A444, GBRA, AYUV, VUYA, RGBA, RBGA, ARGB, BGRA, ABGR, A422, A420, AV12, RGBP_F32LE, RGBP_F32BE, RGB_F32LE, RGB_F32BE, Y444_16LE, GBR_16LE, Y444_16BE, GBR_16BE, Y216_LE, Y216_BE, v216, P016_LE, P016_BE, Y444_12LE, GBR_12LE, Y444_12BE, GBR_12BE, I422_12LE, I422_12BE, Y212_LE, Y212_BE, I420_12LE, I420_12BE, P012_LE, P012_BE, RGBP_F16LE, RGBP_F16BE, RGB_F16LE, RGB_F16BE, Y444_10LE, GBR_10LE, Y444_10BE, GBR_10BE, BGR10x2_LE, RGB10x2_LE, r210, I422_10LE, I422_10BE, NV16_10LE40, NV16_10LE32, Y210, UYVP, v210, I420_10LE, I420_10BE, P010_10LE, NV12_10LE40, NV12_10LE32, P010_10BE, MT2110R, MT2110T, NV12_10BE_8L128, NV12_10LE40_4L4, Y444, BGRP, GBR, RGBP, NV24, v308, IYU2, RGBx, xRGB, BGRx, xBGR, RGB, BGR, Y42B, NV16, NV61, YUY2, YVYU, UYVY, VYUY, I420, YV12, NV12, NV21, NV12_16L32S, NV12_32L32, NV12_4L4, NV12_64Z32, NV12_8L128, Y41B, IYU1, YUV9, YVU9, BGR16, RGB16, BGR15, RGB15, RGB8P, GRAY_F32LE, GRAY_F32BE, GRAY16_LE, GRAY16_BE, GRAY_F16LE, GRAY_F16BE, GRAY10_LE16, GRAY10_LE32, GRAY8 }\n          width: [ 1, 2147483647 ]\n         height: [ 1, 2147483647 ]\n      framerate: [ 0/1, 2147483647/1 ]\n",
                         "direction": "src",
                         "presence": "always"
                     }
@@ -11449,6 +12446,35 @@
                 },
                 "rank": "none"
             },
+            "tensordecodebin2": {
+                "author": "Daniel Morin <daniel.morin@collabora.com>",
+                "description": "Tensor Decode Bin",
+                "hierarchy": [
+                    "GstTensorDecodeBin2",
+                    "GstBin",
+                    "GstElement",
+                    "GstObject",
+                    "GInitiallyUnowned",
+                    "GObject"
+                ],
+                "interfaces": [
+                    "GstChildProxy"
+                ],
+                "klass": "Tensordecoder/Bin",
+                "pad-templates": {
+                    "sink": {
+                        "caps": "ANY",
+                        "direction": "sink",
+                        "presence": "always"
+                    },
+                    "src": {
+                        "caps": "ANY",
+                        "direction": "src",
+                        "presence": "always"
+                    }
+                },
+                "rank": "none"
+            },
             "yolo26obbtensordec": {
                 "author": "Jan Schmidt <jan@centricular.com>",
                 "description": "Decodes tensors from a YoloV10-obb, Yolo11-obb, Yolo12-obb and Yolo26-obb model from the end2end (one-to-one) head",
@@ -11465,6 +12491,49 @@
                 "pad-templates": {
                     "sink": {
                         "caps": "video/x-raw(ANY):\n         format: { AYUV_F32, RGBA_F32LE, ARGB_F32, RGBA_F32BE, A444_16LE, A444_16BE, Y416_LE, AYUV64, RGBA64_LE, ARGB64, ARGB64_LE, BGRA64_LE, ABGR64_LE, Y416_BE, RGBA64_BE, ARGB64_BE, BGRA64_BE, ABGR64_BE, A422_16LE, A422_16BE, A420_16LE, A420_16BE, A444_12LE, GBRA_12LE, A444_12BE, GBRA_12BE, Y412_LE, Y412_BE, A422_12LE, A422_12BE, A420_12LE, A420_12BE, RGBA_F16LE, RGBA_F16BE, A444_10LE, GBRA_10LE, A444_10BE, GBRA_10BE, A422_10LE, A422_10BE, A420_10LE, A420_10BE, BGR10A2_LE, RGB10A2_LE, Y410, A444, GBRA, AYUV, VUYA, RGBA, RBGA, ARGB, BGRA, ABGR, A422, A420, AV12, RGBP_F32LE, RGBP_F32BE, RGB_F32LE, RGB_F32BE, Y444_16LE, GBR_16LE, Y444_16BE, GBR_16BE, Y216_LE, Y216_BE, v216, P016_LE, P016_BE, Y444_12LE, GBR_12LE, Y444_12BE, GBR_12BE, I422_12LE, I422_12BE, Y212_LE, Y212_BE, I420_12LE, I420_12BE, P012_LE, P012_BE, RGBP_F16LE, RGBP_F16BE, RGB_F16LE, RGB_F16BE, Y444_10LE, GBR_10LE, Y444_10BE, GBR_10BE, BGR10x2_LE, RGB10x2_LE, r210, I422_10LE, I422_10BE, NV16_10LE40, NV16_10LE32, Y210, UYVP, v210, I420_10LE, I420_10BE, P010_10LE, NV12_10LE40, NV12_10LE32, P010_10BE, MT2110R, MT2110T, NV12_10BE_8L128, NV12_10LE40_4L4, Y444, BGRP, GBR, RGBP, NV24, v308, IYU2, RGBx, xRGB, BGRx, xBGR, RGB, BGR, Y42B, NV16, NV61, YUY2, YVYU, UYVY, VYUY, I420, YV12, NV12, NV21, NV12_16L32S, NV12_32L32, NV12_4L4, NV12_64Z32, NV12_8L128, Y41B, IYU1, YUV9, YVU9, BGR16, RGB16, BGR15, RGB15, RGB8P, GRAY_F32LE, GRAY_F32BE, GRAY16_LE, GRAY16_BE, GRAY_F16LE, GRAY_F16BE, GRAY10_LE16, GRAY10_LE32, GRAY8 }\n          width: [ 1, 2147483647 ]\n         height: [ 1, 2147483647 ]\n      framerate: [ 0/1, 2147483647/1 ]\n        tensors: \"tensorgroups\\,\\ yolo-26-obb-end2end-out\\=\\(/uniquelist\\)\\{\\ \\(caps\\)\\\"tensor/strided\\\\\\,\\\\\\ tensor-id\\\\\\=\\\\\\(string\\\\\\)yolo-26-obb-end2end-out\\\\\\,\\\\\\ dims\\\\\\=\\\\\\(int\\\\\\)\\\\\\<\\\\\\ 1\\\\\\,\\\\\\ \\\\\\[\\\\\\ 1\\\\\\,\\\\\\ 2147483647\\\\\\ \\\\\\]\\\\\\,\\\\\\ 7\\\\\\ \\\\\\>\\\\\\,\\\\\\ dims-order\\\\\\=\\\\\\(string\\\\\\)row-major\\\\\\,\\\\\\ type\\\\\\=\\\\\\(string\\\\\\)float32\\\"\\ \\}\\;\"\n",
+                        "direction": "sink",
+                        "presence": "always"
+                    },
+                    "src": {
+                        "caps": "video/x-raw(ANY):\n         format: { AYUV_F32, RGBA_F32LE, ARGB_F32, RGBA_F32BE, A444_16LE, A444_16BE, Y416_LE, AYUV64, RGBA64_LE, ARGB64, ARGB64_LE, BGRA64_LE, ABGR64_LE, Y416_BE, RGBA64_BE, ARGB64_BE, BGRA64_BE, ABGR64_BE, A422_16LE, A422_16BE, A420_16LE, A420_16BE, A444_12LE, GBRA_12LE, A444_12BE, GBRA_12BE, Y412_LE, Y412_BE, A422_12LE, A422_12BE, A420_12LE, A420_12BE, RGBA_F16LE, RGBA_F16BE, A444_10LE, GBRA_10LE, A444_10BE, GBRA_10BE, A422_10LE, A422_10BE, A420_10LE, A420_10BE, BGR10A2_LE, RGB10A2_LE, Y410, A444, GBRA, AYUV, VUYA, RGBA, RBGA, ARGB, BGRA, ABGR, A422, A420, AV12, RGBP_F32LE, RGBP_F32BE, RGB_F32LE, RGB_F32BE, Y444_16LE, GBR_16LE, Y444_16BE, GBR_16BE, Y216_LE, Y216_BE, v216, P016_LE, P016_BE, Y444_12LE, GBR_12LE, Y444_12BE, GBR_12BE, I422_12LE, I422_12BE, Y212_LE, Y212_BE, I420_12LE, I420_12BE, P012_LE, P012_BE, RGBP_F16LE, RGBP_F16BE, RGB_F16LE, RGB_F16BE, Y444_10LE, GBR_10LE, Y444_10BE, GBR_10BE, BGR10x2_LE, RGB10x2_LE, r210, I422_10LE, I422_10BE, NV16_10LE40, NV16_10LE32, Y210, UYVP, v210, I420_10LE, I420_10BE, P010_10LE, NV12_10LE40, NV12_10LE32, P010_10BE, MT2110R, MT2110T, NV12_10BE_8L128, NV12_10LE40_4L4, Y444, BGRP, GBR, RGBP, NV24, v308, IYU2, RGBx, xRGB, BGRx, xBGR, RGB, BGR, Y42B, NV16, NV61, YUY2, YVYU, UYVY, VYUY, I420, YV12, NV12, NV21, NV12_16L32S, NV12_32L32, NV12_4L4, NV12_64Z32, NV12_8L128, Y41B, IYU1, YUV9, YVU9, BGR16, RGB16, BGR15, RGB15, RGB8P, GRAY_F32LE, GRAY_F32BE, GRAY16_LE, GRAY16_BE, GRAY_F16LE, GRAY_F16BE, GRAY10_LE16, GRAY10_LE32, GRAY8 }\n          width: [ 1, 2147483647 ]\n         height: [ 1, 2147483647 ]\n      framerate: [ 0/1, 2147483647/1 ]\n",
+                        "direction": "src",
+                        "presence": "always"
+                    }
+                },
+                "properties": {
+                    "score-threshold": {
+                        "blurb": "Detections with a score inferior to this threshold will be excluded",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "0.3",
+                        "max": "1",
+                        "min": "0",
+                        "mutable": "playing",
+                        "readable": true,
+                        "type": "gfloat",
+                        "writable": true
+                    }
+                },
+                "rank": "primary + 1"
+            },
+            "yolo26segtensordec": {
+                "author": "Jan Schmidt <jan@centricular.com>",
+                "description": "Decodes tensors from a YoloV10, Yolo11, Yolo12 and Yolo26 Segmentation model from the end2end (one-to-one) head",
+                "hierarchy": [
+                    "GstYolo26SegTensorDec",
+                    "GstYoloSegTensorDec",
+                    "GstBaseTransform",
+                    "GstElement",
+                    "GstObject",
+                    "GInitiallyUnowned",
+                    "GObject"
+                ],
+                "klass": "Tensordecoder/Video",
+                "pad-templates": {
+                    "sink": {
+                        "caps": "video/x-raw(ANY):\n         format: { AYUV_F32, RGBA_F32LE, ARGB_F32, RGBA_F32BE, A444_16LE, A444_16BE, Y416_LE, AYUV64, RGBA64_LE, ARGB64, ARGB64_LE, BGRA64_LE, ABGR64_LE, Y416_BE, RGBA64_BE, ARGB64_BE, BGRA64_BE, ABGR64_BE, A422_16LE, A422_16BE, A420_16LE, A420_16BE, A444_12LE, GBRA_12LE, A444_12BE, GBRA_12BE, Y412_LE, Y412_BE, A422_12LE, A422_12BE, A420_12LE, A420_12BE, RGBA_F16LE, RGBA_F16BE, A444_10LE, GBRA_10LE, A444_10BE, GBRA_10BE, A422_10LE, A422_10BE, A420_10LE, A420_10BE, BGR10A2_LE, RGB10A2_LE, Y410, A444, GBRA, AYUV, VUYA, RGBA, RBGA, ARGB, BGRA, ABGR, A422, A420, AV12, RGBP_F32LE, RGBP_F32BE, RGB_F32LE, RGB_F32BE, Y444_16LE, GBR_16LE, Y444_16BE, GBR_16BE, Y216_LE, Y216_BE, v216, P016_LE, P016_BE, Y444_12LE, GBR_12LE, Y444_12BE, GBR_12BE, I422_12LE, I422_12BE, Y212_LE, Y212_BE, I420_12LE, I420_12BE, P012_LE, P012_BE, RGBP_F16LE, RGBP_F16BE, RGB_F16LE, RGB_F16BE, Y444_10LE, GBR_10LE, Y444_10BE, GBR_10BE, BGR10x2_LE, RGB10x2_LE, r210, I422_10LE, I422_10BE, NV16_10LE40, NV16_10LE32, Y210, UYVP, v210, I420_10LE, I420_10BE, P010_10LE, NV12_10LE40, NV12_10LE32, P010_10BE, MT2110R, MT2110T, NV12_10BE_8L128, NV12_10LE40_4L4, Y444, BGRP, GBR, RGBP, NV24, v308, IYU2, RGBx, xRGB, BGRx, xBGR, RGB, BGR, Y42B, NV16, NV61, YUY2, YVYU, UYVY, VYUY, I420, YV12, NV12, NV21, NV12_16L32S, NV12_32L32, NV12_4L4, NV12_64Z32, NV12_8L128, Y41B, IYU1, YUV9, YVU9, BGR16, RGB16, BGR15, RGB15, RGB8P, GRAY_F32LE, GRAY_F32BE, GRAY16_LE, GRAY16_BE, GRAY_F16LE, GRAY_F16BE, GRAY10_LE16, GRAY10_LE32, GRAY8 }\n          width: [ 1, 2147483647 ]\n         height: [ 1, 2147483647 ]\n      framerate: [ 0/1, 2147483647/1 ]\n        tensors: \"tensorgroups\\,\\ yolo-26-segmentation-end2end-out\\=\\(/uniquelist\\)\\{\\ \\(caps\\)\\\"tensor/strided\\\\\\,\\\\\\ tensor-id\\\\\\=\\\\\\(string\\\\\\)yolo-26-segmentation-end2end-out-detections\\\\\\,\\\\\\ dims\\\\\\=\\\\\\(int\\\\\\)\\\\\\<\\\\\\ 1\\\\\\,\\\\\\ \\\\\\[\\\\\\ 1\\\\\\,\\\\\\ 2147483647\\\\\\ \\\\\\]\\\\\\,\\\\\\ \\\\\\[\\\\\\ 6\\\\\\,\\\\\\ 2147483647\\\\\\ \\\\\\]\\\\\\ \\\\\\>\\\\\\,\\\\\\ dims-order\\\\\\=\\\\\\(string\\\\\\)row-major\\\\\\,\\\\\\ type\\\\\\=\\\\\\(string\\\\\\)float32\\\"\\,\\ \\(caps\\)\\\"tensor/strided\\\\\\,\\\\\\ tensor-id\\\\\\=\\\\\\(string\\\\\\)yolo-26-segmentation-end2end-out-protos\\\\\\,\\\\\\ dims\\\\\\=\\\\\\(int\\\\\\)\\\\\\<\\\\\\ 1\\\\\\,\\\\\\ \\\\\\[\\\\\\ 1\\\\\\,\\\\\\ 2147483647\\\\\\ \\\\\\]\\\\\\,\\\\\\ \\\\\\[\\\\\\ 1\\\\\\,\\\\\\ 2147483647\\\\\\ \\\\\\]\\\\\\,\\\\\\ \\\\\\[\\\\\\ 1\\\\\\,\\\\\\ 2147483647\\\\\\ \\\\\\]\\\\\\ \\\\\\>\\\\\\,\\\\\\ dims-order\\\\\\=\\\\\\(string\\\\\\)row-major\\\\\\,\\\\\\ type\\\\\\=\\\\\\(string\\\\\\)float32\\\"\\ \\}\\;\"\n",
                         "direction": "sink",
                         "presence": "always"
                     },
@@ -11550,7 +12619,78 @@
                 "klass": "Tensordecoder/Video",
                 "pad-templates": {
                     "sink": {
-                        "caps": "video/x-raw(ANY):\n         format: { AYUV_F32, RGBA_F32LE, ARGB_F32, RGBA_F32BE, A444_16LE, A444_16BE, Y416_LE, AYUV64, RGBA64_LE, ARGB64, ARGB64_LE, BGRA64_LE, ABGR64_LE, Y416_BE, RGBA64_BE, ARGB64_BE, BGRA64_BE, ABGR64_BE, A422_16LE, A422_16BE, A420_16LE, A420_16BE, A444_12LE, GBRA_12LE, A444_12BE, GBRA_12BE, Y412_LE, Y412_BE, A422_12LE, A422_12BE, A420_12LE, A420_12BE, RGBA_F16LE, RGBA_F16BE, A444_10LE, GBRA_10LE, A444_10BE, GBRA_10BE, A422_10LE, A422_10BE, A420_10LE, A420_10BE, BGR10A2_LE, RGB10A2_LE, Y410, A444, GBRA, AYUV, VUYA, RGBA, RBGA, ARGB, BGRA, ABGR, A422, A420, AV12, RGBP_F32LE, RGBP_F32BE, RGB_F32LE, RGB_F32BE, Y444_16LE, GBR_16LE, Y444_16BE, GBR_16BE, Y216_LE, Y216_BE, v216, P016_LE, P016_BE, Y444_12LE, GBR_12LE, Y444_12BE, GBR_12BE, I422_12LE, I422_12BE, Y212_LE, Y212_BE, I420_12LE, I420_12BE, P012_LE, P012_BE, RGBP_F16LE, RGBP_F16BE, RGB_F16LE, RGB_F16BE, Y444_10LE, GBR_10LE, Y444_10BE, GBR_10BE, BGR10x2_LE, RGB10x2_LE, r210, I422_10LE, I422_10BE, NV16_10LE40, NV16_10LE32, Y210, UYVP, v210, I420_10LE, I420_10BE, P010_10LE, NV12_10LE40, NV12_10LE32, P010_10BE, MT2110R, MT2110T, NV12_10BE_8L128, NV12_10LE40_4L4, Y444, BGRP, GBR, RGBP, NV24, v308, IYU2, RGBx, xRGB, BGRx, xBGR, RGB, BGR, Y42B, NV16, NV61, YUY2, YVYU, UYVY, VYUY, I420, YV12, NV12, NV21, NV12_16L32S, NV12_32L32, NV12_4L4, NV12_64Z32, NV12_8L128, Y41B, IYU1, YUV9, YVU9, BGR16, RGB16, BGR15, RGB15, RGB8P, GRAY_F32LE, GRAY_F32BE, GRAY16_LE, GRAY16_BE, GRAY_F16LE, GRAY_F16BE, GRAY10_LE16, GRAY10_LE32, GRAY8 }\n          width: [ 1, 2147483647 ]\n         height: [ 1, 2147483647 ]\n      framerate: [ 0/1, 2147483647/1 ]\n        tensors: \"tensorgroups\\,\\ yolo-v8-obb-out\\=\\(/uniquelist\\)\\{\\ \\(caps\\)\\\"tensor/strided\\\\\\,\\\\\\ tensor-id\\\\\\=\\\\\\(string\\\\\\)yolo-v8-obb-out\\\\\\,\\\\\\ dims\\\\\\=\\\\\\(int\\\\\\)\\\\\\<\\\\\\ 1\\\\\\,\\\\\\ \\\\\\[\\\\\\ 6\\\\\\,\\\\\\ 2147483647\\\\\\ \\\\\\]\\\\\\,\\\\\\ \\\\\\[\\\\\\ 0\\\\\\,\\\\\\ 2147483647\\\\\\ \\\\\\]\\\\\\ \\\\\\>\\\\\\,\\\\\\ dims-order\\\\\\=\\\\\\(string\\\\\\)col-major\\\\\\,\\\\\\ type\\\\\\=\\\\\\(string\\\\\\)float32\\\"\\ \\}\\;\"\n",
+                        "caps": "video/x-raw(ANY):\n         format: { AYUV_F32, RGBA_F32LE, ARGB_F32, RGBA_F32BE, A444_16LE, A444_16BE, Y416_LE, AYUV64, RGBA64_LE, ARGB64, ARGB64_LE, BGRA64_LE, ABGR64_LE, Y416_BE, RGBA64_BE, ARGB64_BE, BGRA64_BE, ABGR64_BE, A422_16LE, A422_16BE, A420_16LE, A420_16BE, A444_12LE, GBRA_12LE, A444_12BE, GBRA_12BE, Y412_LE, Y412_BE, A422_12LE, A422_12BE, A420_12LE, A420_12BE, RGBA_F16LE, RGBA_F16BE, A444_10LE, GBRA_10LE, A444_10BE, GBRA_10BE, A422_10LE, A422_10BE, A420_10LE, A420_10BE, BGR10A2_LE, RGB10A2_LE, Y410, A444, GBRA, AYUV, VUYA, RGBA, RBGA, ARGB, BGRA, ABGR, A422, A420, AV12, RGBP_F32LE, RGBP_F32BE, RGB_F32LE, RGB_F32BE, Y444_16LE, GBR_16LE, Y444_16BE, GBR_16BE, Y216_LE, Y216_BE, v216, P016_LE, P016_BE, Y444_12LE, GBR_12LE, Y444_12BE, GBR_12BE, I422_12LE, I422_12BE, Y212_LE, Y212_BE, I420_12LE, I420_12BE, P012_LE, P012_BE, RGBP_F16LE, RGBP_F16BE, RGB_F16LE, RGB_F16BE, Y444_10LE, GBR_10LE, Y444_10BE, GBR_10BE, BGR10x2_LE, RGB10x2_LE, r210, I422_10LE, I422_10BE, NV16_10LE40, NV16_10LE32, Y210, UYVP, v210, I420_10LE, I420_10BE, P010_10LE, NV12_10LE40, NV12_10LE32, P010_10BE, MT2110R, MT2110T, NV12_10BE_8L128, NV12_10LE40_4L4, Y444, BGRP, GBR, RGBP, NV24, v308, IYU2, RGBx, xRGB, BGRx, xBGR, RGB, BGR, Y42B, NV16, NV61, YUY2, YVYU, UYVY, VYUY, I420, YV12, NV12, NV21, NV12_16L32S, NV12_32L32, NV12_4L4, NV12_64Z32, NV12_8L128, Y41B, IYU1, YUV9, YVU9, BGR16, RGB16, BGR15, RGB15, RGB8P, GRAY_F32LE, GRAY_F32BE, GRAY16_LE, GRAY16_BE, GRAY_F16LE, GRAY_F16BE, GRAY10_LE16, GRAY10_LE32, GRAY8 }\n          width: [ 1, 2147483647 ]\n         height: [ 1, 2147483647 ]\n      framerate: [ 0/1, 2147483647/1 ]\n        tensors: \"tensorgroups\\,\\ yolo-v8-obb-out\\=\\(/uniquelist\\)\\{\\ \\(caps\\)\\\"tensor/strided\\\\\\,\\\\\\ tensor-id\\\\\\=\\\\\\(string\\\\\\)yolo-v8-obb-out\\\\\\,\\\\\\ dims\\\\\\=\\\\\\(int\\\\\\)\\\\\\<\\\\\\ 1\\\\\\,\\\\\\ \\\\\\[\\\\\\ 6\\\\\\,\\\\\\ 2147483647\\\\\\ \\\\\\]\\\\\\,\\\\\\ \\\\\\[\\\\\\ 0\\\\\\,\\\\\\ 2147483647\\\\\\ \\\\\\]\\\\\\ \\\\\\>\\\\\\,\\\\\\ dims-order\\\\\\=\\\\\\(string\\\\\\)col-major\\\\\\,\\\\\\ type\\\\\\=\\\\\\(string\\\\\\)float32\\\"\\,\\ \\(caps\\)\\\"tensor/strided\\\\\\,\\\\\\ tensor-id\\\\\\=\\\\\\(string\\\\\\)yolo-v8-obb-out-normalized\\\\\\,\\\\\\ dims\\\\\\=\\\\\\(int\\\\\\)\\\\\\<\\\\\\ 1\\\\\\,\\\\\\ \\\\\\[\\\\\\ 6\\\\\\,\\\\\\ 2147483647\\\\\\ \\\\\\]\\\\\\,\\\\\\ \\\\\\[\\\\\\ 0\\\\\\,\\\\\\ 2147483647\\\\\\ \\\\\\]\\\\\\ \\\\\\>\\\\\\,\\\\\\ dims-order\\\\\\=\\\\\\(string\\\\\\)col-major\\\\\\,\\\\\\ type\\\\\\=\\\\\\(string\\\\\\)float32\\\"\\ \\}\\;\"\n",
+                        "direction": "sink",
+                        "presence": "always"
+                    },
+                    "src": {
+                        "caps": "video/x-raw(ANY):\n         format: { AYUV_F32, RGBA_F32LE, ARGB_F32, RGBA_F32BE, A444_16LE, A444_16BE, Y416_LE, AYUV64, RGBA64_LE, ARGB64, ARGB64_LE, BGRA64_LE, ABGR64_LE, Y416_BE, RGBA64_BE, ARGB64_BE, BGRA64_BE, ABGR64_BE, A422_16LE, A422_16BE, A420_16LE, A420_16BE, A444_12LE, GBRA_12LE, A444_12BE, GBRA_12BE, Y412_LE, Y412_BE, A422_12LE, A422_12BE, A420_12LE, A420_12BE, RGBA_F16LE, RGBA_F16BE, A444_10LE, GBRA_10LE, A444_10BE, GBRA_10BE, A422_10LE, A422_10BE, A420_10LE, A420_10BE, BGR10A2_LE, RGB10A2_LE, Y410, A444, GBRA, AYUV, VUYA, RGBA, RBGA, ARGB, BGRA, ABGR, A422, A420, AV12, RGBP_F32LE, RGBP_F32BE, RGB_F32LE, RGB_F32BE, Y444_16LE, GBR_16LE, Y444_16BE, GBR_16BE, Y216_LE, Y216_BE, v216, P016_LE, P016_BE, Y444_12LE, GBR_12LE, Y444_12BE, GBR_12BE, I422_12LE, I422_12BE, Y212_LE, Y212_BE, I420_12LE, I420_12BE, P012_LE, P012_BE, RGBP_F16LE, RGBP_F16BE, RGB_F16LE, RGB_F16BE, Y444_10LE, GBR_10LE, Y444_10BE, GBR_10BE, BGR10x2_LE, RGB10x2_LE, r210, I422_10LE, I422_10BE, NV16_10LE40, NV16_10LE32, Y210, UYVP, v210, I420_10LE, I420_10BE, P010_10LE, NV12_10LE40, NV12_10LE32, P010_10BE, MT2110R, MT2110T, NV12_10BE_8L128, NV12_10LE40_4L4, Y444, BGRP, GBR, RGBP, NV24, v308, IYU2, RGBx, xRGB, BGRx, xBGR, RGB, BGR, Y42B, NV16, NV61, YUY2, YVYU, UYVY, VYUY, I420, YV12, NV12, NV21, NV12_16L32S, NV12_32L32, NV12_4L4, NV12_64Z32, NV12_8L128, Y41B, IYU1, YUV9, YVU9, BGR16, RGB16, BGR15, RGB15, RGB8P, GRAY_F32LE, GRAY_F32BE, GRAY16_LE, GRAY16_BE, GRAY_F16LE, GRAY_F16BE, GRAY10_LE16, GRAY10_LE32, GRAY8 }\n          width: [ 1, 2147483647 ]\n         height: [ 1, 2147483647 ]\n      framerate: [ 0/1, 2147483647/1 ]\n",
+                        "direction": "src",
+                        "presence": "always"
+                    }
+                },
+                "properties": {
+                    "class-confidence-threshold": {
+                        "blurb": "Boxes with a confidence level inferior to this threshold will be excluded",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "0.4",
+                        "max": "1",
+                        "min": "0",
+                        "mutable": "playing",
+                        "readable": true,
+                        "type": "gfloat",
+                        "writable": true
+                    },
+                    "iou-threshold": {
+                        "blurb": "Maximum intersection-over-union between bounding boxes to consider them distinct",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "0.7",
+                        "max": "1",
+                        "min": "0",
+                        "mutable": "playing",
+                        "readable": true,
+                        "type": "gfloat",
+                        "writable": true
+                    },
+                    "max-detections": {
+                        "blurb": "Maximum number of detections",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "100",
+                        "max": "-1",
+                        "min": "0",
+                        "mutable": "playing",
+                        "readable": true,
+                        "type": "guint",
+                        "writable": true
+                    }
+                },
+                "rank": "primary + 1"
+            },
+            "yolov8segtensordec": {
+                "author": "Jan Schmidt <jan@centricular.com>",
+                "description": "Decodes tensors from a YoloV8-v10, Yolo11, Yolo12 and Yolo26 segmentation model from the one-to-many head",
+                "hierarchy": [
+                    "GstYoloV8SegTensorDec",
+                    "GstYoloSegTensorDec",
+                    "GstBaseTransform",
+                    "GstElement",
+                    "GstObject",
+                    "GInitiallyUnowned",
+                    "GObject"
+                ],
+                "klass": "Tensordecoder/Video",
+                "pad-templates": {
+                    "sink": {
+                        "caps": "video/x-raw(ANY):\n         format: { AYUV_F32, RGBA_F32LE, ARGB_F32, RGBA_F32BE, A444_16LE, A444_16BE, Y416_LE, AYUV64, RGBA64_LE, ARGB64, ARGB64_LE, BGRA64_LE, ABGR64_LE, Y416_BE, RGBA64_BE, ARGB64_BE, BGRA64_BE, ABGR64_BE, A422_16LE, A422_16BE, A420_16LE, A420_16BE, A444_12LE, GBRA_12LE, A444_12BE, GBRA_12BE, Y412_LE, Y412_BE, A422_12LE, A422_12BE, A420_12LE, A420_12BE, RGBA_F16LE, RGBA_F16BE, A444_10LE, GBRA_10LE, A444_10BE, GBRA_10BE, A422_10LE, A422_10BE, A420_10LE, A420_10BE, BGR10A2_LE, RGB10A2_LE, Y410, A444, GBRA, AYUV, VUYA, RGBA, RBGA, ARGB, BGRA, ABGR, A422, A420, AV12, RGBP_F32LE, RGBP_F32BE, RGB_F32LE, RGB_F32BE, Y444_16LE, GBR_16LE, Y444_16BE, GBR_16BE, Y216_LE, Y216_BE, v216, P016_LE, P016_BE, Y444_12LE, GBR_12LE, Y444_12BE, GBR_12BE, I422_12LE, I422_12BE, Y212_LE, Y212_BE, I420_12LE, I420_12BE, P012_LE, P012_BE, RGBP_F16LE, RGBP_F16BE, RGB_F16LE, RGB_F16BE, Y444_10LE, GBR_10LE, Y444_10BE, GBR_10BE, BGR10x2_LE, RGB10x2_LE, r210, I422_10LE, I422_10BE, NV16_10LE40, NV16_10LE32, Y210, UYVP, v210, I420_10LE, I420_10BE, P010_10LE, NV12_10LE40, NV12_10LE32, P010_10BE, MT2110R, MT2110T, NV12_10BE_8L128, NV12_10LE40_4L4, Y444, BGRP, GBR, RGBP, NV24, v308, IYU2, RGBx, xRGB, BGRx, xBGR, RGB, BGR, Y42B, NV16, NV61, YUY2, YVYU, UYVY, VYUY, I420, YV12, NV12, NV21, NV12_16L32S, NV12_32L32, NV12_4L4, NV12_64Z32, NV12_8L128, Y41B, IYU1, YUV9, YVU9, BGR16, RGB16, BGR15, RGB15, RGB8P, GRAY_F32LE, GRAY_F32BE, GRAY16_LE, GRAY16_BE, GRAY_F16LE, GRAY_F16BE, GRAY10_LE16, GRAY10_LE32, GRAY8 }\n          width: [ 1, 2147483647 ]\n         height: [ 1, 2147483647 ]\n      framerate: [ 0/1, 2147483647/1 ]\n        tensors: \"tensorgroups\\,\\ yolo-v8-segmentation-out\\=\\(/uniquelist\\)\\{\\ \\(caps\\)\\\"tensor/strided\\\\\\,\\\\\\ tensor-id\\\\\\=\\\\\\(string\\\\\\)yolo-v8-segmentation-out-detections\\\\\\,\\\\\\ dims\\\\\\=\\\\\\(int\\\\\\)\\\\\\<\\\\\\ 1\\\\\\,\\\\\\ \\\\\\[\\\\\\ 5\\\\\\,\\\\\\ 2147483647\\\\\\ \\\\\\]\\\\\\,\\\\\\ \\\\\\[\\\\\\ 1\\\\\\,\\\\\\ 2147483647\\\\\\ \\\\\\]\\\\\\ \\\\\\>\\\\\\,\\\\\\ dims-order\\\\\\=\\\\\\(string\\\\\\)col-major\\\\\\,\\\\\\ type\\\\\\=\\\\\\(string\\\\\\)float32\\\"\\,\\ \\(caps\\)\\\"tensor/strided\\\\\\,\\\\\\ tensor-id\\\\\\=\\\\\\(string\\\\\\)yolo-v8-segmentation-out-detections-normalized\\\\\\,\\\\\\ dims\\\\\\=\\\\\\(int\\\\\\)\\\\\\<\\\\\\ 1\\\\\\,\\\\\\ \\\\\\[\\\\\\ 5\\\\\\,\\\\\\ 2147483647\\\\\\ \\\\\\]\\\\\\,\\\\\\ \\\\\\[\\\\\\ 1\\\\\\,\\\\\\ 2147483647\\\\\\ \\\\\\]\\\\\\ \\\\\\>\\\\\\,\\\\\\ dims-order\\\\\\=\\\\\\(string\\\\\\)col-major\\\\\\,\\\\\\ type\\\\\\=\\\\\\(string\\\\\\)float32\\\"\\,\\ \\(caps\\)\\\"tensor/strided\\\\\\,\\\\\\ tensor-id\\\\\\=\\\\\\(string\\\\\\)yolo-v8-segmentation-out-protos\\\\\\,\\\\\\ dims\\\\\\=\\\\\\(int\\\\\\)\\\\\\<\\\\\\ 1\\\\\\,\\\\\\ \\\\\\[\\\\\\ 1\\\\\\,\\\\\\ 2147483647\\\\\\ \\\\\\]\\\\\\,\\\\\\ \\\\\\[\\\\\\ 1\\\\\\,\\\\\\ 2147483647\\\\\\ \\\\\\]\\\\\\,\\\\\\ \\\\\\[\\\\\\ 1\\\\\\,\\\\\\ 2147483647\\\\\\ \\\\\\]\\\\\\ \\\\\\>\\\\\\,\\\\\\ dims-order\\\\\\=\\\\\\(string\\\\\\)col-major\\\\\\,\\\\\\ type\\\\\\=\\\\\\(string\\\\\\)float32\\\"\\ \\}\\;\"\n",
                         "direction": "sink",
                         "presence": "always"
                     },
@@ -11621,7 +12761,7 @@
                 "klass": "Tensordecoder/Video",
                 "pad-templates": {
                     "sink": {
-                        "caps": "video/x-raw(ANY):\n         format: { AYUV_F32, RGBA_F32LE, ARGB_F32, RGBA_F32BE, A444_16LE, A444_16BE, Y416_LE, AYUV64, RGBA64_LE, ARGB64, ARGB64_LE, BGRA64_LE, ABGR64_LE, Y416_BE, RGBA64_BE, ARGB64_BE, BGRA64_BE, ABGR64_BE, A422_16LE, A422_16BE, A420_16LE, A420_16BE, A444_12LE, GBRA_12LE, A444_12BE, GBRA_12BE, Y412_LE, Y412_BE, A422_12LE, A422_12BE, A420_12LE, A420_12BE, RGBA_F16LE, RGBA_F16BE, A444_10LE, GBRA_10LE, A444_10BE, GBRA_10BE, A422_10LE, A422_10BE, A420_10LE, A420_10BE, BGR10A2_LE, RGB10A2_LE, Y410, A444, GBRA, AYUV, VUYA, RGBA, RBGA, ARGB, BGRA, ABGR, A422, A420, AV12, RGBP_F32LE, RGBP_F32BE, RGB_F32LE, RGB_F32BE, Y444_16LE, GBR_16LE, Y444_16BE, GBR_16BE, Y216_LE, Y216_BE, v216, P016_LE, P016_BE, Y444_12LE, GBR_12LE, Y444_12BE, GBR_12BE, I422_12LE, I422_12BE, Y212_LE, Y212_BE, I420_12LE, I420_12BE, P012_LE, P012_BE, RGBP_F16LE, RGBP_F16BE, RGB_F16LE, RGB_F16BE, Y444_10LE, GBR_10LE, Y444_10BE, GBR_10BE, BGR10x2_LE, RGB10x2_LE, r210, I422_10LE, I422_10BE, NV16_10LE40, NV16_10LE32, Y210, UYVP, v210, I420_10LE, I420_10BE, P010_10LE, NV12_10LE40, NV12_10LE32, P010_10BE, MT2110R, MT2110T, NV12_10BE_8L128, NV12_10LE40_4L4, Y444, BGRP, GBR, RGBP, NV24, v308, IYU2, RGBx, xRGB, BGRx, xBGR, RGB, BGR, Y42B, NV16, NV61, YUY2, YVYU, UYVY, VYUY, I420, YV12, NV12, NV21, NV12_16L32S, NV12_32L32, NV12_4L4, NV12_64Z32, NV12_8L128, Y41B, IYU1, YUV9, YVU9, BGR16, RGB16, BGR15, RGB15, RGB8P, GRAY_F32LE, GRAY_F32BE, GRAY16_LE, GRAY16_BE, GRAY_F16LE, GRAY_F16BE, GRAY10_LE16, GRAY10_LE32, GRAY8 }\n          width: [ 1, 2147483647 ]\n         height: [ 1, 2147483647 ]\n      framerate: [ 0/1, 2147483647/1 ]\n        tensors: \"tensorgroups\\,\\ yolo-v8-out\\=\\(/uniquelist\\)\\{\\ \\(caps\\)\\\"tensor/strided\\\\\\,\\\\\\ tensor-id\\\\\\=\\\\\\(string\\\\\\)yolo-v8-out\\\\\\,\\\\\\ dims\\\\\\=\\\\\\(int\\\\\\)\\\\\\<\\\\\\ 1\\\\\\,\\\\\\ \\\\\\[\\\\\\ 5\\\\\\,\\\\\\ 2147483647\\\\\\ \\\\\\]\\\\\\,\\\\\\ \\\\\\[\\\\\\ 0\\\\\\,\\\\\\ 2147483647\\\\\\ \\\\\\]\\\\\\ \\\\\\>\\\\\\,\\\\\\ dims-order\\\\\\=\\\\\\(string\\\\\\)col-major\\\\\\,\\\\\\ type\\\\\\=\\\\\\(string\\\\\\)float32\\\"\\ \\}\\;\"\n",
+                        "caps": "video/x-raw(ANY):\n         format: { AYUV_F32, RGBA_F32LE, ARGB_F32, RGBA_F32BE, A444_16LE, A444_16BE, Y416_LE, AYUV64, RGBA64_LE, ARGB64, ARGB64_LE, BGRA64_LE, ABGR64_LE, Y416_BE, RGBA64_BE, ARGB64_BE, BGRA64_BE, ABGR64_BE, A422_16LE, A422_16BE, A420_16LE, A420_16BE, A444_12LE, GBRA_12LE, A444_12BE, GBRA_12BE, Y412_LE, Y412_BE, A422_12LE, A422_12BE, A420_12LE, A420_12BE, RGBA_F16LE, RGBA_F16BE, A444_10LE, GBRA_10LE, A444_10BE, GBRA_10BE, A422_10LE, A422_10BE, A420_10LE, A420_10BE, BGR10A2_LE, RGB10A2_LE, Y410, A444, GBRA, AYUV, VUYA, RGBA, RBGA, ARGB, BGRA, ABGR, A422, A420, AV12, RGBP_F32LE, RGBP_F32BE, RGB_F32LE, RGB_F32BE, Y444_16LE, GBR_16LE, Y444_16BE, GBR_16BE, Y216_LE, Y216_BE, v216, P016_LE, P016_BE, Y444_12LE, GBR_12LE, Y444_12BE, GBR_12BE, I422_12LE, I422_12BE, Y212_LE, Y212_BE, I420_12LE, I420_12BE, P012_LE, P012_BE, RGBP_F16LE, RGBP_F16BE, RGB_F16LE, RGB_F16BE, Y444_10LE, GBR_10LE, Y444_10BE, GBR_10BE, BGR10x2_LE, RGB10x2_LE, r210, I422_10LE, I422_10BE, NV16_10LE40, NV16_10LE32, Y210, UYVP, v210, I420_10LE, I420_10BE, P010_10LE, NV12_10LE40, NV12_10LE32, P010_10BE, MT2110R, MT2110T, NV12_10BE_8L128, NV12_10LE40_4L4, Y444, BGRP, GBR, RGBP, NV24, v308, IYU2, RGBx, xRGB, BGRx, xBGR, RGB, BGR, Y42B, NV16, NV61, YUY2, YVYU, UYVY, VYUY, I420, YV12, NV12, NV21, NV12_16L32S, NV12_32L32, NV12_4L4, NV12_64Z32, NV12_8L128, Y41B, IYU1, YUV9, YVU9, BGR16, RGB16, BGR15, RGB15, RGB8P, GRAY_F32LE, GRAY_F32BE, GRAY16_LE, GRAY16_BE, GRAY_F16LE, GRAY_F16BE, GRAY10_LE16, GRAY10_LE32, GRAY8 }\n          width: [ 1, 2147483647 ]\n         height: [ 1, 2147483647 ]\n      framerate: [ 0/1, 2147483647/1 ]\n        tensors: \"tensorgroups\\,\\ yolo-v8-out\\=\\(/uniquelist\\)\\{\\ \\(caps\\)\\\"tensor/strided\\\\\\,\\\\\\ tensor-id\\\\\\=\\\\\\(string\\\\\\)yolo-v8-out\\\\\\,\\\\\\ dims\\\\\\=\\\\\\(int\\\\\\)\\\\\\<\\\\\\ 1\\\\\\,\\\\\\ \\\\\\[\\\\\\ 5\\\\\\,\\\\\\ 2147483647\\\\\\ \\\\\\]\\\\\\,\\\\\\ \\\\\\[\\\\\\ 0\\\\\\,\\\\\\ 2147483647\\\\\\ \\\\\\]\\\\\\ \\\\\\>\\\\\\,\\\\\\ dims-order\\\\\\=\\\\\\(string\\\\\\)col-major\\\\\\,\\\\\\ type\\\\\\=\\\\\\(string\\\\\\)float32\\\"\\,\\ \\(caps\\)\\\"tensor/strided\\\\\\,\\\\\\ tensor-id\\\\\\=\\\\\\(string\\\\\\)yolo-v8-out-normalized\\\\\\,\\\\\\ dims\\\\\\=\\\\\\(int\\\\\\)\\\\\\<\\\\\\ 1\\\\\\,\\\\\\ \\\\\\[\\\\\\ 5\\\\\\,\\\\\\ 2147483647\\\\\\ \\\\\\]\\\\\\,\\\\\\ \\\\\\[\\\\\\ 0\\\\\\,\\\\\\ 2147483647\\\\\\ \\\\\\]\\\\\\ \\\\\\>\\\\\\,\\\\\\ dims-order\\\\\\=\\\\\\(string\\\\\\)col-major\\\\\\,\\\\\\ type\\\\\\=\\\\\\(string\\\\\\)float32\\\"\\ \\}\\;\"\n",
                         "direction": "sink",
                         "presence": "always"
                     },
@@ -11773,6 +12913,32 @@
                     }
                 },
                 "rank": "primary"
+            },
+            "zerodcetensordec": {
+                "author": "Denis Shimizu <denis.shimizu@collabora.com>",
+                "description": "Decodes the enhanced image tensor of a Zero-DCE low-light image enhancement model",
+                "hierarchy": [
+                    "GstZeroDceTensorDec",
+                    "GstBaseTransform",
+                    "GstElement",
+                    "GstObject",
+                    "GInitiallyUnowned",
+                    "GObject"
+                ],
+                "klass": "Tensordecoder/Video",
+                "pad-templates": {
+                    "sink": {
+                        "caps": "video/x-raw:\n         format: { RGB_F32LE, RGB }\n          width: [ 1, 2147483647 ]\n         height: [ 1, 2147483647 ]\n      framerate: [ 0/1, 2147483647/1 ]\n        tensors: \"tensorgroups\\,\\ image-rgb-hwc-out\\=\\(/uniquelist\\)\\{\\ \\(caps\\)\\\"tensor/strided\\\\\\,\\\\\\ tensor-id\\\\\\=\\\\\\(string\\\\\\)image-rgb-hwc-out\\\\\\,\\\\\\ dims\\\\\\=\\\\\\(int\\\\\\)\\\\\\<\\\\\\ 1\\\\\\,\\\\\\ \\\\\\[\\\\\\ 0\\\\\\,\\\\\\ 2147483647\\\\\\ \\\\\\]\\\\\\,\\\\\\ \\\\\\[\\\\\\ 0\\\\\\,\\\\\\ 2147483647\\\\\\ \\\\\\]\\\\\\,\\\\\\ 3\\\\\\ \\\\\\>\\\\\\,\\\\\\ dims-order\\\\\\=\\\\\\(string\\\\\\)row-major\\\\\\,\\\\\\ type\\\\\\=\\\\\\(string\\\\\\)float32\\\"\\,\\ \\(caps\\)\\\"tensor/strided\\\\\\,\\\\\\ tensor-id\\\\\\=\\\\\\(string\\\\\\)image-rgb-hwc-out\\\\\\,\\\\\\ dims\\\\\\=\\\\\\(int\\\\\\)\\\\\\<\\\\\\ \\\\\\[\\\\\\ 0\\\\\\,\\\\\\ 2147483647\\\\\\ \\\\\\]\\\\\\,\\\\\\ \\\\\\[\\\\\\ 0\\\\\\,\\\\\\ 2147483647\\\\\\ \\\\\\]\\\\\\,\\\\\\ 3\\\\\\ \\\\\\>\\\\\\,\\\\\\ dims-order\\\\\\=\\\\\\(string\\\\\\)row-major\\\\\\,\\\\\\ type\\\\\\=\\\\\\(string\\\\\\)float32\\\"\\ \\}\\;\"\n",
+                        "direction": "sink",
+                        "presence": "always"
+                    },
+                    "src": {
+                        "caps": "video/x-raw:\n         format: { RGB_F32LE, RGB }\n          width: [ 1, 2147483647 ]\n         height: [ 1, 2147483647 ]\n      framerate: [ 0/1, 2147483647/1 ]\n",
+                        "direction": "src",
+                        "presence": "always"
+                    }
+                },
+                "rank": "primary"
             }
         },
         "filename": "gstrsanalytics",
@@ -11877,9 +13043,24 @@
                     }
                 ]
             },
-            "GstYoloTensorDec": {
+            "GstYoloSegDecoderScaleMode": {
+                "kind": "enum",
+                "values": [
+                    {
+                        "desc": "Native: Render the segmentation map at model native resolution",
+                        "name": "native",
+                        "value": "0"
+                    },
+                    {
+                        "desc": "Bilinear Upscale: Upscale the segmentation map to video resolution with bilinear interpolation",
+                        "name": "bilinear-upscale",
+                        "value": "1"
+                    }
+                ]
+            },
+            "GstYoloSegTensorDec": {
                 "hierarchy": [
-                    "GstYoloTensorDec",
+                    "GstYoloSegTensorDec",
                     "GstBaseTransform",
                     "GstElement",
                     "GstObject",
@@ -11888,48 +13069,6 @@
                 ],
                 "kind": "object",
                 "properties": {
-                    "box-confidence-threshold": {
-                        "blurb": "Boxes with a location confidence level inferior to this threshold will be excluded",
-                        "conditionally-available": false,
-                        "construct": false,
-                        "construct-only": false,
-                        "controllable": false,
-                        "default": "0.4",
-                        "max": "1",
-                        "min": "0",
-                        "mutable": "playing",
-                        "readable": true,
-                        "type": "gfloat",
-                        "writable": true
-                    },
-                    "class-confidence-threshold": {
-                        "blurb": "Boxes with a confidence level inferior to this threshold will be excluded",
-                        "conditionally-available": false,
-                        "construct": false,
-                        "construct-only": false,
-                        "controllable": false,
-                        "default": "0.4",
-                        "max": "1",
-                        "min": "0",
-                        "mutable": "playing",
-                        "readable": true,
-                        "type": "gfloat",
-                        "writable": true
-                    },
-                    "iou-threshold": {
-                        "blurb": "Maximum intersection-over-union between bounding boxes to consider them distinct",
-                        "conditionally-available": false,
-                        "construct": false,
-                        "construct-only": false,
-                        "controllable": false,
-                        "default": "0.7",
-                        "max": "1",
-                        "min": "0",
-                        "mutable": "playing",
-                        "readable": true,
-                        "type": "gfloat",
-                        "writable": true
-                    },
                     "label-file": {
                         "blurb": "Label file with one label per line",
                         "conditionally-available": false,
@@ -11942,18 +13081,41 @@
                         "type": "gchararray",
                         "writable": true
                     },
-                    "max-detections": {
-                        "blurb": "Maximum number of detections",
+                    "scale-mode": {
+                        "blurb": "Segmentation Map scaling mode",
                         "conditionally-available": false,
                         "construct": false,
                         "construct-only": false,
                         "controllable": false,
-                        "default": "100",
-                        "max": "-1",
-                        "min": "0",
-                        "mutable": "playing",
+                        "default": "bilinear-upscale (1)",
+                        "mutable": "ready",
                         "readable": true,
-                        "type": "guint",
+                        "type": "GstYoloSegDecoderScaleMode",
+                        "writable": true
+                    }
+                }
+            },
+            "GstYoloTensorDec": {
+                "hierarchy": [
+                    "GstYoloTensorDec",
+                    "GstBaseTransform",
+                    "GstElement",
+                    "GstObject",
+                    "GInitiallyUnowned",
+                    "GObject"
+                ],
+                "kind": "object",
+                "properties": {
+                    "label-file": {
+                        "blurb": "Label file with one label per line",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "NULL",
+                        "mutable": "ready",
+                        "readable": true,
+                        "type": "gchararray",
                         "writable": true
                     }
                 }
@@ -12437,7 +13599,7 @@
                         "presence": "always"
                     },
                     "src": {
-                        "caps": "audio/x-ac4:\n           rate: { (int)44100, (int)48000 }\n      framerate: [ 0/1, 2147483647/1 ]\nbitstream-version: { (int)1, (int)2 }\n      alignment: frame\n",
+                        "caps": "audio/x-ac4:\n           rate: { (int)44100, (int)48000 }\n      framerate: [ 0/1, 2147483647/1 ]\nbitstream-version: { (int)1, (int)2 }\n      alignment: frame\n  stream-format: { (string)raw, (string)syncframe }\n",
                         "direction": "src",
                         "presence": "always"
                     }
@@ -15391,6 +16553,388 @@
                 },
                 "rank": "primary"
             },
+            "rtpg722depay2": {
+                "author": "Matthew Waters <matthew@centricular.com>",
+                "description": "Depayload G.722 from RTP packets (RFC 3551)",
+                "hierarchy": [
+                    "GstRtpG722Depay2",
+                    "GstRtpBaseDepay2",
+                    "GstElement",
+                    "GstObject",
+                    "GInitiallyUnowned",
+                    "GObject"
+                ],
+                "klass": "Codec/Depayloader/Network/RTP",
+                "pad-templates": {
+                    "sink": {
+                        "caps": "application/x-rtp:\n          media: audio\n        payload: 9\n     clock-rate: 8000\napplication/x-rtp:\n          media: audio\n     clock-rate: 8000\n  encoding-name: G722\nencoding-params: 1\n",
+                        "direction": "sink",
+                        "presence": "always"
+                    },
+                    "src": {
+                        "caps": "audio/G722:\n       channels: 1\n           rate: 16000\n",
+                        "direction": "src",
+                        "presence": "always"
+                    }
+                },
+                "rank": "primary"
+            },
+            "rtpg722pay2": {
+                "author": "Matthew Waters <matthew@centricular.com>",
+                "description": "Payload G.722 Audio into RTP packets (RFC 3551)",
+                "hierarchy": [
+                    "GstRtpG722Pay2",
+                    "GstRtpBaseAudioPay2",
+                    "GstRtpBasePay2",
+                    "GstElement",
+                    "GstObject",
+                    "GInitiallyUnowned",
+                    "GObject"
+                ],
+                "klass": "Codec/Payloader/Network/RTP",
+                "pad-templates": {
+                    "sink": {
+                        "caps": "audio/G722:\n       channels: 1\n           rate: 16000\n",
+                        "direction": "sink",
+                        "presence": "always"
+                    },
+                    "src": {
+                        "caps": "application/x-rtp:\n          media: audio\n        payload: 9\n     clock-rate: 8000\napplication/x-rtp:\n          media: audio\n  encoding-name: G722\nencoding-params: 1\n     clock-rate: 8000\n",
+                        "direction": "src",
+                        "presence": "always"
+                    }
+                },
+                "rank": "primary"
+            },
+            "rtpg723depay2": {
+                "author": "Matthew Waters <matthew@centricular.com>",
+                "description": "Depayload G.723 from RTP packets (RFC 3551)",
+                "hierarchy": [
+                    "GstRtpG723Depay2",
+                    "GstRtpBaseDepay2",
+                    "GstElement",
+                    "GstObject",
+                    "GInitiallyUnowned",
+                    "GObject"
+                ],
+                "klass": "Codec/Depayloader/Network/RTP",
+                "pad-templates": {
+                    "sink": {
+                        "caps": "application/x-rtp:\n          media: audio\n        payload: 4\n     clock-rate: 8000\napplication/x-rtp:\n          media: audio\n     clock-rate: 8000\n  encoding-name: G723\nencoding-params: 1\n",
+                        "direction": "sink",
+                        "presence": "always"
+                    },
+                    "src": {
+                        "caps": "audio/G723:\n       channels: 1\n           rate: 8000\n",
+                        "direction": "src",
+                        "presence": "always"
+                    }
+                },
+                "rank": "primary"
+            },
+            "rtpg723pay2": {
+                "author": "Matthew Waters <matthew@centricular.com>",
+                "description": "Payload G.723 Audio into RTP packets (RFC 3551)",
+                "hierarchy": [
+                    "GstRtpG723Pay2",
+                    "GstRtpBasePay2",
+                    "GstElement",
+                    "GstObject",
+                    "GInitiallyUnowned",
+                    "GObject"
+                ],
+                "klass": "Codec/Payloader/Network/RTP",
+                "pad-templates": {
+                    "sink": {
+                        "caps": "audio/G723:\n       channels: 1\n           rate: 8000\n",
+                        "direction": "sink",
+                        "presence": "always"
+                    },
+                    "src": {
+                        "caps": "application/x-rtp:\n          media: audio\n        payload: 4\n     clock-rate: 8000\napplication/x-rtp:\n          media: audio\n  encoding-name: G723\nencoding-params: 1\n     clock-rate: 8000\n",
+                        "direction": "src",
+                        "presence": "always"
+                    }
+                },
+                "properties": {
+                    "alignment-threshold": {
+                        "blurb": "Timestamp alignment threshold in nanoseconds",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "40000000",
+                        "max": "18446744073709551615",
+                        "min": "0",
+                        "mutable": "playing",
+                        "readable": true,
+                        "type": "guint64",
+                        "writable": true
+                    },
+                    "discont-wait": {
+                        "blurb": "Window of time in nanoseconds to wait before creating a discontinuity",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "1000000000",
+                        "max": "18446744073709551615",
+                        "min": "0",
+                        "mutable": "playing",
+                        "readable": true,
+                        "type": "guint64",
+                        "writable": true
+                    },
+                    "max-ptime": {
+                        "blurb": "Maximum duration of the packet data in ns (-1 = unlimited up to MTU)",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "18446744073709551615",
+                        "max": "9223372036854775807",
+                        "min": "-1",
+                        "mutable": "playing",
+                        "readable": true,
+                        "type": "gint64",
+                        "writable": true
+                    },
+                    "min-ptime": {
+                        "blurb": "Minimum duration of the packet data in ns (can't go above MTU)",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "30000000",
+                        "max": "9223372036854775807",
+                        "min": "30000000",
+                        "mutable": "playing",
+                        "readable": true,
+                        "type": "gint64",
+                        "writable": true
+                    },
+                    "ptime-multiple": {
+                        "blurb": "Force buffers to be multiples of this duration in ns (0 disables). Must be a multiple of 30ms.",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "0",
+                        "max": "9223372036854775807",
+                        "min": "0",
+                        "mutable": "playing",
+                        "readable": true,
+                        "type": "gint64",
+                        "writable": true
+                    }
+                },
+                "rank": "primary"
+            },
+            "rtpg726depay2": {
+                "author": "Matthew Waters <matthew@centricular.com>",
+                "description": "Depayload G.726 from RTP packets (RFC 3551)",
+                "hierarchy": [
+                    "GstRtpG726Depay2",
+                    "GstRtpBaseDepay2",
+                    "GstElement",
+                    "GstObject",
+                    "GInitiallyUnowned",
+                    "GObject"
+                ],
+                "klass": "Codec/Depayloader/Network/RTP",
+                "pad-templates": {
+                    "sink": {
+                        "caps": "application/x-rtp:\n          media: audio\n     clock-rate: 8000\n  encoding-name: { (string)G726, (string)G726-16, (string)G726-24, (string)G726-32, (string)G726-40, (string)AAL2-G726-16, (string)AAL2-G726-24, (string)AAL2-G726-32, (string)AAL2-G726-40 }\nencoding-params: 1\n",
+                        "direction": "sink",
+                        "presence": "always"
+                    },
+                    "src": {
+                        "caps": "audio/x-adpcm:\n       channels: 1\n           rate: 8000\n        bitrate: { (int)16000, (int)24000, (int)32000, (int)40000 }\n    block_align: { (int)2, (int)3, (int)4, (int)5 }\n         layout: g726\n",
+                        "direction": "src",
+                        "presence": "always"
+                    }
+                },
+                "properties": {
+                    "force-aal2": {
+                        "blurb": "Force AAL2 encoding for compatibility with bad depayloaders",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "false",
+                        "mutable": "null",
+                        "readable": true,
+                        "type": "gboolean",
+                        "writable": true
+                    }
+                },
+                "rank": "primary"
+            },
+            "rtpg726pay2": {
+                "author": "Matthew Waters <matthew@centricular.com>",
+                "description": "Payload G.726 Audio into RTP packets (RFC 3551)",
+                "hierarchy": [
+                    "GstRtpG726Pay2",
+                    "GstRtpBaseAudioPay2",
+                    "GstRtpBasePay2",
+                    "GstElement",
+                    "GstObject",
+                    "GInitiallyUnowned",
+                    "GObject"
+                ],
+                "klass": "Codec/Payloader/Network/RTP",
+                "pad-templates": {
+                    "sink": {
+                        "caps": "audio/x-adpcm:\n       channels: 1\n           rate: 8000\n        bitrate: { (int)16000, (int)24000, (int)32000, (int)40000 }\n         layout: g726\n",
+                        "direction": "sink",
+                        "presence": "always"
+                    },
+                    "src": {
+                        "caps": "application/x-rtp:\n          media: audio\n  encoding-name: { (string)G726-16, (string)G726-24, (string)G726-32, (string)G726-40, (string)AAL2-G726-16, (string)AAL2-G726-24, (string)AAL2-G726-32, (string)AAL2-G726-40 }\n     clock-rate: 8000\n",
+                        "direction": "src",
+                        "presence": "always"
+                    }
+                },
+                "properties": {
+                    "force-aal2": {
+                        "blurb": "Force AAL2 encoding for compatibility with bad depayloaders",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "false",
+                        "mutable": "null",
+                        "readable": true,
+                        "type": "gboolean",
+                        "writable": true
+                    }
+                },
+                "rank": "primary"
+            },
+            "rtpg729depay2": {
+                "author": "Matthew Waters <matthew@centricular.com>",
+                "description": "Depayload G.729 from RTP packets (RFC 3551)",
+                "hierarchy": [
+                    "GstRtpG729Depay2",
+                    "GstRtpBaseDepay2",
+                    "GstElement",
+                    "GstObject",
+                    "GInitiallyUnowned",
+                    "GObject"
+                ],
+                "klass": "Codec/Depayloader/Network/RTP",
+                "pad-templates": {
+                    "sink": {
+                        "caps": "application/x-rtp:\n          media: audio\n        payload: 18\n     clock-rate: 8000\napplication/x-rtp:\n          media: audio\n     clock-rate: 8000\n  encoding-name: G729\n",
+                        "direction": "sink",
+                        "presence": "always"
+                    },
+                    "src": {
+                        "caps": "audio/G729:\n       channels: 1\n           rate: 8000\n",
+                        "direction": "src",
+                        "presence": "always"
+                    }
+                },
+                "rank": "primary"
+            },
+            "rtpg729pay2": {
+                "author": "Matthew Waters <matthew@centricular.com>",
+                "description": "Payload G.729 Audio into RTP packets (RFC 3551)",
+                "hierarchy": [
+                    "GstRtpG729Pay2",
+                    "GstRtpBasePay2",
+                    "GstElement",
+                    "GstObject",
+                    "GInitiallyUnowned",
+                    "GObject"
+                ],
+                "klass": "Codec/Payloader/Network/RTP",
+                "pad-templates": {
+                    "sink": {
+                        "caps": "audio/G729:\n       channels: 1\n           rate: 8000\n",
+                        "direction": "sink",
+                        "presence": "always"
+                    },
+                    "src": {
+                        "caps": "application/x-rtp:\n          media: audio\n        payload: 18\n     clock-rate: 8000\n  encoding-name: G729\napplication/x-rtp:\n          media: audio\n  encoding-name: G729\nencoding-params: 1\n     clock-rate: 8000\n",
+                        "direction": "src",
+                        "presence": "always"
+                    }
+                },
+                "properties": {
+                    "alignment-threshold": {
+                        "blurb": "Timestamp alignment threshold in nanoseconds",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "40000000",
+                        "max": "18446744073709551615",
+                        "min": "0",
+                        "mutable": "playing",
+                        "readable": true,
+                        "type": "guint64",
+                        "writable": true
+                    },
+                    "discont-wait": {
+                        "blurb": "Window of time in nanoseconds to wait before creating a discontinuity",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "1000000000",
+                        "max": "18446744073709551615",
+                        "min": "0",
+                        "mutable": "playing",
+                        "readable": true,
+                        "type": "guint64",
+                        "writable": true
+                    },
+                    "max-ptime": {
+                        "blurb": "Maximum duration of the packet data in ns (-1 = unlimited up to MTU)",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "18446744073709551615",
+                        "max": "9223372036854775807",
+                        "min": "-1",
+                        "mutable": "playing",
+                        "readable": true,
+                        "type": "gint64",
+                        "writable": true
+                    },
+                    "min-ptime": {
+                        "blurb": "Minimum duration of the packet data in ns (can't go above MTU)",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "10000000",
+                        "max": "9223372036854775807",
+                        "min": "10000000",
+                        "mutable": "playing",
+                        "readable": true,
+                        "type": "gint64",
+                        "writable": true
+                    },
+                    "ptime-multiple": {
+                        "blurb": "Force buffers to be multiples of this duration in ns (0 disables). Must be a multiple of 30ms.",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "0",
+                        "max": "9223372036854775807",
+                        "min": "0",
+                        "mutable": "playing",
+                        "readable": true,
+                        "type": "gint64",
+                        "writable": true
+                    }
+                },
+                "rank": "primary"
+            },
             "rtpgccbwe": {
                 "author": "Thibault Saunier <tsaunier@igalia.com>",
                 "description": "Estimates current network bandwidth using the Google Congestion Control algorithm notifying about it through the 'bitrate' property",
@@ -15472,6 +17016,124 @@
                     }
                 },
                 "rank": "none"
+            },
+            "rtph261depay2": {
+                "author": "Edward Hervey <edward@centricular.com>",
+                "description": "Extract an H.261 video stream from RTP packets (RFC 4587)",
+                "hierarchy": [
+                    "GstRtpH261Depay2",
+                    "GstRtpBaseDepay2",
+                    "GstElement",
+                    "GstObject",
+                    "GInitiallyUnowned",
+                    "GObject"
+                ],
+                "klass": "Codec/Depayloader/Network/RTP",
+                "pad-templates": {
+                    "sink": {
+                        "caps": "application/x-rtp:\n          media: video\n  encoding-name: H261\n     clock-rate: 90000\n",
+                        "direction": "sink",
+                        "presence": "always"
+                    },
+                    "src": {
+                        "caps": "video/x-h261:\n",
+                        "direction": "src",
+                        "presence": "always"
+                    }
+                },
+                "rank": "primary"
+            },
+            "rtph261pay2": {
+                "author": "Edward Hervey <edward@centricular.com>",
+                "description": "Payload an H.261 video stream into RTP packets (RFC 4587)",
+                "hierarchy": [
+                    "GstRtpH261Pay2",
+                    "GstRtpBasePay2",
+                    "GstElement",
+                    "GstObject",
+                    "GInitiallyUnowned",
+                    "GObject"
+                ],
+                "klass": "Codec/Payloader/Network/RTP",
+                "pad-templates": {
+                    "sink": {
+                        "caps": "video/x-h261:\n",
+                        "direction": "sink",
+                        "presence": "always"
+                    },
+                    "src": {
+                        "caps": "application/x-rtp:\n          media: video\n  encoding-name: H261\n     clock-rate: 90000\n",
+                        "direction": "src",
+                        "presence": "always"
+                    }
+                },
+                "rank": "primary"
+            },
+            "rtph263pdepay2": {
+                "author": "Edward Hervey <edward@centricular.com>",
+                "description": "Extracts an H.263+/H.263++ video stream from RTP packets (RFC 4629)",
+                "hierarchy": [
+                    "GstRtpH263PDepay2",
+                    "GstRtpBaseDepay2",
+                    "GstElement",
+                    "GstObject",
+                    "GInitiallyUnowned",
+                    "GObject"
+                ],
+                "klass": "Codec/Depayloader/Network/RTP",
+                "pad-templates": {
+                    "sink": {
+                        "caps": "application/x-rtp:\n          media: video\n  encoding-name: H263-1998\n     clock-rate: 90000\napplication/x-rtp:\n          media: video\n  encoding-name: H263-2000\n     clock-rate: 90000\n",
+                        "direction": "sink",
+                        "presence": "always"
+                    },
+                    "src": {
+                        "caps": "video/x-h263:\n        variant: itu\n",
+                        "direction": "src",
+                        "presence": "always"
+                    }
+                },
+                "rank": "primary"
+            },
+            "rtph263ppay2": {
+                "author": "Edward Hervey <edward@centricular.com>",
+                "description": "Payload an H.263+/H.263++ video stream into RTP packets (RFC 4629)",
+                "hierarchy": [
+                    "GstRtpH263PPay2",
+                    "GstRtpBasePay2",
+                    "GstElement",
+                    "GstObject",
+                    "GInitiallyUnowned",
+                    "GObject"
+                ],
+                "klass": "Codec/Payloader/Network/RTP",
+                "pad-templates": {
+                    "sink": {
+                        "caps": "video/x-h263:\n        variant: itu\n         parsed: true\n",
+                        "direction": "sink",
+                        "presence": "always"
+                    },
+                    "src": {
+                        "caps": "application/x-rtp:\n          media: video\n  encoding-name: H263-1998\n     clock-rate: 90000\napplication/x-rtp:\n          media: video\n  encoding-name: H263-2000\n     clock-rate: 90000\n",
+                        "direction": "src",
+                        "presence": "always"
+                    }
+                },
+                "properties": {
+                    "fragmentation-mode": {
+                        "blurb": "How to fragment frames larger than the MTU: follow-on packets ('normal') or packets that start at segment boundaries ('sync')",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "normal (0)",
+                        "mutable": "null",
+                        "readable": true,
+                        "type": "GstRtpH263PPay2FragmentationMode",
+                        "writable": true
+                    }
+                },
+                "rank": "primary"
             },
             "rtpjpegdepay2": {
                 "author": "Sebastian Dröge <sebastian@centricular.com>",
@@ -17467,6 +19129,21 @@
                     }
                 ]
             },
+            "GstRtpH263PPay2FragmentationMode": {
+                "kind": "enum",
+                "values": [
+                    {
+                        "desc": "Follow-on packets",
+                        "name": "normal",
+                        "value": "0"
+                    },
+                    {
+                        "desc": "Fragment at segment boundaries",
+                        "name": "sync",
+                        "value": "1"
+                    }
+                ]
+            },
             "GstRtpLinearAudioDepay": {
                 "hierarchy": [
                     "GstRtpLinearAudioDepay",
@@ -18132,7 +19809,21 @@
                     "GstObject",
                     "GInitiallyUnowned",
                     "GObject"
-                ]
+                ],
+                "properties": {
+                    "include-args": {
+                        "blurb": "Include span arguments in the trace output",
+                        "conditionally-available": false,
+                        "construct": true,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "true",
+                        "mutable": "null",
+                        "readable": true,
+                        "type": "gboolean",
+                        "writable": true
+                    }
+                }
             },
             "fmttracing": {
                 "hierarchy": [
@@ -18147,7 +19838,7 @@
                     "format": {
                         "blurb": "Output format",
                         "conditionally-available": false,
-                        "construct": false,
+                        "construct": true,
                         "construct-only": false,
                         "controllable": false,
                         "default": "full (0)",
@@ -18159,7 +19850,7 @@
                     "with-ansi": {
                         "blurb": "Include ANSI color codes",
                         "conditionally-available": false,
-                        "construct": false,
+                        "construct": true,
                         "construct-only": false,
                         "controllable": false,
                         "default": "true",
@@ -18171,7 +19862,7 @@
                     "with-target": {
                         "blurb": "Include the target",
                         "conditionally-available": false,
-                        "construct": false,
+                        "construct": true,
                         "construct-only": false,
                         "controllable": false,
                         "default": "true",
@@ -18183,7 +19874,7 @@
                     "with-time": {
                         "blurb": "Include timestamps",
                         "conditionally-available": false,
-                        "construct": false,
+                        "construct": true,
                         "construct-only": false,
                         "controllable": false,
                         "default": "true",
@@ -18744,7 +20435,7 @@
                         "writable": true
                     },
                     "auto-multicast": {
-                        "blurb": "Automatically join/leave multicast groups",
+                        "blurb": "Automatically join/leave multicast groups, only one element sharing a socket should do this",
                         "conditionally-available": false,
                         "construct": false,
                         "construct-only": false,
@@ -18801,18 +20492,6 @@
                         "construct-only": false,
                         "controllable": false,
                         "default": "false",
-                        "mutable": "null",
-                        "readable": true,
-                        "type": "gboolean",
-                        "writable": true
-                    },
-                    "loop": {
-                        "blurb": "Loop back multicast packets",
-                        "conditionally-available": false,
-                        "construct": false,
-                        "construct-only": false,
-                        "controllable": false,
-                        "default": "true",
                         "mutable": "null",
                         "readable": true,
                         "type": "gboolean",
@@ -18897,7 +20576,7 @@
                         "writable": true
                     },
                     "socket": {
-                        "blurb": "Socket to use for UDP reception. (None == allocate)",
+                        "blurb": "Socket to use for UDP reception, can be shared with a sending element. (None == allocate)",
                         "conditionally-available": false,
                         "construct": false,
                         "construct-only": false,
@@ -18987,7 +20666,7 @@
                 "kind": "object",
                 "properties": {
                     "auto-multicast": {
-                        "blurb": "Automatically join/leave multicast groups",
+                        "blurb": "Automatically join/leave multicast groups, only one element sharing a socket should do this",
                         "conditionally-available": false,
                         "construct": false,
                         "construct-only": false,
@@ -19079,7 +20758,7 @@
                         "writable": true
                     },
                     "loop": {
-                        "blurb": "Multicast loopback",
+                        "blurb": "Deliver multicast packets sent via the socket to local sockets",
                         "conditionally-available": false,
                         "construct": false,
                         "construct-only": false,
@@ -19091,7 +20770,7 @@
                         "writable": true
                     },
                     "multicast-iface": {
-                        "blurb": "The network interface on which to join the multicast group",
+                        "blurb": "The network interface on which to join the multicast group. This allows multiple interfaces separated by comma. (\"eth0,eth1\"). On Linux and Android the socket is also bound to the given device via SO_BINDTODEVICE, so that all outgoing packets are sent via this interface. SO_BINDTODEVICE only supports a single device, so with multiple interfaces the socket is not bound to a device",
                         "conditionally-available": false,
                         "construct": false,
                         "construct-only": false,
@@ -19116,8 +20795,20 @@
                         "type": "gint",
                         "writable": true
                     },
+                    "reuse": {
+                        "blurb": "Allow port reuse",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "true",
+                        "mutable": "ready",
+                        "readable": true,
+                        "type": "gboolean",
+                        "writable": true
+                    },
                     "socket": {
-                        "blurb": "Socket to use for UDP sending. (None == allocate)",
+                        "blurb": "Socket to use for UDP sending, can be shared with a receiving element. (None == allocate)",
                         "conditionally-available": false,
                         "construct": false,
                         "construct-only": false,
@@ -19128,7 +20819,7 @@
                         "writable": true
                     },
                     "socket-v6": {
-                        "blurb": "Socket to use for UDPv6 sending. (None == allocate)",
+                        "blurb": "Socket to use for UDPv6 sending, can be shared with a receiving element. (None == allocate)",
                         "conditionally-available": false,
                         "construct": false,
                         "construct-only": false,
@@ -21623,6 +23314,388 @@
         "tracers": {},
         "url": "https://gitlab.freedesktop.org/gstreamer/gst-plugins-rs"
     },
+    "sdp": {
+        "description": "GStreamer SDP Plugin",
+        "elements": {
+            "sapsink": {
+                "author": "Sebastian Dröge <sebastian@centricular.com>",
+                "description": "Session Announcement Protocol sink",
+                "hierarchy": [
+                    "GstSapSink",
+                    "GstBin",
+                    "GstElement",
+                    "GstObject",
+                    "GInitiallyUnowned",
+                    "GObject"
+                ],
+                "interfaces": [
+                    "GstChildProxy"
+                ],
+                "klass": "Sink/Network",
+                "pad-templates": {
+                    "sink_%%u": {
+                        "caps": "application/x-rtp:\n",
+                        "direction": "sink",
+                        "presence": "request",
+                        "type": "GstSapSinkPad"
+                    }
+                },
+                "properties": {
+                    "compress": {
+                        "blurb": "Whether to compress the SAP announcements with zlib",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "false",
+                        "mutable": "ready",
+                        "readable": true,
+                        "type": "gboolean",
+                        "writable": true
+                    },
+                    "multicast-iface": {
+                        "blurb": "Comma-separated list of network interfaces to use for multicast",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "NULL",
+                        "mutable": "ready",
+                        "readable": true,
+                        "type": "gchararray",
+                        "writable": true
+                    },
+                    "multicast-loopback": {
+                        "blurb": "Enable multicast loopback so that local receivers on the same host receive the streams; needed for local testing",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "false",
+                        "mutable": "ready",
+                        "readable": true,
+                        "type": "gboolean",
+                        "writable": true
+                    },
+                    "rtcp-mode": {
+                        "blurb": "Whether to send and/or receive RTCP",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "inactive (0)",
+                        "mutable": "ready",
+                        "readable": true,
+                        "type": "GstSapRtcpMode",
+                        "writable": true
+                    },
+                    "rtcp-mux": {
+                        "blurb": "Send and receive RTCP on the same port as RTP (a=rtcp-mux)",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "false",
+                        "mutable": "ready",
+                        "readable": true,
+                        "type": "gboolean",
+                        "writable": true
+                    },
+                    "rtp-profile": {
+                        "blurb": "Profile of the announced RTP session",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "avp (0)",
+                        "mutable": "ready",
+                        "readable": true,
+                        "type": "GstSapSinkRtpProfile",
+                        "writable": true
+                    },
+                    "sap-addresses": {
+                        "blurb": "Comma-separated list of multicast group addresses to announce the session on. If unset, the SAP multicast group matching the scope of the stream destination addresses is used",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "NULL",
+                        "mutable": "ready",
+                        "readable": true,
+                        "type": "gchararray",
+                        "writable": true
+                    },
+                    "session-description": {
+                        "blurb": "Description of the announced session",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "NULL",
+                        "mutable": "ready",
+                        "readable": true,
+                        "type": "gchararray",
+                        "writable": true
+                    },
+                    "session-id": {
+                        "blurb": "Session ID of the announced session, i.e. the session ID of the SDP o= line. 0 generates a random one",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "0",
+                        "max": "18446744073709551615",
+                        "min": "0",
+                        "mutable": "ready",
+                        "readable": true,
+                        "type": "guint64",
+                        "writable": true
+                    },
+                    "session-name": {
+                        "blurb": "Name of the announced session",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "GStreamer SAP session",
+                        "mutable": "ready",
+                        "readable": true,
+                        "type": "gchararray",
+                        "writable": true
+                    },
+                    "session-version": {
+                        "blurb": "Session version of the announced session, i.e. the session version of the SDP o= line",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "0",
+                        "max": "18446744073709551615",
+                        "min": "0",
+                        "mutable": "ready",
+                        "readable": true,
+                        "type": "guint64",
+                        "writable": true
+                    },
+                    "source-address": {
+                        "blurb": "Source address of the session, used as the SDP origin address and the SAP originating source. If unset, it is derived from the multicast interfaces or the routing to the stream destinations",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "NULL",
+                        "mutable": "ready",
+                        "readable": true,
+                        "type": "gchararray",
+                        "writable": true
+                    }
+                },
+                "rank": "none"
+            },
+            "sapsrc": {
+                "author": "Sebastian Dröge <sebastian@centricular.com>",
+                "description": "Session Announcement Protocol source",
+                "hierarchy": [
+                    "GstSapSrc",
+                    "GstBin",
+                    "GstElement",
+                    "GstObject",
+                    "GInitiallyUnowned",
+                    "GObject"
+                ],
+                "interfaces": [
+                    "GstChildProxy"
+                ],
+                "klass": "Source/Network",
+                "pad-templates": {
+                    "src_%%u": {
+                        "caps": "application/x-rtp:\n",
+                        "direction": "src",
+                        "presence": "sometimes"
+                    }
+                },
+                "properties": {
+                    "latency": {
+                        "blurb": "RTP jitterbuffer latency in ms",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "200",
+                        "max": "-1",
+                        "min": "0",
+                        "mutable": "ready",
+                        "readable": true,
+                        "type": "guint",
+                        "writable": true
+                    },
+                    "multicast-iface": {
+                        "blurb": "Comma-separated list of network interfaces to use for multicast",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "NULL",
+                        "mutable": "ready",
+                        "readable": true,
+                        "type": "gchararray",
+                        "writable": true
+                    },
+                    "multicast-loopback": {
+                        "blurb": "Enable multicast loopback so that local senders on the same host receive RTCP; needed for local testing",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "false",
+                        "mutable": "ready",
+                        "readable": true,
+                        "type": "gboolean",
+                        "writable": true
+                    },
+                    "originating-source": {
+                        "blurb": "Originating source address to filter for, i.e. the IP address of the SAP announcer",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "NULL",
+                        "mutable": "ready",
+                        "readable": true,
+                        "type": "gchararray",
+                        "writable": true
+                    },
+                    "rtcp-mode": {
+                        "blurb": "Whether to send and/or receive RTCP",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "inactive (0)",
+                        "mutable": "ready",
+                        "readable": true,
+                        "type": "GstSapRtcpMode",
+                        "writable": true
+                    },
+                    "session-id": {
+                        "blurb": "Session ID to filter for, i.e. the session ID of the SDP o= line",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "NULL",
+                        "mutable": "ready",
+                        "readable": true,
+                        "type": "gchararray",
+                        "writable": true
+                    },
+                    "timeout": {
+                        "blurb": "Post a warning after this many nanoseconds without receiving data (0 = disabled)",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "0",
+                        "max": "18446744073709551615",
+                        "min": "0",
+                        "mutable": "ready",
+                        "readable": true,
+                        "type": "guint64",
+                        "writable": true
+                    }
+                },
+                "rank": "none"
+            }
+        },
+        "filename": "gstsdp",
+        "license": "MPL",
+        "other-types": {
+            "GstSapRtcpMode": {
+                "kind": "enum",
+                "values": [
+                    {
+                        "desc": "Inactive",
+                        "name": "inactive",
+                        "value": "0"
+                    },
+                    {
+                        "desc": "Only receive RTCP",
+                        "name": "recvonly",
+                        "value": "1"
+                    },
+                    {
+                        "desc": "Only send RTCP",
+                        "name": "sendonly",
+                        "value": "2"
+                    },
+                    {
+                        "desc": "Send and receive RTCP",
+                        "name": "sendrecv",
+                        "value": "3"
+                    }
+                ]
+            },
+            "GstSapSinkPad": {
+                "hierarchy": [
+                    "GstSapSinkPad",
+                    "GstGhostPad",
+                    "GstProxyPad",
+                    "GstPad",
+                    "GstObject",
+                    "GInitiallyUnowned",
+                    "GObject"
+                ],
+                "kind": "object",
+                "properties": {
+                    "dest-ip": {
+                        "blurb": "IP address to send this media stream to, defaults to a multicast group if unset",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "NULL",
+                        "mutable": "ready",
+                        "readable": true,
+                        "type": "gchararray",
+                        "writable": true
+                    },
+                    "dest-port": {
+                        "blurb": "UDP port to send this media stream to (required)",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "0",
+                        "max": "65535",
+                        "min": "0",
+                        "mutable": "ready",
+                        "readable": true,
+                        "type": "guint",
+                        "writable": true
+                    }
+                }
+            },
+            "GstSapSinkRtpProfile": {
+                "kind": "enum",
+                "values": [
+                    {
+                        "desc": "RTP/AVP",
+                        "name": "avp",
+                        "value": "0"
+                    },
+                    {
+                        "desc": "RTP/AVPF",
+                        "name": "avpf",
+                        "value": "1"
+                    }
+                ]
+            }
+        },
+        "package": "gst-plugin-sdp",
+        "source": "gst-plugin-sdp",
+        "tracers": {},
+        "url": "https://gitlab.freedesktop.org/gstreamer/gst-plugins-rs"
+    },
     "skia": {
         "description": "GStreamer skia plugin",
         "elements": {
@@ -22339,6 +24412,17 @@
                         "type": "gboolean",
                         "writable": true
                     },
+                    "replacements": {
+                        "blurb": "A set of replacements to apply on input text, see https://docs.speechmatics.com/speech-to-text/formatting#word-replacement",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "mutable": "ready",
+                        "readable": true,
+                        "type": "GstValueArray",
+                        "writable": true
+                    },
                     "url": {
                         "blurb": "URL of the transcription server",
                         "conditionally-available": false,
@@ -22687,43 +24771,6 @@
         },
         "package": "gst-plugin-spotify",
         "source": "gst-plugin-spotify",
-        "tracers": {},
-        "url": "https://gitlab.freedesktop.org/gstreamer/gst-plugins-rs"
-    },
-    "streamgrouper": {
-        "description": "Filter element that makes all the incoming streams share a group-id",
-        "elements": {
-            "streamgrouper": {
-                "author": "Alicia Boya García <aboya@igalia.com>",
-                "description": "Modifies all input streams to use the same group-id",
-                "hierarchy": [
-                    "GstStreamGrouper",
-                    "GstElement",
-                    "GstObject",
-                    "GInitiallyUnowned",
-                    "GObject"
-                ],
-                "klass": "Generic",
-                "pad-templates": {
-                    "sink_%%u": {
-                        "caps": "ANY",
-                        "direction": "sink",
-                        "presence": "request"
-                    },
-                    "src_%%u": {
-                        "caps": "ANY",
-                        "direction": "src",
-                        "presence": "sometimes"
-                    }
-                },
-                "rank": "none"
-            }
-        },
-        "filename": "gststreamgrouper",
-        "license": "MPL",
-        "other-types": {},
-        "package": "gst-plugin-streamgrouper",
-        "source": "gst-plugin-streamgrouper",
         "tracers": {},
         "url": "https://gitlab.freedesktop.org/gstreamer/gst-plugins-rs"
     },

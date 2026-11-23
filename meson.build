@@ -99,7 +99,6 @@ plugins = {
     ],
   },
   'inter': {'library': 'libgstrsinter'},
-  'streamgrouper': {'library': 'libgststreamgrouper'},
 
   'isobmff': {
     'library': 'libgstisobmff',
@@ -129,6 +128,7 @@ plugins = {
   'reqwest': {'library': 'libgstreqwest'},
   'rtsp': {'library': 'libgstrsrtsp'},
   'rtp': {'library': 'libgstrsrtp'},
+  'sdp': {'library': 'libgstsdp'},
   'udp': {'library': 'libgstrsudp'},
   'webrtchttp': {'library': 'libgstwebrtchttp'},
   'webrtc': {
@@ -151,10 +151,7 @@ plugins = {
 
   'fallbackswitch': { }, # fallbackswitch can have gtk4 examples, see below
   'livesync': { },     # livesync can have gtk4 examples, see below
-  'debugseimetainserter': {
-    'library': 'libgstdebugseimetainserter',
-    'features': ['gst-video/v1_22'],
-  },
+  'debugutils': {}, # debugutils needs gst-allocators, see below
   'togglerecord': { }, # togglerecord can have gtk4 examples, see below
 
   'tracers': {'library': 'libgstrstracers'},
@@ -181,6 +178,10 @@ plugins = {
     'extra-deps': {'dav1d': ['>=1.3']},
     'features': ['gst/v1_18', 'gst-base/v1_18', 'gst-video/v1_18'],
   },
+  'dsc': {
+    'library': 'libgstdsc',
+    'gst-version': '>=1.29',
+  },
   'elevenlabs': {'library': 'libgstelevenlabs'},
   'ffv1': {'library': 'libgstffv1'},
   'flavors': {'library': 'libgstrsflv'},
@@ -193,6 +194,7 @@ plugins = {
   'hsv': {'library': 'libgsthsv'},
   'imagers': {'library': 'libgstimagers'},
   'pcap': {'library': 'libgstpcap'},
+  'overlaycompositor': {'library': 'libgstoverlaycompositor'},
   'png': {
     'library': 'libgstrspng',
     'examples': ['pngenc'],
@@ -263,7 +265,7 @@ if webrtc_option.allowed() \
   deps += [['gstreamer-webrtc-1.0', 'gst-plugins-bad', 'gstwebrtc_dep', 'gstwebrtc', req]]
   deps += [['gstreamer-sdp-1.0', 'gst-plugins-base', 'sdp_dep', 'gstsdp', req]]
 endif
-if get_option('tests').allowed()
+if get_option('tests').allowed() or get_option('doc').allowed()
   deps += [['gstreamer-check-1.0', 'gstreamer', 'gst_check_dep', 'gst_check', get_option('tests')]]
 endif
 if gtk4_option.allowed()
@@ -275,6 +277,10 @@ if threadshare_option.allowed() or rtsp_option.allowed()
 endif
 if analytics_option.allowed()
   deps += [['gstreamer-analytics-1.0', 'gst-plugins-bad', 'gstanalytics_dep', 'gstanalytics', analytics_option]]
+endif
+
+if debugutils_option.allowed()
+  deps += [['gstreamer-allocators-1.0', 'gst-plugins-base', 'allocators_dep', 'gstallocators', debugutils_option]]
 endif
 
 if colorlut_option.allowed() and host_system == 'windows'
@@ -307,6 +313,13 @@ if analytics_option.allowed()
       'analytics': plugins_analytics
     }
   endif
+endif
+
+if debugutils_option.allowed()
+  plugins += {'debugutils': {
+    'library': 'libgstdebugutils',
+    'gst-version': '>=1.28',
+  }}
 endif
 
 # colorlut requires d3d12 on Windows
@@ -738,6 +751,36 @@ endif
 
 # get cmdline for rust
 extra_env += {'RUSTC': ' '.join(rustc.cmd_array())}
+
+if meson.is_cross_build()
+  # Forward the cross toolchain to cargo build scripts (cc, pkg-config and
+  # bindgen crates), which do not know anything about the Meson machine
+  # files. The cc crate reads the TARGET_* variants only when building for
+  # the target, so this does not affect host build scripts.
+  cpp_found = add_languages('cpp', required: false, native: false)
+  extra_env += {
+    'TARGET_CC': ' '.join(cc.cmd_array()),
+    'TARGET_CFLAGS': ' '.join(get_option('c_args')),
+  }
+  if cpp_found
+    cpp = meson.get_compiler('cpp')
+    extra_env += {
+      'TARGET_CXX': ' '.join(cpp.cmd_array()),
+      'TARGET_CXXFLAGS': ' '.join(get_option('cpp_args')),
+    }
+  endif
+  sys_root = meson.get_external_property('sys_root', '')
+  if sys_root != ''
+    # Consumed by cargo_wrapper.py, which knows the Rust target triple and
+    # turns these into the triple-suffixed variables understood by the
+    # pkg-config and bindgen crates.
+    extra_env += {'MESON_CROSS_SYSROOT': sys_root}
+  endif
+  pkg_config_libdir = meson.get_external_property('pkg_config_libdir', '')
+  if pkg_config_libdir != ''
+    extra_env += {'MESON_CROSS_PKG_CONFIG_LIBDIR': pkg_config_libdir}
+  endif
+endif
 
 # openssl-sys on Windows only supports vcpkg, not pkg-config
 if deps_cache.has_key('openssl') and host_system == 'windows'

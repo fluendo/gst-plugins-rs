@@ -1093,7 +1093,9 @@ impl ObjectImpl for HlsMultivariantSink {
             "target-duration" => {
                 settings.target_duration = value.get().expect("type checked upstream");
             }
-
+            "send-keyframe-requests" => {
+                settings.send_keyframe_requests = value.get().expect("type checked upstream");
+            }
             _ => unimplemented!(),
         }
     }
@@ -1753,9 +1755,7 @@ impl HlsMultivariantSink {
                 .unwrap_or(DEFAULT_PLAYLIST_TYPE)
                 .to_string(),
         );
-        if settings.muxer_type == HlsMultivariantSinkMuxerType::MpegTs {
-            hlssink.set_property("send-keyframe-requests", settings.send_keyframe_requests);
-        }
+        hlssink.set_property("send-keyframe-requests", settings.send_keyframe_requests);
         hlssink.set_property("target-duration", settings.target_duration);
 
         let mut signals = vec![

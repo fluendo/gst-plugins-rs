@@ -62,12 +62,16 @@ You will find the following plugins in this repository:
     - `analytics`:
       - `analyticscombiner`: Analytics combiner / batcher element
       - `analyticssplitter`: Analytics batch splitter element
+      - `bytetracker`: ByteTrack object tracker for object detection metadata
+      - `classifiertensordec`: Tensor decoder for image classification tensors.
+      - `crafttensordec`: Tensor decoder for CRAFT text detection models
       - `ctctexttensordec`: CTC text recognition tensor decoder
       - `handdetectiontensordec`: Tensor decoder for hand detection tensors.
       - `handlandmarktensordec`: Tensor decoder for hand landmark tensors with keypoint visibility metadata attachment.
       - `onvifmeta2relationmeta`: Convert ONVIF metadata to relation metas
       - `pipnettensordec`: Tensor decoder for PIPNet face detection models
       - `relationmeta2onvifmeta`: Convert relation metadata to ONVIF metas
+      - `tensordecodebin2`: Bin that auto-plugs tensor decoders based on upstream caps
       - `yolo26tensordec2`: Tensor decoder for YoloV10 tensors. Supports
         YoloV10, Yolo11, Yolo12 and Yolo26, but only the one-to-one
         (end2end, NMS) heads of YoloV10, Yolo11, Yolo12 and Yolo26.
@@ -81,6 +85,14 @@ You will find the following plugins in this repository:
       - `yolo26obbtensordec`: Tensor decoder for YoloV10 tensors. Supports
         YoloV10-obb, Yolo11-obb, Yolo12-obb and Yolo26-obb, but only the one-to-one
         (end2end, NMS) heads of YoloV10-obb, Yolo11-obb, Yolo12-obb and Yolo26-obb.
+      - `yolov8segtensordec`: Tensor decoder for YoloV8-seg semantic segmentation tensors.
+        Supports YoloV8-V10-seg, Yolo11-seg, Yolo12-seg and Yolo26-seg, but only the one-to-many
+        (non-NMS) heads of YoloV10-seg, Yolo11-seg, Yolo12-seg and Yolo26-seg.
+      - `yolo26segtensordec`: Tensor decoder for YoloV10-seg semantic segmentation tensors.
+        Supports YoloV10-seg, Yolo11-seg, Yolo12-seg and Yolo26-seg, but only the one-to-one
+        (end2end, NMS) heads of YoloV10-seg, Yolo11-seg, Yolo12-seg and Yolo26-seg.
+      - `zerodcetensordec`: Tensor decoder for Zero-DCE low-light image enhancement, and more
+        generally for any image-to-image model emitting the `image-rgb-hwc-out` tensor.
 
     - `burn`:
       - `burn-yoloxinference`: Object detection inference element based on YOLOX.
@@ -159,8 +171,6 @@ You will find the following plugins in this repository:
     - `sodium`: Elements to perform encryption and decryption using [libsodium](https://libsodium.org).
       - `sodiumdecrypter`: libsodium-based file decrypter.
       - `sodiumencrypter`: libsodium-based file encrypter.
-
-    - `streamgrouper`: Filter element that makes all the incoming streams use the same group-id.
 
     - `threadshare`: Some popular threaded elements reimplemented using common thread-sharing infrastructure.
       - `ts-appsrc`: Thread-sharing app source.
@@ -273,7 +283,19 @@ You will find the following plugins in this repository:
       - `rtpamrpay2`: Payload an AMR audio stream into RTP packets (RFC 3267).
       - `rtpav1depay`: Depayload AV1 from RTP packets.
       - `rtpav1pay`: Payload AV1 as RTP packets.
+      - `rtpg722depay2`: Depayload G.722 audio from RTP packets (RFC 3551).
+      - `rtpg722pay2`: Payload G.722 audio into RTP packets (RFC 3551).
+      - `rtpg723depay2`: Depayload G.723 audio from RTP packets (RFC 3551).
+      - `rtpg723pay2`: Payload G.723 audio into RTP packets (RFC 3551).
+      - `rtpg726depay2`: Depayload G.726 audio from RTP packets (RFC 3551).
+      - `rtpg726pay2`: Payload G.726 audio into RTP packets (RFC 3551).
+      - `rtpg729depay2`: Depayload G.729 audio from RTP packets (RFC 3551).
+      - `rtpg729pay2`: Payload G.729 audio into RTP packets (RFC 3551).
       - `rtpgccbwe`: RTP bandwidth estimator based on the Google Congestion Control algorithm.
+      - `rtph261depay2`: Depayload an H.261 video stream from RTP packets (RFC 4587).
+      - `rtph261pay2`: Payload an H.261 video stream into RTP packets (RFC 4587).
+      - `rtph263pdepay2`: Depayload an H.263+/H.263++ video stream from RTP packets (RFC 4629).
+      - `rtph263ppay2`: Payload an H.263+/H.263++ video stream into RTP packets (RFC 4629).
       - `rtpjpegdepay2`: Depayload a JPEG Video stream from RTP packets (RFC 2435).
       - `rtpjpegpay2`: Payload a JPEG Video stream to RTP packets (RFC 2435).
       - `rtpjxsvdepay`: Depayload a JPEG XS video stream from RTP packets (RFC 9134).
@@ -312,6 +334,10 @@ You will find the following plugins in this repository:
 
     - `rtsp`:
       - `rtspsrc2`: New Rust implementation of a Real Time Streaming Protocol (RTSP) (RFC 2326, 7826) source element.
+
+    - `sdp`: Elements for the Session Description Protocol (SDP) and the Session Announcement Protocol (SAP).
+      - `sapsink`: Announces an RTP session via the Session Announcement Protocol (SAP).
+      - `sapsrc`: Receives RTP sessions announced via the Session Announcement Protocol (SAP).
 
     - `udp`:
       - `multiudpsink2`: New version of the `multiudpsink`.
@@ -355,6 +381,7 @@ You will find the following plugins in this repository:
 
     - `llamacpp`: A plugin wrapping [llama.cpp](https://github.com/ggml-org/llama.cpp) for making use of LLMs
       - `llamacpp-texttransform`: Text transformation element.
+      - `llamacpp-imagetransform`: Image-to-text transformation element.
 
     - `regex`: A regular expression text filter plugin.
 
@@ -364,8 +391,12 @@ You will find the following plugins in this repository:
 
   * `utils`
 
-    - `debugseimetainserter`: Element to insert SEI metadata into a video stream
-      for debugging purposes.
+    - `debugutils`: Elements useful for debugging and testing purposes.
+      - `debugseimetainserter`: Element to insert SEI metadata into a video stream
+        for debugging purposes.
+      - `streamgrouper`: Filter element that makes all the incoming streams use the same group-id.
+      - `udmabufupload`: Copies raw video into udmabuf memory for debugging
+        DMABuf code paths.
 
     - `fallbackswitch`:
       - `fallbacksrc`: Element similar to `urisourcebin` that allows
@@ -447,6 +478,10 @@ You will find the following plugins in this repository:
     - `dav1d`: AV1 decoder based on the [dav1d](https://code.videolan.org/videolan/dav1d) library.
       - `dav1ddec`: Decode AV1 video streams with dav1d.
 
+    - `dsc`: Digitally Signed Content plugin providing:
+      - `dscsigner`: Creates H.274 DSC metadata (initialization/selection/verification) and signatures for HEVC/VVC streams.
+      - `dscverifier`: Verifies DSC signatures using configured key/trust stores.
+
     - `ffv1`: FFV1 decoder based on the [ffv1](https://github.com/rust-av/ffv1) library.
       - `ffv1dec`: Decode FFV1 video streams.
 
@@ -462,9 +497,13 @@ You will find the following plugins in this repository:
       - `hsvfilter`: Apply various transformations in the HSV colorspace.
 
     - `imagers`: multi-format plugin based on the [image](https://github.com/image-rs/image) and [image-extras](https://github.com/image-rs/images) crates
+       - `animatedimagersdec`: Multiformat animated image decoder. Supports a variety of formats: GIF, animated PNG, and WebP. It also supports `gifdec`'s `loop` parameter.
        - `imagersoverlay`: Overlays an image on top of a video stream. It is a reimplementation of `gdkpixbufoverlay` entirely in Rust.
        - `imagersdec`: Multiformat still image decoder. Supports a variety of formats: BMP, DirectDraw surfaces, Farbfeld, Radiance HDR, Windows icons, JPEG, NetPBM (by default only the pixmap variant), Quite OK Image, Truevision Targa, and TIFF. Through `image-extras` it can also read OpenRaster, Nokia Over-The-Air bitmaps, PCX, SGI, Wireless Bitmap, and the bitmap and graymap variants of NetPBM. AVIF and OpenEXR are also supported but are disabled by default.
        - `imagersenc`: Multiformat still image encoder. Supports a variety of formats: BMP, Farbfeld, JPEG, PNG, Quite OK Image, Truevision Targa, and TIFF. AVIF is also supported but is disabled by default.
+
+    - `overlaycompositor`:
+      - `overlaycompositor`: Blends overlay composition metadata into video frames.
 
     - `png`: PNG encoder based on the [png](https://github.com/image-rs/image-png) library.
       - `rspngenc`: PNG encoder.
